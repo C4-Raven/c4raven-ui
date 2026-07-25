@@ -1,1 +1,22 @@
-{}
+{
+    "Add": "新增",
+    "5": {
+        "4 or lower": "5.4或者更低版本"
+    },
+    "About": "關於",
+    "Active": "啟動",
+    "Add Channel": "新增頻道",
+    "Add Device Profile": "新增裝置設定檔",
+    "Add Existing Channel": "新增現有頻道",
+    "Add Group": "新增群組",
+    "Add Mission": "新增任務",
+    "Add New Channel": "新增頻道",
+    "Add User": "新增使用者",
+    "Add Video": "新增影片",
+    "Add Video Stream": "新增串流影片",
+    "Admin": "管理員",
+    "Alert": "警告",
+    "Alerts": "通知",
+    "Ambulatory": "緊急狀態",
+    "App": "應用程式"
+}
