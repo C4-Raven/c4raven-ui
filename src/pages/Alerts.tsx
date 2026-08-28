@@ -1,4 +1,4 @@
-import { Center, Pagination, Table, TableData, useComputedColorScheme } from '@mantine/core';
+import { Center, Pagination, Table, TableData } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';

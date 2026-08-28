@@ -6,7 +6,7 @@ import L from 'leaflet';
 import 'react-leaflet-fullscreen/styles.css';
 import 'leaflet.marker.slideto';
 import 'leaflet-rotatedmarker';
-import { Divider, Drawer, Image, Paper, Table, Text, useComputedColorScheme } from '@mantine/core';
+import { Divider, Drawer, Image, Paper, Table, Text } from '@mantine/core';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
@@ -32,7 +32,6 @@ export default function Map() {
     const [drawerTitle, setDrawerTitle] = useState('');
     const [detailRows, setDetailRows] = useState<ReactElement[]>([]);
     const [positionRows, setPositionRows] = useState<ReactElement[]>([]);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
     const eudsLayer = new L.LayerGroup();
     const rbLinesLayer = new L.LayerGroup();
@@ -466,11 +465,11 @@ export default function Map() {
               overlayProps={{ backgroundOpacity: 0 }}
               shadow="xl"
             >
-                <Divider label="Details" labelPosition="left" color={computedColorScheme === 'light' ? 'black' : 'gray.4'} />
+                <Divider label="Details" labelPosition="left" color="gray.4" />
                 <Table>
                     {detailRows}
                 </Table>
-                <Divider label="Position" labelPosition="left" color={computedColorScheme === 'light' ? 'black' : 'gray.4'} />
+                <Divider label="Position" labelPosition="left" color="gray.4" />
                 <Table>
                     {positionRows}
                 </Table>

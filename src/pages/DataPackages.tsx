@@ -5,7 +5,7 @@ import {
     Pagination,
     Table,
     Switch,
-    TableData, useComputedColorScheme, Paper,
+    TableData, Paper,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
@@ -50,7 +50,6 @@ export default function DataPackages() {
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [file, setFile] = useState<File | null>(null);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [deleteDataPackageOpen, setDeleteDataPackageOpen] = useState(false);
     const [dataPackageToDelete, setDataPackageToDelete] = useState('');
     const [generatingDataPackage, setGeneratingDataPackage] = useState(false);

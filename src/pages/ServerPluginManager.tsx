@@ -2,7 +2,6 @@ import {
     Modal,
     Table,
     TableData,
-    useComputedColorScheme,
     Button, Text, Divider, ScrollArea, LoadingOverlay, Center, FileInput,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
@@ -53,7 +52,6 @@ interface Plugin {
 }
 
 export default function ServerPluginManager() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [showInfo, setShowInfo] = useState(false);
     const [about, setAbout] = useState<About>({} as About);
     const [docUrl, setDocUrl] = useState("");
@@ -82,7 +80,7 @@ export default function ServerPluginManager() {
             setInstallingPlugin(false);
             notifications.show({
                 title: 'Success',
-                message: `Please restart OpenTAKServer and refresh your browser`,
+                message: `Please restart C4 RAVEN and refresh your browser`,
                 icon: <IconCheck />,
                 color: 'green',
             })
@@ -351,12 +349,12 @@ export default function ServerPluginManager() {
             <Button mb="md" onClick={() => setShowUploadModal(true)}>Upload Plugin</Button>
             <Modal title="Upload Plugin" w="50vw" size="xl" opened={showUploadModal} onClose={() => setShowUploadModal(false)} closeOnEscape={!installingPlugin} closeOnClickOutside={!installingPlugin} withCloseButton={!installingPlugin}>
                 <FileInput mb="md" clearable={!installingPlugin} disabled={installingPlugin} label="Select your zip, whl, or tar.gz file" onChange={(file) => {setInstallingPlugin(true); setPlugin({...plugin, 'plugin_file': file, 'action': 'install_local', 'plugin_file_name': file?.name})}} />
-                <CodeMirror basicSetup={{ lineNumbers: false }} extensions={[scrollBottom]} lang="shell" maxHeight="60vh" value={commandOutput} height="100%" theme={computedColorScheme} readOnly />
+                <CodeMirror basicSetup={{ lineNumbers: false }} extensions={[scrollBottom]} lang="shell" maxHeight="60vh" value={commandOutput} height="100%" theme="dark" readOnly />
                 <Center><Button mt="md" disabled={installingPlugin} onClick={() => window.location.reload()}>Refresh Browser</Button></Center>
             </Modal>
 
             <Table.ScrollContainer minWidth="100%">
-                <Table data={plugins} stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" highlightOnHover withTableBorder mb="md" />
+                <Table data={plugins} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mb="md" />
             </Table.ScrollContainer>
             <Modal opened={showInfo} onClose={() => setShowInfo(false)} fullScreen>
                 <ScrollArea style={{width:'100%'}}>
@@ -373,8 +371,8 @@ export default function ServerPluginManager() {
             </Modal>
 
             <Modal withCloseButton={showModelClose} title={commandOutputTitle} closeOnClickOutside={false} closeOnEscape={false} w="50vw" size="xl" opened={showCommandOutput} onClose={() => {setShowCommandOutput(false); setCommandOutput("")}}>
-                <CodeMirror extensions={[scrollBottom]} lang="shell" maxHeight="60vh" value={commandOutput} height="100%" theme={computedColorScheme} readOnly />
-                <Text mt="md" ta="center" fw={700} display={refreshButtonDisabled ? "none" : "block"}>Please restart OpenTAKServer and refresh your browser.</Text>
+                <CodeMirror extensions={[scrollBottom]} lang="shell" maxHeight="60vh" value={commandOutput} height="100%" theme="dark" readOnly />
+                <Text mt="md" ta="center" fw={700} display={refreshButtonDisabled ? "none" : "block"}>Please restart C4 RAVEN and refresh your browser.</Text>
                 <Center><Button mt="md" disabled={refreshButtonDisabled} onClick={() => window.location.reload()}>Refresh Browser</Button></Center>
             </Modal>
         </>

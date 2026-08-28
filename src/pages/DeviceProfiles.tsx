@@ -4,7 +4,6 @@ import {
     Table,
     TableData,
     TextInput,
-    useComputedColorScheme,
     Button,
     Pagination, Center, Switch, ComboboxItem,
 } from '@mantine/core';
@@ -29,7 +28,6 @@ interface ProfileInterface {
 }
 
 export default function DeviceProfiles() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [addProfile, setAddProfile] = useState(false);
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -218,7 +216,7 @@ export default function DeviceProfiles() {
         <>
             <Button onClick={() => setAddProfile(true)} variant="filled" leftSection={<IconUpload size={14} />} mb="md">Add Device Profile</Button>
             <Table.ScrollContainer minWidth="100%">
-                <Table stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" data={profiles} highlightOnHover withTableBorder mb="md" />
+                <Table stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" data={profiles} highlightOnHover withTableBorder mb="md" />
             </Table.ScrollContainer>
             <Center><Pagination total={totalPages} value={activePage} onChange={setPage} withEdges /></Center>
             <Modal opened={addProfile} onClose={() => setAddProfile(false)} title={t("Add Device Profile")}>

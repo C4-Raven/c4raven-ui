@@ -4,7 +4,6 @@ import {
     Pagination, Paper, PasswordInput, Select,
     Table,
     TableData, TextInput,
-    useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
@@ -35,7 +34,6 @@ interface MissionProperties {
 }
 
 export default function Missions() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageSize, setPageSize] = useState(10);

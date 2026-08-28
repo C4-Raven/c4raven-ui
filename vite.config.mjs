@@ -6,6 +6,19 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://192.168.0.98:8080',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://192.168.0.98:8080',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

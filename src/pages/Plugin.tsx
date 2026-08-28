@@ -3,7 +3,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import Markdown from 'react-markdown'
 import {Link, useSearchParams} from "react-router";
-import {Tabs, Text, Button, useComputedColorScheme, ScrollArea, Divider, Switch, Flex} from "@mantine/core";
+import {Tabs, Text, Button, ScrollArea, Divider, Switch, Flex} from "@mantine/core";
 import {
     IconAlignLeft,
     IconSettings,
@@ -46,7 +46,6 @@ export default function Plugin() {
     const [showUITab, setShowUITab] = useState(true);
     const [enabled, setEnabled] = useState(true)
     const [pluginName, setPluginName] = useState<string|null>(null);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
     useEffect(() => {
         setPluginName(params.get('name'))
@@ -93,7 +92,7 @@ export default function Plugin() {
             console.log(err);
             notifications.show({
                 title: t("Failed to get plugin config"),
-                message: t("Please restart OpenTAKServer"),
+                message: t("Please restart C4 RAVEN"),
                 icon: <IconX />,
                 color: 'red'
             })
@@ -236,7 +235,7 @@ export default function Plugin() {
                 </Tabs.Panel>
 
                 <Tabs.Panel value="settings">
-                    <CodeMirror value={editedConfig} height="100%" extensions={[yaml()]} theme={computedColorScheme} onChange={(e) => setEditedConfig(e)} />
+                    <CodeMirror value={editedConfig} height="100%" extensions={[yaml()]} theme="dark" onChange={(e) => setEditedConfig(e)} />
 
                     <Button mt="md" mr="md" leftSection={<IconDeviceFloppy size={14} />} onClick={() => submit()}>{t("Save")}</Button>
                     <Button mt="md" leftSection={<IconRestore size={14} />} onClick={() => undoChanges()}>{t("Undo Changes")}</Button>

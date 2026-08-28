@@ -23,7 +23,7 @@ export default function App() {
 
   return (
     <I18nextProvider i18n={i18n}>
-        <MantineProvider theme={theme}>
+        <MantineProvider theme={theme} forceColorScheme="dark">
           <Notifications />
           <BrowserRouter>
               <Routes>

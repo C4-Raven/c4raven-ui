@@ -1,4 +1,4 @@
-import {Paper, Title, useComputedColorScheme} from "@mantine/core";
+import {Paper, Title} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router";
 import axios from "axios";
@@ -6,7 +6,6 @@ import {apiRoutes} from "@/apiRoutes.tsx";
 import {LineChart} from "@mantine/charts";
 
 export default function EUDStats() {
-    const computedColorScheme = useComputedColorScheme('light', {getInitialValueInEffect: true});
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchParams, setSearchParams] = useSearchParams();

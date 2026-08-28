@@ -1,5 +1,4 @@
 import {
-    useComputedColorScheme,
     Container,
     TableData,
     Table,
@@ -39,7 +38,6 @@ interface Plugin {
 }
 
 export default function LinkTakGov() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [linked, setLinked] = useState(false);
     const [deviceCode, setDeviceCode] = useState<string>();
     const [userCode, setUserCode] = useState<string|null>(null);
@@ -264,7 +262,7 @@ export default function LinkTakGov() {
                 />
             </Flex>
             <Table.ScrollContainer minWidth="100%" display={linked ? "block" : "none"} mt="md">
-                <Table stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" data={plugins} highlightOnHover withTableBorder mb="md" />
+                <Table stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" data={plugins} highlightOnHover withTableBorder mb="md" />
             </Table.ScrollContainer>
 
             <Container display={linked ? "none" : "block"} mt="md">
