@@ -21,6 +21,8 @@ export const apiRoutes = {
   changeRole: '/api/user/role',
   deactivateUser: '/api/user/deactivate',
   activateUser: '/api/user/activate',
+  grantSiteAccess: '/api/user/site_access/grant',
+  revokeSiteAccess: '/api/user/site_access/revoke',
   deleteUser: '/api/user/delete',
   adminResetPassword: '/api/user/password/reset', //Allows admins to change any user's password
   register: '/api/register',

@@ -1,4 +1,4 @@
-import { Button, NumberInput, Switch, Table, TableData, useComputedColorScheme } from '@mantine/core';
+import { Button, NumberInput, Switch, Table, TableData } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { IconCheck, IconDeviceFloppy, IconEdit, IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -8,7 +8,6 @@ import axios from '../axios_config';
 import {t} from "i18next";
 
 export default function ScheduledJobs() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [jobs, setJobs] = useState<TableData>({
         caption: '',
         head: [t('Name'), t('Start Date'), t('Next Run'), t('Trigger'), t('Minutes'), t('Seconds'), t('Run Now'), t('Active'), t('Edit'), t('Save')],
@@ -244,7 +243,7 @@ export default function ScheduledJobs() {
     return (
         <>
             <Table.ScrollContainer minWidth="100%">
-                <Table data={jobs} stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" highlightOnHover withTableBorder mb="md" />
+                <Table data={jobs} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mb="md" />
             </Table.ScrollContainer>
         </>
     );

@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import {Text, Center, Title, Divider, Paper, Flex, Switch, Space, ScrollArea} from '@mantine/core';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon, Badge} from '@mantine/core';
+import {
+    IconCheck,
+    IconX,
+    IconCpu,
+    IconDatabase,
+    IconDeviceFloppy,
+    IconClock,
+    IconDeviceMobile,
+    IconRouter,
+    IconNetwork,
+    IconLock,
+} from '@tabler/icons-react';
 import { DonutChart } from '@mantine/charts';
 import { parseISO, intervalToDuration, formatDuration } from 'date-fns';
 import { versions } from '../../_versions';
@@ -9,6 +20,30 @@ import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
 import bytes_formatter from '../../bytes_formatter';
 import '@mantine/charts/styles.css';
+
+function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
+    return (
+        <Paper radius="lg" shadow="xl" p="lg" bg="dark.8">
+            <Group wrap="nowrap">
+                <ThemeIcon size={44} radius="md" variant="light" color="blue">
+                    {icon}
+                </ThemeIcon>
+                <Stack gap={0}>
+                    <Text size="xl" fw={700}>{value}</Text>
+                    <Text size="sm" c="dimmed">{label}</Text>
+                </Stack>
+            </Group>
+        </Paper>
+    );
+}
+
+function StatusBadge({ label, icon, active }: { label: string; icon: React.ReactNode; active: boolean }) {
+    return (
+        <Badge size="lg" radius="md" variant="light" color={active ? 'teal' : 'red'} leftSection={icon}>
+            {label}: {active ? 'Running' : 'Stopped'}
+        </Badge>
+    );
+}
 
 export default function Dashboard() {
     const [tcpEnabled, setTcpEnabled] = useState(true);
@@ -106,93 +141,105 @@ export default function Dashboard() {
 
     return (
         <ScrollArea>
-            <Center>
-                <Title mb="xl" order={2}>Server Status</Title>
-            </Center>
-            <Center mb="xl">
-                <Flex direction={{ base: 'column', xs: 'row' }}>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>CPU Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                    { name: 'Used Percentage', value: serverStatus.cpu_percent, color: 'blue' },
-                                    { name: 'Idle Percentage', value: 100 - serverStatus.cpu_percent, color: 'gray.6' },
-                                ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">{`${serverStatus.cpu_percent}%`}</Text></Center>
+            <Flex justify="space-between" align="center" wrap="wrap" gap="sm" mb="lg">
+                <Title order={2}>Server Status</Title>
+                <Group gap="xs">
+                    <StatusBadge label="CoT Router" icon={<IconRouter size={14} />} active={alerts.cot_router} />
+                    <StatusBadge label="TCP" icon={<IconNetwork size={14} />} active={tcpEnabled} />
+                    <StatusBadge label="SSL" icon={<IconLock size={14} />} active={sslEnabled} />
+                </Group>
+            </Flex>
+
+            <SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} mb="xl">
+                <StatTile icon={<IconDeviceMobile size={24} />} value={alerts.online_euds} label="Online EUDs" />
+                <StatTile icon={<IconCpu size={24} />} value={`${serverStatus.cpu_percent}%`} label="CPU Usage" />
+                <StatTile icon={<IconDatabase size={24} />} value={`${memory.percent}%`} label={`Memory · ${bytes_formatter(memory.used)} used`} />
+                <StatTile icon={<IconDeviceFloppy size={24} />} value={`${disk.percent}%`} label={`Disk · ${bytes_formatter(disk.used)} used`} />
+                <StatTile icon={<IconClock size={24} />} value={formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }), { format: ['days', 'hours'] })} label="Uptime" />
+            </SimpleGrid>
+
+            <Grid mb="xl">
+                <Grid.Col span={{ base: 12, md: 8 }}>
+                    <Paper radius="lg" shadow="xl" p="xl" bg="dark.8" h="100%">
+                        <Title order={4} mb="lg">Resource Usage</Title>
+                        <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                            <Stack align="center" gap="xs">
+                                <Text size="sm" c="dimmed">CPU</Text>
+                                <DonutChart
+                                  size={140}
+                                  thickness={16}
+                                  data={[
+                                        { name: 'Used', value: serverStatus.cpu_percent, color: 'blue.6' },
+                                        { name: 'Idle', value: 100 - serverStatus.cpu_percent, color: 'dark.5' },
+                                    ]}
+                                />
+                                <Text fw={700} c="blue.4">{`${serverStatus.cpu_percent}%`}</Text>
+                            </Stack>
+                            <Stack align="center" gap="xs">
+                                <Text size="sm" c="dimmed">Memory</Text>
+                                <DonutChart
+                                  size={140}
+                                  thickness={16}
+                                  data={[
+                                        { name: 'Used', value: memory.percent, color: 'blue.6' },
+                                        { name: 'Free', value: 100 - memory.percent, color: 'dark.5' },
+                                    ]}
+                                />
+                                <Text fw={700} c="blue.4">{bytes_formatter(memory.used)} / {bytes_formatter(memory.total)}</Text>
+                            </Stack>
+                            <Stack align="center" gap="xs">
+                                <Text size="sm" c="dimmed">Disk</Text>
+                                <DonutChart
+                                  size={140}
+                                  thickness={16}
+                                  data={[
+                                        { name: 'Used', value: disk.percent, color: 'blue.6' },
+                                        { name: 'Free', value: 100 - disk.percent, color: 'dark.5' },
+                                    ]}
+                                />
+                                <Text fw={700} c="blue.4">{bytes_formatter(disk.used)} / {bytes_formatter(disk.total)}</Text>
+                            </Stack>
+                        </SimpleGrid>
                     </Paper>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Disk Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                    { name: 'Used Percentage', value: disk.percent, color: 'blue' },
-                                    { name: 'Free Percentage', value: 100 - disk.percent, color: 'gray.6' },
-                                ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">Total Space: {`${bytes_formatter(disk.total)}`}</Text></Center>
-                        <Center><Text fw={700} size="md" c="green.9">Used Space: {`${bytes_formatter(disk.used)}`}</Text></Center>
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                    <Paper radius="lg" shadow="xl" p="xl" bg="dark.8" h="100%">
+                        <Title order={4} mb="md">Uptime</Title>
+                        <Flex mb="xs"><Text fw={700}>System:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }))}</Text></Flex>
+                        <Flex mb="lg"><Text fw={700}>Boot Time:</Text><Space w="md" /><Text>{uptime.boot_time && parseISO(uptime.boot_time).toLocaleString()}</Text></Flex>
+                        <Flex mb="xs"><Text fw={700}>C4 RAVEN:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: ots.uptime * 1000 }))}</Text></Flex>
+                        <Flex><Text fw={700}>Since:</Text><Space w="md" /><Text>{ots.start_time}</Text></Flex>
                     </Paper>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Memory Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                { name: 'Used Percentage', value: memory.percent, color: 'blue' },
-                                { name: 'Free Percentage', value: 100 - memory.percent, color: 'gray.6' },
-                            ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">Available Memory: {`${bytes_formatter(memory.available)}`}</Text></Center>
-                        <Center><Text fw={700} size="md" c="green.9">Used Memory: {`${bytes_formatter(memory.used)}`}</Text></Center>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Uptime</Title></Center>
-                        <Flex><Text fw={700}>Uptime:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }))}</Text></Flex>
-                        <Flex><Text fw={700}>Boot Time:</Text><Space w="md" />{parseISO(uptime.boot_time).toLocaleString()}</Flex>
-                    </Paper>
-                </Flex>
-            </Center>
+                </Grid.Col>
+            </Grid>
+
             <Divider my="lg" />
-            <Center>
-                <Title mb="xl" order={2}>Server Details</Title>
-            </Center>
-            <Center mb="xl">
-                <Flex direction={{ base: 'column', xs: 'row' }}>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>uname</Title></Center>
-                        <Flex><Text fw={700}>System:</Text><Space w="md" /><Text>{uname.system}</Text></Flex>
-                        <Flex><Text fw={700}>Release:</Text><Space w="md" />{uname.release}</Flex>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" />{uname.version}</Flex>
-                        <Flex><Text fw={700}>Architecture:</Text><Space w="md" />{uname.machine}</Flex>
-                        <Flex><Text fw={700}>Hostname:</Text><Space w="md" />{uname.node}</Flex>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>OS Release</Title></Center>
-                        <Flex><Text fw={700}>Name:</Text><Space w="md" /><Text>{osRelease.NAME}</Text></Flex>
-                        <Flex><Text fw={700}>Pretty Name:</Text><Space w="md" /><Text>{osRelease.PRETTY_NAME}</Text></Flex>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{osRelease.VERSION}</Text></Flex>
-                        <Flex><Text fw={700}>Code Name:</Text><Space w="md" /><Text>{osRelease.VERSION_CODENAME}</Text></Flex>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>OpenTAKServer</Title></Center>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{ots.version}</Text></Flex>
-                        <Flex><Text fw={700}>UI Version:</Text><Space w="md" /><Text>{versions.gitTag}</Text></Flex>
-                        <Flex><Text fw={700}>UI Commit Hash:</Text><Space w="md" /><Text>{versions.gitCommitHash}</Text></Flex>
-                        <Flex><Text fw={700}>UI Commit Date:</Text><Space w="md" /><Text>{parseISO(versions.versionDate).toLocaleString()}</Text></Flex>
-                        <Flex><Text fw={700}>Uptime:</Text><Space w="md" />
-                            <Text>
-                                {formatDuration(intervalToDuration({ start: 0, end: ots.uptime * 1000 }))}
-                            </Text>
-                        </Flex>
-                        <Flex><Text fw={700}>Start Time:</Text><Space w="md" /><Text>{ots.start_time}</Text></Flex>
-                        <Flex><Text fw={700}>Python Version:</Text><Space w="md" /><Text>{ots.python_version}</Text></Flex>
-                    </Paper>
-                </Flex>
-            </Center>
+            <Title mb="lg" order={2}>Server Details</Title>
+            <SimpleGrid cols={{ base: 1, lg: 3 }} mb="xl">
+                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                    <Title order={4} mb="md">uname</Title>
+                    <Flex><Text fw={700}>System:</Text><Space w="md" /><Text>{uname.system}</Text></Flex>
+                    <Flex><Text fw={700}>Release:</Text><Space w="md" />{uname.release}</Flex>
+                    <Flex><Text fw={700}>Version:</Text><Space w="md" />{uname.version}</Flex>
+                    <Flex><Text fw={700}>Architecture:</Text><Space w="md" />{uname.machine}</Flex>
+                    <Flex><Text fw={700}>Hostname:</Text><Space w="md" />{uname.node}</Flex>
+                </Paper>
+                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                    <Title order={4} mb="md">OS Release</Title>
+                    <Flex><Text fw={700}>Name:</Text><Space w="md" /><Text>{osRelease.NAME}</Text></Flex>
+                    <Flex><Text fw={700}>Pretty Name:</Text><Space w="md" /><Text>{osRelease.PRETTY_NAME}</Text></Flex>
+                    <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{osRelease.VERSION}</Text></Flex>
+                    <Flex><Text fw={700}>Code Name:</Text><Space w="md" /><Text>{osRelease.VERSION_CODENAME}</Text></Flex>
+                </Paper>
+                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                    <Title order={4} mb="md">C4 RAVEN</Title>
+                    <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{ots.version}</Text></Flex>
+                    <Flex><Text fw={700}>UI Version:</Text><Space w="md" /><Text>{versions.gitTag}</Text></Flex>
+                    <Flex><Text fw={700}>UI Commit Hash:</Text><Space w="md" /><Text>{versions.gitCommitHash}</Text></Flex>
+                    <Flex><Text fw={700}>UI Commit Date:</Text><Space w="md" /><Text>{parseISO(versions.versionDate).toLocaleString()}</Text></Flex>
+                    <Flex><Text fw={700}>Python Version:</Text><Space w="md" /><Text>{ots.python_version}</Text></Flex>
+                </Paper>
+            </SimpleGrid>
         </ScrollArea>
     );
 }

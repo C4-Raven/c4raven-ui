@@ -4,7 +4,6 @@ import {
     Table,
     TableData,
     TextInput,
-    useComputedColorScheme,
     FileInput,
     Button,
     Pagination, Center, Image, Switch,
@@ -31,7 +30,6 @@ interface PluginInterface {
 }
 
 export default function PluginUpdates() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [uploadPluginOpen, setUploadPluginOpen] = useState(false);
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -203,7 +201,7 @@ export default function PluginUpdates() {
         <>
             <Button onClick={() => setUploadPluginOpen(true)} variant="filled" leftSection={<IconUpload size={14} />} mb="md">Upload Plugin</Button>
             <Table.ScrollContainer minWidth="100%">
-                <Table stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" data={packages} highlightOnHover withTableBorder mb="md" />
+                <Table stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" data={packages} highlightOnHover withTableBorder mb="md" />
             </Table.ScrollContainer>
             <Center><Pagination total={totalPages} value={activePage} onChange={setPage} withEdges /></Center>
             <Modal opened={uploadPluginOpen} onClose={() => setUploadPluginOpen(false)} title={t("Upload Plugin")}>

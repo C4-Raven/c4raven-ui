@@ -31,6 +31,7 @@ export interface User {
     username: string;
     roles: { name: string }[];
     active: boolean;
+    site_access: boolean;
     last_login_at: string | null;
     last_login_ip: string | null;
     current_login_at: string | null;
@@ -287,6 +288,48 @@ export default function Users() {
         });
     }
 
+    function grantSiteAccess(username:string) {
+        axios.post(
+            apiRoutes.grantSiteAccess,
+            { username }
+        ).then(r => {
+            if (r.status === 200) {
+                getUsers();
+                notifications.show({
+                    message: `${username} has been granted website access`,
+                    color: 'green',
+                });
+            }
+        }).catch(err => {
+            notifications.show({
+                title: `Failed to grant ${username} website access`,
+                message: err.response.data.error,
+                color: 'red',
+            });
+        });
+    }
+
+    function revokeSiteAccess(username:string) {
+        axios.post(
+            apiRoutes.revokeSiteAccess,
+            { username }
+        ).then(r => {
+            if (r.status === 200) {
+                getUsers();
+                notifications.show({
+                    message: `${username}'s website access has been revoked`,
+                    color: 'green',
+                });
+            }
+        }).catch(err => {
+            notifications.show({
+                title: `Failed to revoke ${username}'s website access`,
+                message: err.response.data.error,
+                color: 'red',
+            });
+        });
+    }
+
     function resetPassword(e:any) {
             e.preventDefault();
             axios.post(
@@ -355,6 +398,21 @@ export default function Users() {
                                     if (e.target.checked) { activateUser(row.username); } else { deactivateUser(row.username); }
                                 }}
                             />
+                        ),
+                    },
+                    {
+                        accessor: 'site_access',
+                        title: t('Website Access'),
+                        render: (row) => (
+                            <Tooltip label={t('Controls access to this website only — EUDs and TAK clients are unaffected')}>
+                                <Switch
+                                    disabled={row.username === localStorage.getItem('username')}
+                                    checked={row.site_access}
+                                    onChange={(e) => {
+                                        if (e.target.checked) { grantSiteAccess(row.username); } else { revokeSiteAccess(row.username); }
+                                    }}
+                                />
+                            </Tooltip>
                         ),
                     },
                     {

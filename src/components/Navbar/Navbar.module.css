@@ -35,7 +35,7 @@
     transition: all .3s ease-out;
 
     @mixin hover {
-        background-color: #2a2d43;
+        background-color: var(--mantine-color-dark-6);
         color: white;
         transition: all .3s ease-out;
 
@@ -48,8 +48,7 @@
     &[data-active] {
         &,
         &:hover {
-            /*background-color: var(--mantine-color-blue-light);*/
-            background-color: #2a2d43;
+            background-color: var(--mantine-color-blue-7);
             color: var(--mantine-color-white);
             transition: all .3s ease-in;
 

@@ -8,7 +8,7 @@ import {
     Paper,
     PasswordInput,
     Stack,
-    Title, useComputedColorScheme,
+    Title,
 } from '@mantine/core';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
@@ -22,7 +22,6 @@ export default function PasswordReset() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [password, setPassword] = useState('');
     const [password_confirm, setPassword_confirm] = useState('');
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const navigate = useNavigate();
 
     const token = searchParams.get('token');
@@ -51,7 +50,7 @@ export default function PasswordReset() {
     }
 
     return (
-        <Box bg={computedColorScheme === 'light' ? 'gray.1' : 'dark.5'} h="100vh">
+        <Box bg="dark.5" h="100vh">
             <Header />
             <Container size={420} my={40}>
                 <Center>
@@ -62,7 +61,7 @@ export default function PasswordReset() {
                         <Title order={2}>{t("Password Reset")}</Title>
                     </Stack>
 
-                <Paper radius="md" p="xl" withBorder bg={computedColorScheme === 'light' ? 'white' : 'dark.8'}>
+                <Paper radius="md" p="xl" withBorder bg="dark.8">
                     <Stack>
                         <div>
                             <PasswordInput

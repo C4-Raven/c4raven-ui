@@ -4,7 +4,6 @@ import {
     Switch,
     Table,
     TableData, TextInput, Title, Tooltip,
-    useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
@@ -23,7 +22,6 @@ export interface Group {
 }
 
 export default function Groups() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [activePage, setPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -302,7 +300,7 @@ export default function Groups() {
                 </Paper>
                 <Title order={4} mb="md">{t("Members")}</Title>
                 <Table.ScrollContainer minWidth="100%">
-                    <Table data={members} stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" highlightOnHover withTableBorder mt="md" mb="md" />
+                    <Table data={members} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mt="md" mb="md" />
                 </Table.ScrollContainer>
             </Modal>
             <Modal opened={deleteGroupOpen} onClose={() => setDeleteGroupOpen(false)} title={`Delete Group ${groupToDelete}?`}>

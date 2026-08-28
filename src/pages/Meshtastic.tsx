@@ -4,7 +4,6 @@ import {
     Pagination, Paper, Select, Switch,
     Table,
     TextInput, Tooltip,
-    useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
@@ -40,7 +39,6 @@ interface MeshtasticChannel {
 }
 
 export default function Meshtastic() {
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [activePage, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [channelCount, setChannelCount] = useState(0);

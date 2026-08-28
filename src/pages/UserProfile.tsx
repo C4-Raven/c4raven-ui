@@ -9,7 +9,6 @@ import {
     TableData,
     Table,
     Tabs,
-    useComputedColorScheme,
     Button,
     Tooltip,
     Switch,
@@ -74,7 +73,6 @@ interface GroupMemberships {
 export default function UserProfile() {
     const [user, setUser] = useState<User>();
     const [rerender, setRerender] = useState(false);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
     const [euds, setEuds] = useState<TableData>({
         caption: '',
         head: [t('Callsign'), t('Device'), t('Platform'), t('OS'), t('Phone Number'), t('UID'), t('Version'), t('Last Event Time'), t('Last Event')],
@@ -208,13 +206,13 @@ export default function UserProfile() {
 
                 <Tabs.Panel value="euds">
                     <Table.ScrollContainer minWidth="100%">
-                        <Table data={euds} stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" highlightOnHover withTableBorder mb="md" />
+                        <Table data={euds} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mb="md" />
                     </Table.ScrollContainer>
                 </Tabs.Panel>
 
                 <Tabs.Panel value="groups">
                     <Table.ScrollContainer minWidth="100%">
-                        <Table data={memberships} stripedColor={computedColorScheme === 'light' ? 'gray.2' : 'dark.8'} highlightOnHoverColor={computedColorScheme === 'light' ? 'gray.4' : 'dark.6'} striped="odd" highlightOnHover withTableBorder mb="md" />
+                        <Table data={memberships} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mb="md" />
                     </Table.ScrollContainer>
                 </Tabs.Panel>
             </Tabs>

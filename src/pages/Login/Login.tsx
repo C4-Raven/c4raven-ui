@@ -16,17 +16,49 @@ import {
     Title,
     rem,
     Box,
-    useComputedColorScheme,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { upperFirst } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconCheck, IconX } from '@tabler/icons-react';
+import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/icons-react';
 import { Header } from '../../components/Header';
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
 import Logo from '../../images/ots-logo.png';
+
+const OUTER_BACKGROUND = 'rgb(35, 37, 41)';
+
+const CARD_BACKGROUND = `
+    radial-gradient(ellipse 55% 50% at 15% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse 65% 55% at 100% 25%, rgba(0, 0, 0, 0.25), transparent 60%),
+    radial-gradient(ellipse 75% 60% at 25% 115%, rgba(0, 0, 0, 0.3), transparent 60%),
+    #373a40
+`;
+
+const fieldStyles = {
+    input: {
+        backgroundColor: 'transparent',
+        borderColor: 'rgba(255, 255, 255, 0.35)',
+        color: '#fff',
+        '&::placeholder': {
+            color: 'rgba(255, 255, 255, 0.55)',
+            textTransform: 'uppercase' as const,
+            fontSize: '0.8rem',
+            letterSpacing: '0.5px',
+        },
+    },
+    section: {
+        color: 'rgba(255, 255, 255, 0.75)',
+    },
+};
+
+const pinInputStyles = {
+    input: {
+        backgroundColor: 'transparent',
+        borderColor: 'rgba(255, 255, 255, 0.35)',
+        color: '#fff',
+    },
+};
 
 export default function Login(props: PaperProps) {
     const navigate = useNavigate();
@@ -38,7 +70,6 @@ export default function Login(props: PaperProps) {
     const [emailEnabled, setEmailEnabled] = useState(false);
     const [authCode, setAuthCode] = useState<string>();
     const [ldapEnabled, setLdapEnabled] = useState(false);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
     useEffect(() => {
         try {
@@ -193,124 +224,146 @@ export default function Login(props: PaperProps) {
     }
 
     return (
-        <Box bg={computedColorScheme === 'light' ? 'gray.1' : 'dark.9'} h="100vh">
-            <Header />
-            <Container size={420} my={40}>
-                <Center>
-                    <Image src={Logo} h={250} w="auto" />
-                </Center>
-
-                {type === 'Reset Password' && (
-                    <Stack align="center">
-                        <Title order={2}>Forgot your password?</Title>
-                        <Text>Enter your email to get a reset link</Text>
-                    </Stack>
-                )}
-
-                <Paper radius="md" p="xl" withBorder {...props} bg={computedColorScheme === 'light' ? 'white' : 'dark.7'}>
-                    <Stack>
-                        {(type === 'register' || type === 'Reset Password') && emailEnabled && (
-                            <TextInput
-                              required
-                              label="Email"
-                              placeholder="me@example.com"
-                              value={email}
-                              onChange={(event) => setEmail(event.currentTarget.value)}
-                              radius="md"
-                            />
-                        )}
-
-                        {(type === 'register' || type === 'login') && (
-                            <div>
-                                <TextInput
-                                  required
-                                  label="Username"
-                                  placeholder="Username"
-                                  value={username}
-                                  onChange={(event) => setUsername(event.currentTarget.value)}
-                                  radius="md"
-                                />
-
-                                <PasswordInput
-                                  required
-                                  label="Password"
-                                  placeholder="Your password"
-                                  value={password}
-                                  onChange={(event) => setPassword(event.currentTarget.value)}
-                                  radius="md"
-                                />
-                            </div>
+        <Box style={{ background: OUTER_BACKGROUND, minHeight: '100vh' }}>
+            <Header logoHeight={58} />
+            <Center mih="calc(100vh - 60px)" py={40}>
+                <Container size={480} w="100%">
+                    {type === 'Reset Password' && (
+                        <Stack align="center" mb="md">
+                            <Title order={2} c="white">Forgot your password?</Title>
+                            <Text c="white">Enter your email to get a reset link</Text>
+                        </Stack>
                     )}
 
-                        {(type === 'authenticator') && (
-                                <Text ta="center">Please check your authenticator app for an auth code</Text>
-                        )}
-                        {(type === 'email') && (
-                            <Text ta="center">Please check your email for an auth code</Text>
-                        )}
+                    <Paper radius="lg" p="xl" shadow="xl" {...props} style={{ background: CARD_BACKGROUND }}>
+                        <Center mb="lg">
+                            <Image src={Logo} h={161} w="auto" />
+                        </Center>
 
-                        <div style={{ display: (type === 'email' || type === 'authenticator' ? 'block' : 'none') }}>
-                            <Stack>
-                                <Center>
-                                    <PinInput
-                                      type="number"
-                                      length={6}
-                                      onChange={(e) => setAuthCode(e)}
+                        <Stack>
+                            {(type === 'register' || type === 'Reset Password') && emailEnabled && (
+                                <TextInput
+                                  required
+                                  placeholder="Email"
+                                  value={email}
+                                  onChange={(event) => setEmail(event.currentTarget.value)}
+                                  radius="md"
+                                  size="md"
+                                  leftSection={<IconUser size={18} />}
+                                  styles={fieldStyles}
+                                />
+                            )}
+
+                            {(type === 'register' || type === 'login') && (
+                                <>
+                                    <TextInput
+                                      required
+                                      placeholder="Username"
+                                      value={username}
+                                      onChange={(event) => setUsername(event.currentTarget.value)}
                                       radius="md"
+                                      size="md"
+                                      leftSection={<IconUser size={18} />}
+                                      styles={fieldStyles}
                                     />
-                                </Center>
-                                <Button
-                                  onClick={(e) => { handleAuthCode(e); }}
-                                >
-                                    Submit
-                                </Button>
-                            </Stack>
-                        </div>
 
-                    </Stack>
+                                    <PasswordInput
+                                      required
+                                      placeholder="Password"
+                                      value={password}
+                                      onChange={(event) => setPassword(event.currentTarget.value)}
+                                      radius="md"
+                                      size="md"
+                                      leftSection={<IconLock size={18} />}
+                                      styles={fieldStyles}
+                                    />
+                                </>
+                        )}
 
-                    {type === 'login' ?
-                        <Group justify="space-between" mt="lg">
-                            <Checkbox label="Remember me" />
-                            {emailEnabled ?
-                            <Anchor component="button" size="sm" onClick={() => setType('Reset Password')}>
-                                Forgot password?
-                            </Anchor> : ''}
-                        </Group>
-                    : ''}
-                    <Group justify="space-between" mt="xl">
-                        <Anchor
-                          component="button"
-                          type="button"
-                          c="dimmed"
-                          onClick={() => {
-                            if (type === 'login') {setType('register');}
-                            else if (type === 'register') {setType('login');}
-                            else if (type === 'Reset Password') {setType('login');}
-                        }}
-                          size="xs"
-                        >
-                            {type === 'register' && 'Already have an account? Login'}
-                            {(type === 'login' && emailEnabled) && "Don't have an account? Register"}
-                            {type === 'Reset Password' && <Center inline>
-                                <IconArrowLeft style={{ width: rem(12), height: rem(12) }} stroke={1.5} />
-                                <Box ml={5}>Back to the login page</Box>
-                                                          </Center>}
-                        </Anchor>
-                        <Button
-                          radius="xl"
-                          onClick={(e) => {
-                            if (type === 'login') {handleLogin(e);}
-                            else if (type === 'register') {handleRegister(e);}
-                            else if (type === 'Reset Password') {handleReset(e);}
-                          }}
-                          display={type === 'login' || type === 'register' || type === 'Reset Password' ? 'block' : 'None'}
-                        >
-                            {upperFirst(type)}
-                        </Button>
-                    </Group>
-                </Paper>
-            </Container>
+                            {(type === 'authenticator') && (
+                                    <Text ta="center" c="white">Please check your authenticator app for an auth code</Text>
+                            )}
+                            {(type === 'email') && (
+                                <Text ta="center" c="white">Please check your email for an auth code</Text>
+                            )}
+
+                            <div style={{ display: (type === 'email' || type === 'authenticator' ? 'block' : 'none') }}>
+                                <Stack>
+                                    <Center>
+                                        <PinInput
+                                          type="number"
+                                          length={6}
+                                          onChange={(e) => setAuthCode(e)}
+                                          radius="md"
+                                          styles={pinInputStyles}
+                                        />
+                                    </Center>
+                                    <Button
+                                      variant="white"
+                                      fullWidth
+                                      onClick={(e) => { handleAuthCode(e); }}
+                                    >
+                                        Submit
+                                    </Button>
+                                </Stack>
+                            </div>
+
+                        </Stack>
+
+                        {type === 'login' &&
+                            <Group justify="space-between" mt="lg">
+                                <Checkbox label="Remember me" styles={{ label: { color: '#fff' } }} />
+                            </Group>
+                        }
+
+                        {(type === 'login' || type === 'register' || type === 'Reset Password') && (
+                            <Button
+                              variant="white"
+                              fullWidth
+                              radius="md"
+                              size="md"
+                              mt="xl"
+                              fw={700}
+                              c={OUTER_BACKGROUND}
+                              style={{ letterSpacing: '0.5px' }}
+                              onClick={(e) => {
+                                if (type === 'login') {handleLogin(e);}
+                                else if (type === 'register') {handleRegister(e);}
+                                else if (type === 'Reset Password') {handleReset(e);}
+                              }}
+                            >
+                                {type.toUpperCase()}
+                            </Button>
+                        )}
+
+                        <Stack align="center" mt="md" gap={4}>
+                            {type === 'login' && emailEnabled &&
+                                <Anchor component="button" type="button" size="sm" c="rgba(255, 255, 255, 0.85)" onClick={() => setType('Reset Password')}>
+                                    Forgot password?
+                                </Anchor>
+                            }
+                            <Anchor
+                              component="button"
+                              type="button"
+                              c="rgba(255, 255, 255, 0.6)"
+                              onClick={() => {
+                                if (type === 'login') {setType('register');}
+                                else if (type === 'register') {setType('login');}
+                                else if (type === 'Reset Password') {setType('login');}
+                            }}
+                              size="xs"
+                            >
+                                {type === 'register' && 'Already have an account? Login'}
+                                {(type === 'login' && emailEnabled) && "Don't have an account? Register"}
+                                {type === 'Reset Password' && <Center inline>
+                                    <IconArrowLeft style={{ width: rem(12), height: rem(12) }} stroke={1.5} />
+                                    <Box ml={5}>Back to the login page</Box>
+                                                              </Center>}
+                            </Anchor>
+                        </Stack>
+                    </Paper>
+                </Container>
+            </Center>
         </Box>
     );
 }

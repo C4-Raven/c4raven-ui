@@ -9,7 +9,6 @@ import {
     TableData,
     TextInput,
     Tooltip,
-    useComputedColorScheme,
     Image, LoadingOverlay
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
