@@ -21,7 +21,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/icons-react';
-import { Header } from '../../components/Header';
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
 import Logo from '../../images/ots-logo.png';
@@ -225,8 +224,7 @@ export default function Login(props: PaperProps) {
 
     return (
         <Box style={{ background: OUTER_BACKGROUND, minHeight: '100vh' }}>
-            <Header logoHeight={58} />
-            <Center mih="calc(100vh - 60px)" py={40}>
+            <Center mih="100vh" py={40}>
                 <Container size={480} w="100%">
                     {type === 'Reset Password' && (
                         <Stack align="center" mb="md">
