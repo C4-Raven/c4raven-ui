@@ -17,8 +17,8 @@ interface XY { x: number; y: number; }
 // Fixed on-screen viewport size -- the logical canvas (where nodes actually
 // live) grows past this as there are more users, and zoom is what brings it
 // into view, rather than cramming more nodes into the same fixed area.
-const VIEWPORT_WIDTH = 880;
-const VIEWPORT_HEIGHT = 560;
+const VIEWPORT_WIDTH = 1500;
+const VIEWPORT_HEIGHT = 820;
 const NODE_WIDTH = 156;
 const NODE_HEIGHT = 56;
 const NODE_GAP = 26;
@@ -338,8 +338,8 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
                 {!missingPositions && (
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
-                            <marker id="uvArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
-                                <path d="M0,0 L0,7 L8,3.5 z" fill="var(--mantine-color-gray-4)" />
+                            <marker id="uvArrow" markerWidth="3" markerHeight="3" refX="2.1" refY="1.05" orient="auto">
+                                <path d="M0,0 L0,2.1 L2.4,1.05 z" fill="var(--mantine-color-gray-4)" />
                             </marker>
                         </defs>
                         {edges.map((edge, i) => {

@@ -187,7 +187,7 @@ export default function Groups() {
             if (r.status === 200) {
                 const tableData: TableData = {
                     caption: '',
-                    head: [t('Username'), t('Direction'), t('Active')],
+                    head: [t('Username'), t('Access'), t('Active')],
                     body: [],
                 }
 
@@ -212,7 +212,10 @@ export default function Groups() {
                         >Remove
                         </Button>;
 
-                        tableData.body.push([row.username, row.direction, active_switch, delete_button]);
+                        const accessLabel = row.direction === "IN"
+                            ? t("Sends to {{group}}", { group: name })
+                            : t("Receives from {{group}}", { group: name });
+                        tableData.body.push([row.username, accessLabel, active_switch, delete_button]);
                     }
 
                     if (row.direction === "IN") {
@@ -267,11 +270,12 @@ export default function Groups() {
                 >Add Group
                 </Button>
             </Modal>
-            <Modal size="xl" opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
+            <Modal fullScreen opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
                 <Paper withBorder p="md" mb="md">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
-                            <Title order={6} mb="md">Direction: IN</Title>
+                            <Title order={6}>{t("Sends to {{group}}", { group })}</Title>
+                            <Text size="xs" c="dimmed" mb="md">{t("Their position, chat, and other TAK data is published into this group's channel.")}</Text>
                             <MultiSelect
                                 placeholder="Search"
                                 searchable
@@ -286,10 +290,11 @@ export default function Groups() {
                         </Grid.Col>
                     </Grid>
                 </Paper>
-                <Paper withBorder title={t("Direction: OUT")} mb="md" p="md">
+                <Paper withBorder mb="md" p="md">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
-                            <Title order={6} mb="md">Direction: OUT</Title>
+                            <Title order={6}>{t("Receives from {{group}}", { group })}</Title>
+                            <Text size="xs" c="dimmed" mb="md">{t("They can see and read this group's channel — everyone currently sending to it.")}</Text>
                             <MultiSelect
                                 placeholder="Search"
                                 searchable
