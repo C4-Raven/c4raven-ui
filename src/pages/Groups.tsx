@@ -312,7 +312,7 @@ export default function Groups() {
                 <Text size="sm" c="dimmed" mb="md">
                     {t("Once members are added above, use this to set who can see and message whom within {{group}} — no need to think in terms of IN/OUT directly.", { group })}
                 </Text>
-                {showAddUserToGroup && <UserVisibilityDiagram scopeToUsernames={memberUsernames} />}
+                {showAddUserToGroup && <UserVisibilityDiagram scopeToUsernames={memberUsernames} onChange={() => getGroupMembers(group)} />}
             </Modal>
             <Modal opened={deleteGroupOpen} onClose={() => setDeleteGroupOpen(false)} title={`Delete Group ${groupToDelete}?`}>
                 <Center>

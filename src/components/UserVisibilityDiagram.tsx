@@ -60,11 +60,15 @@ interface UserVisibilityDiagramProps {
     // between them), e.g. scoped to one group's current roster. Omit to show
     // every active user system-wide.
     scopeToUsernames?: string[];
+    // Called after a connection is successfully created or removed, so a
+    // parent showing other data about the same users (e.g. a group's own
+    // membership table) can refresh and stay in sync.
+    onChange?: () => void;
 }
 
 // Only used to give this the same look as the visual planning mockup that
 // inspired it — has no bearing on the actual users/groups underneath.
-export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibilityDiagramProps) {
+export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: UserVisibilityDiagramProps) {
     const [users, setUsers] = useState<string[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [positions, setPositions] = useState<Record<string, XY>>({});
@@ -73,11 +77,15 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
     const [loading, setLoading] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [boardSize, setBoardSize] = useState<BoardSize>(() => computeBoardSize(0));
+    const [pan, setPan] = useState<XY>({ x: 0, y: 0 });
 
     const boardRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<{ name: string; offsetX: number; offsetY: number } | null>(null);
+    const panDragRef = useRef<{ startClientX: number; startClientY: number; startPanX: number; startPanY: number } | null>(null);
     const positionsRef = useRef(positions);
     positionsRef.current = positions;
+    const panRef = useRef(pan);
+    panRef.current = pan;
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
     const boardSizeRef = useRef(boardSize);
@@ -87,6 +95,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         const nextBoard = computeBoardSize(names.length);
         setBoardSize(nextBoard);
         setZoom(fitZoomFor(nextBoard));
+        setPan({ x: 0, y: 0 });
         setUsers(names);
         setPositions((prev) => {
             const next = layoutPositions(names, nextBoard);
@@ -133,6 +142,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         setLoading(true);
         axios.put(apiRoutes.userVisibility, { source, target, type: mode }).then(() => {
             loadEdges();
+            onChange?.();
         }).catch((err) => {
             setLoading(false);
             notifications.show({ title: t('Failed to connect users'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
@@ -143,6 +153,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         setLoading(true);
         axios.delete(apiRoutes.userVisibility, { params: { source: edge.source, target: edge.target } }).then(() => {
             loadEdges();
+            onChange?.();
         }).catch((err) => {
             setLoading(false);
             notifications.show({ title: t('Failed to remove connection'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
@@ -169,27 +180,51 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         const boardRect = board.getBoundingClientRect();
         const pos = positionsRef.current[name];
         if (!pos) return;
+        const p = panRef.current;
         dragRef.current = {
             name,
-            offsetX: (e.clientX - boardRect.left) / zoomRef.current - pos.x,
-            offsetY: (e.clientY - boardRect.top) / zoomRef.current - pos.y,
+            offsetX: (e.clientX - boardRect.left - p.x) / zoomRef.current - pos.x,
+            offsetY: (e.clientY - boardRect.top - p.y) / zoomRef.current - pos.y,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        e.stopPropagation();
+    }
+
+    // Panning starts only when the pointer goes down directly on the
+    // background layer (not bubbled up from a node), so it never fights
+    // node dragging.
+    function onBackgroundPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+        if (e.target !== e.currentTarget) return;
+        panDragRef.current = {
+            startClientX: e.clientX,
+            startClientY: e.clientY,
+            startPanX: panRef.current.x,
+            startPanY: panRef.current.y,
         };
         e.currentTarget.setPointerCapture(e.pointerId);
     }
 
     function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-        if (!dragRef.current || !boardRef.current) return;
-        const boardRect = boardRef.current.getBoundingClientRect();
-        const { name, offsetX, offsetY } = dragRef.current;
-        const zoomNow = zoomRef.current;
-        const board = boardSizeRef.current;
-        const x = Math.max(0, Math.min(board.width - NODE_WIDTH, (e.clientX - boardRect.left) / zoomNow - offsetX));
-        const y = Math.max(0, Math.min(board.height - NODE_HEIGHT, (e.clientY - boardRect.top) / zoomNow - offsetY));
-        setPositions((prev) => ({ ...prev, [name]: { x, y } }));
+        if (dragRef.current && boardRef.current) {
+            const boardRect = boardRef.current.getBoundingClientRect();
+            const { name, offsetX, offsetY } = dragRef.current;
+            const zoomNow = zoomRef.current;
+            const p = panRef.current;
+            const board = boardSizeRef.current;
+            const x = Math.max(0, Math.min(board.width - NODE_WIDTH, (e.clientX - boardRect.left - p.x) / zoomNow - offsetX));
+            const y = Math.max(0, Math.min(board.height - NODE_HEIGHT, (e.clientY - boardRect.top - p.y) / zoomNow - offsetY));
+            setPositions((prev) => ({ ...prev, [name]: { x, y } }));
+            return;
+        }
+        if (panDragRef.current) {
+            const { startClientX, startClientY, startPanX, startPanY } = panDragRef.current;
+            setPan({ x: startPanX + (e.clientX - startClientX), y: startPanY + (e.clientY - startClientY) });
+        }
     }
 
     function onPointerUp() {
         dragRef.current = null;
+        panDragRef.current = null;
     }
 
     function zoomBy(delta: number) {
@@ -203,6 +238,19 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         const p = positions[name];
         if (!p) return { x: boardSize.width / 2, y: boardSize.height / 2 };
         return { x: p.x + NODE_WIDTH / 2, y: p.y + NODE_HEIGHT / 2 };
+    }
+
+    // Where a ray from a node's center, heading toward (dx, dy), exits its
+    // rectangular box -- so lines/arrows stop at the box edge instead of
+    // running into the middle of it.
+    function edgePoint(nodeCenter: XY, dx: number, dy: number): XY {
+        if (dx === 0 && dy === 0) return nodeCenter;
+        const halfW = NODE_WIDTH / 2;
+        const halfH = NODE_HEIGHT / 2;
+        const scaleX = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+        const scaleY = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+        const scale = Math.min(scaleX, scaleY);
+        return { x: nodeCenter.x + dx * scale, y: nodeCenter.y + dy * scale };
     }
 
     const missingPositions = users.some((u) => !positions[u]);
@@ -237,7 +285,8 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                 w="100%"
                 h={VIEWPORT_HEIGHT}
                 bg="dark.8"
-                style={{ borderRadius: 16, border: '1px solid var(--mantine-color-dark-4)', overflow: 'hidden', touchAction: 'none' }}
+                style={{ borderRadius: 16, border: '1px solid var(--mantine-color-dark-4)', overflow: 'hidden', touchAction: 'none', cursor: 'grab' }}
+                onPointerDown={onBackgroundPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}
@@ -248,49 +297,10 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                 top={0}
                 w={boardSize.width}
                 h={boardSize.height}
-                style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}
+                onPointerDown={onBackgroundPointerDown}
+                onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}
               >
-                {!missingPositions && (
-                    <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                        <defs>
-                            <marker id="uvArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
-                                <path d="M0,0 L0,7 L8,3.5 z" fill="var(--mantine-color-gray-4)" />
-                            </marker>
-                        </defs>
-                        {edges.map((edge, i) => {
-                            const a = center(edge.source);
-                            const b = center(edge.target);
-                            const mx = (a.x + b.x) / 2;
-                            const my = (a.y + b.y) / 2;
-                            return (
-                                <g key={`${edge.source}-${edge.target}-${edge.type}-${i}`}>
-                                    <line
-                                        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                                        stroke="var(--mantine-color-gray-5)"
-                                        strokeWidth={4}
-                                        strokeDasharray={edge.type === 'dotted' ? '7 8' : undefined}
-                                        markerStart={edge.type === 'solid' ? 'url(#uvArrow)' : undefined}
-                                        markerEnd="url(#uvArrow)"
-                                        pointerEvents="stroke"
-                                        style={{ cursor: 'pointer' }}
-                                        onClick={() => disconnect(edge)}
-                                    />
-                                    <text
-                                        x={mx} y={my - 8}
-                                        textAnchor="middle"
-                                        fontSize={11}
-                                        fontWeight={700}
-                                        fill="var(--mantine-color-gray-3)"
-                                        style={{ paintOrder: 'stroke', stroke: 'var(--mantine-color-dark-8)', strokeWidth: 4 }}
-                                    >
-                                        {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
-                                    </text>
-                                </g>
-                            );
-                        })}
-                    </svg>
-                )}
-
                 {users.map((name) => {
                     const pos = positions[name];
                     if (!pos) return null;
@@ -324,6 +334,51 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                         </Paper>
                     );
                 })}
+
+                {!missingPositions && (
+                    <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                        <defs>
+                            <marker id="uvArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+                                <path d="M0,0 L0,7 L8,3.5 z" fill="var(--mantine-color-gray-4)" />
+                            </marker>
+                        </defs>
+                        {edges.map((edge, i) => {
+                            const aCenter = center(edge.source);
+                            const bCenter = center(edge.target);
+                            const dx = bCenter.x - aCenter.x;
+                            const dy = bCenter.y - aCenter.y;
+                            const a = edgePoint(aCenter, dx, dy);
+                            const b = edgePoint(bCenter, -dx, -dy);
+                            const mx = (a.x + b.x) / 2;
+                            const my = (a.y + b.y) / 2;
+                            return (
+                                <g key={`${edge.source}-${edge.target}-${edge.type}-${i}`}>
+                                    <line
+                                        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                                        stroke="var(--mantine-color-gray-5)"
+                                        strokeWidth={4}
+                                        strokeDasharray={edge.type === 'dotted' ? '7 8' : undefined}
+                                        markerStart={edge.type === 'solid' ? 'url(#uvArrow)' : undefined}
+                                        markerEnd="url(#uvArrow)"
+                                        pointerEvents="stroke"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => disconnect(edge)}
+                                    />
+                                    <text
+                                        x={mx} y={my - 8}
+                                        textAnchor="middle"
+                                        fontSize={11}
+                                        fontWeight={700}
+                                        fill="var(--mantine-color-gray-3)"
+                                        style={{ paintOrder: 'stroke', stroke: 'var(--mantine-color-dark-8)', strokeWidth: 4 }}
+                                    >
+                                        {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
+                                    </text>
+                                </g>
+                            );
+                        })}
+                    </svg>
+                )}
 
                 {users.length === 0 && (
                     <Text pos="absolute" top="50%" left="50%" style={{ transform: 'translate(-50%, calc(-50% + 70px))' }} c="dimmed" size="sm">
