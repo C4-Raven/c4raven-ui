@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon} from '@mantine/core';
 import {
@@ -58,6 +58,44 @@ function UsageHistoryChart({ label, value, detail, data, dataKey, color }: {
     );
 }
 
+function NetworkHistoryChart({ label, value, data }: {
+    label: string;
+    value: React.ReactNode;
+    data: UsagePoint[];
+}) {
+    return (
+        <div>
+            <Group justify="space-between" align="flex-end" mb={4}>
+                <Text size="sm" c="dimmed">{label}</Text>
+                <Text size="sm" fw={700} c="orange.4">{value}</Text>
+            </Group>
+            <AreaChart
+                h={110}
+                data={data}
+                dataKey="time"
+                series={[
+                    { name: 'netRecv', label: 'Download', color: 'orange.6' },
+                    { name: 'netSent', label: 'Upload', color: 'yellow.6' },
+                ]}
+                curveType="monotone"
+                withDots={false}
+                withLegend
+                legendProps={{ verticalAlign: 'top', height: 24 }}
+                withTooltip
+                tooltipProps={{ labelFormatter: (v) => typeof v === 'number' ? format(new Date(v), 'HH:mm:ss') : v }}
+                valueFormatter={(v) => bytes_formatter(v, 1, true)}
+                withXAxis
+                withYAxis
+                yAxisProps={{ width: 60, tickCount: 3, tickFormatter: (v: number) => bytes_formatter(v, 0, true) }}
+                xAxisProps={{ tickFormatter: (v: number) => format(new Date(v), 'HH:mm:ss'), minTickGap: 40 }}
+                gridAxis="x"
+                strokeWidth={2}
+                fillOpacity={0.2}
+            />
+        </div>
+    );
+}
+
 function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
     return (
         <Paper radius="lg" shadow="xl" p="lg" bg="dark.8">
@@ -77,7 +115,7 @@ function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.
 const POLL_INTERVAL_MS = 1000;
 const HISTORY_LIMIT = 300; // 5 minutes of history at the poll interval above
 
-type UsagePoint = { time: number; cpu: number; memory: number; disk: number };
+type UsagePoint = { time: number; cpu: number; memory: number; disk: number; netRecv: number; netSent: number };
 
 export default function Dashboard() {
     const [uname, setUname] = useState({
@@ -123,6 +161,8 @@ export default function Dashboard() {
         uptime: 0,
     });
     const [history, setHistory] = useState<UsagePoint[]>([]);
+    const [network, setNetwork] = useState({ recvRate: 0, sentRate: 0 });
+    const prevNetRef = useRef<{ bytesRecv: number; bytesSent: number; time: number } | null>(null);
 
     useEffect(() => {
         const fetchStatus = () => {
@@ -160,12 +200,30 @@ export default function Dashboard() {
                     setUname(r.data.uname);
                     setOsRelease(r.data.os_release);
 
+                    const now = Date.now();
+                    let recvRate = 0;
+                    let sentRate = 0;
+                    if (r.data.network) {
+                        const prevNet = prevNetRef.current;
+                        if (prevNet) {
+                            const elapsedSeconds = (now - prevNet.time) / 1000;
+                            if (elapsedSeconds > 0) {
+                                recvRate = Math.max(0, (r.data.network.bytes_recv - prevNet.bytesRecv) / elapsedSeconds);
+                                sentRate = Math.max(0, (r.data.network.bytes_sent - prevNet.bytesSent) / elapsedSeconds);
+                            }
+                        }
+                        prevNetRef.current = { bytesRecv: r.data.network.bytes_recv, bytesSent: r.data.network.bytes_sent, time: now };
+                        setNetwork({ recvRate, sentRate });
+                    }
+
                     setHistory(prev => {
                         const next = [...prev, {
-                            time: Date.now(),
+                            time: now,
                             cpu: r.data.cpu_percent,
                             memory: r.data.memory.percent,
                             disk: r.data.disk_usage.percent,
+                            netRecv: recvRate,
+                            netSent: sentRate,
                         }];
                         return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next;
                     });
@@ -224,6 +282,11 @@ export default function Dashboard() {
                                 data={history}
                                 dataKey="disk"
                                 color="grape"
+                            />
+                            <NetworkHistoryChart
+                                label="Network"
+                                value={`↓ ${bytes_formatter(network.recvRate, 1, true)}  ↑ ${bytes_formatter(network.sentRate, 1, true)}`}
+                                data={history}
                             />
                         </Stack>
                     </Paper>
