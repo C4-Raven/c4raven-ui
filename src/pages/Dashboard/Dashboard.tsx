@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon, Badge} from '@mantine/core';
+import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon} from '@mantine/core';
 import {
     IconCheck,
     IconX,
@@ -9,9 +9,6 @@ import {
     IconDeviceFloppy,
     IconClock,
     IconDeviceMobile,
-    IconRouter,
-    IconNetwork,
-    IconLock,
 } from '@tabler/icons-react';
 import { DonutChart } from '@mantine/charts';
 import { parseISO, intervalToDuration, formatDuration } from 'date-fns';
@@ -37,17 +34,7 @@ function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.
     );
 }
 
-function StatusBadge({ label, icon, active }: { label: string; icon: React.ReactNode; active: boolean }) {
-    return (
-        <Badge size="lg" radius="md" variant="light" color={active ? 'teal' : 'red'} leftSection={icon}>
-            {label}: {active ? 'Running' : 'Stopped'}
-        </Badge>
-    );
-}
-
 export default function Dashboard() {
-    const [tcpEnabled, setTcpEnabled] = useState(true);
-    const [sslEnabled, setSslEnabled] = useState(true);
     const [uname, setUname] = useState({
         machine: '',
         node: '',
@@ -68,9 +55,6 @@ export default function Dashboard() {
         python_version: '',
     });
     const [alerts, setAlerts] = useState({
-        cot_router: false,
-        tcp: false,
-        ssl: false,
         online_euds: 0,
     });
     const [serverStatus, setServerStatus] = useState({
@@ -100,9 +84,6 @@ export default function Dashboard() {
             ).then(r => {
                 if (r.status === 200) {
                     setAlerts({
-                        cot_router: r.data.cot_router,
-                        tcp: r.data.tcp,
-                        ssl: r.data.ssl,
                         online_euds: r.data.online_euds,
                     });
                     setServerStatus({ cpu_percent: r.data.cpu_percent });
@@ -129,8 +110,6 @@ export default function Dashboard() {
                         uptime: r.data.system_uptime,
                         boot_time: r.data.system_boot_time,
                     });
-                    setTcpEnabled(r.data.tcp);
-                    setSslEnabled(r.data.ssl);
                     setUname(r.data.uname);
                     setOsRelease(r.data.os_release);
                 }
@@ -143,11 +122,6 @@ export default function Dashboard() {
         <ScrollArea>
             <Flex justify="space-between" align="center" wrap="wrap" gap="sm" mb="lg">
                 <Title order={2}>Server Status</Title>
-                <Group gap="xs">
-                    <StatusBadge label="CoT Router" icon={<IconRouter size={14} />} active={alerts.cot_router} />
-                    <StatusBadge label="TCP" icon={<IconNetwork size={14} />} active={tcpEnabled} />
-                    <StatusBadge label="SSL" icon={<IconLock size={14} />} active={sslEnabled} />
-                </Group>
             </Flex>
 
             <SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} mb="xl">
