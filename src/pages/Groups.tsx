@@ -3,13 +3,13 @@ import {
     Center, ComboboxItem, Grid, Modal, MultiSelect, Paper,
     Switch,
     Table,
-    TableData, TextInput, Title, Tooltip,
+    TableData, Text, TextInput, Title, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
 import axios from "axios";
 import {apiRoutes} from "@/apiRoutes.tsx";
-import {IconCircleMinus, IconShare, IconUserCog, IconUserMinus, IconX} from "@tabler/icons-react";
+import {IconCircleMinus, IconUserCog, IconUserMinus, IconX} from "@tabler/icons-react";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import UserVisibilityDiagram from '../components/UserVisibilityDiagram';
@@ -34,13 +34,13 @@ export default function Groups() {
     const [groupToDelete, setGroupToDelete] = useState('');
     const [deleteGroupOpen, setDeleteGroupOpen] = useState(false);
     const [showAddGroup, setShowAddGroup] = useState(false);
-    const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
     const [showAddUserToGroup, setShowAddUserToGroup] = useState(false);
     const [users, setUsers] = useState<string[]>([])
     const [allUsers, setAllUsers] = useState<ComboboxItem[]>([]);
     const [inUsers, setInUsers] = useState<ComboboxItem[]>([]);
     const [outUsers, setOutUsers] = useState<ComboboxItem[]>([]);
     const [group, setGroup] = useState("");
+    const [memberUsernames, setMemberUsernames] = useState<string[]>([]);
     const [members, setMembers] = useState<TableData>({
         caption: '',
         head: [t('Username'), t('Direction'), t('Active')],
@@ -229,6 +229,7 @@ export default function Groups() {
                 setInUsers(inMembers);
                 setOutUsers(outMembers);
                 setMembers(tableData);
+                setMemberUsernames([...new Set<string>(r.data.map((row: any) => row.username))]);
             }
         }).catch(err => {
             console.log(err);
@@ -254,7 +255,6 @@ export default function Groups() {
         <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <Button onClick={() => setShowAddGroup(true)}>{t("Add Group")}</Button>
-                <Button onClick={() => setShowVisibilityDiagram(true)} variant="light" leftSection={<IconShare size={14} />}>{t("User Visibility Diagram")}</Button>
             </div>
             <Modal opened={showAddGroup} onClose={() => setShowAddGroup(false)} title={t("Add Group")}>
                 <TextInput required label={t("Name")} onChange={e => { newGroupProperties.name = e.target.value; }} mb="md" />
@@ -307,6 +307,12 @@ export default function Groups() {
                 <Table.ScrollContainer minWidth="100%">
                     <Table data={members} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mt="md" mb="md" />
                 </Table.ScrollContainer>
+
+                <Title order={4} mt="lg" mb="md">{t("Visibility")}</Title>
+                <Text size="sm" c="dimmed" mb="md">
+                    {t("Once members are added above, use this to set who can see and message whom within {{group}} — no need to think in terms of IN/OUT directly.", { group })}
+                </Text>
+                {showAddUserToGroup && <UserVisibilityDiagram scopeToUsernames={memberUsernames} />}
             </Modal>
             <Modal opened={deleteGroupOpen} onClose={() => setDeleteGroupOpen(false)} title={`Delete Group ${groupToDelete}?`}>
                 <Center>
@@ -320,14 +326,6 @@ export default function Groups() {
                     </Button>
                     <Button onClick={() => setDeleteGroupOpen(false)}>{t("No")}</Button>
                 </Center>
-            </Modal>
-            <Modal
-              size="xl"
-              opened={showVisibilityDiagram}
-              onClose={() => setShowVisibilityDiagram(false)}
-              title={t('User Visibility Diagram')}
-            >
-                {showVisibilityDiagram && <UserVisibilityDiagram />}
             </Modal>
             <Table.ScrollContainer minWidth="100%">
                 <DataTable
@@ -349,6 +347,7 @@ export default function Groups() {
                             render: (row: Group) => (
                                 <Button
                                     onClick={() => {
+                                        setMemberUsernames([]);
                                         getGroupMembers(row.name);
                                         getAllUsers();
                                         setGroup(row.name);

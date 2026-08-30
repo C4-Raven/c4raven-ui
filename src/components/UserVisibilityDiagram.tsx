@@ -37,9 +37,16 @@ function layoutPositions(names: string[]): Record<string, XY> {
     return positions;
 }
 
+interface UserVisibilityDiagramProps {
+    // When given, only these users are shown as nodes (and only connections
+    // between them), e.g. scoped to one group's current roster. Omit to show
+    // every active user system-wide.
+    scopeToUsernames?: string[];
+}
+
 // Only used to give this the same look as the visual planning mockup that
 // inspired it — has no bearing on the actual users/groups underneath.
-export default function UserVisibilityDiagram() {
+export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibilityDiagramProps) {
     const [users, setUsers] = useState<string[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [positions, setPositions] = useState<Record<string, XY>>({});
@@ -55,17 +62,25 @@ export default function UserVisibilityDiagram() {
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
 
+    function applyUsers(names: string[]) {
+        setUsers(names);
+        setPositions((prev) => {
+            const next = layoutPositions(names);
+            names.forEach((n: string) => { if (prev[n]) next[n] = prev[n]; });
+            return next;
+        });
+    }
+
     function loadUsers() {
+        if (scopeToUsernames) {
+            applyUsers(scopeToUsernames);
+            return;
+        }
         axios.get(apiRoutes.allUsers).then((r) => {
             const names = r.data
                 .filter((u: any) => u.active)
                 .map((u: any) => u.username as string);
-            setUsers(names);
-            setPositions((prev) => {
-                const next = layoutPositions(names);
-                names.forEach((n: string) => { if (prev[n]) next[n] = prev[n]; });
-                return next;
-            });
+            applyUsers(names);
         }).catch((err) => {
             notifications.show({ title: t('Failed to load users'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
         });
@@ -75,14 +90,20 @@ export default function UserVisibilityDiagram() {
         setLoading(true);
         axios.get(apiRoutes.userVisibility).then((r) => {
             setLoading(false);
-            setEdges(r.data);
+            let data = r.data as Edge[];
+            if (scopeToUsernames) {
+                const scope = new Set(scopeToUsernames);
+                data = data.filter((e) => scope.has(e.source) && scope.has(e.target));
+            }
+            setEdges(data);
         }).catch((err) => {
             setLoading(false);
             notifications.show({ title: t('Failed to load visibility'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
         });
     }
 
-    useEffect(() => { loadUsers(); loadEdges(); }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { loadUsers(); loadEdges(); }, [JSON.stringify(scopeToUsernames)]);
 
     function connect(source: string, target: string) {
         setLoading(true);
@@ -289,7 +310,7 @@ export default function UserVisibilityDiagram() {
 
                 {users.length === 0 && (
                     <Text pos="absolute" top="50%" left="50%" style={{ transform: 'translate(-50%, calc(-50% + 70px))' }} c="dimmed" size="sm">
-                        {t('No users yet.')}
+                        {scopeToUsernames ? t('No members in this group yet — add some above first.') : t('No users yet.')}
                     </Text>
                 )}
               </Box>
