@@ -9,9 +9,10 @@ import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
 import axios from "axios";
 import {apiRoutes} from "@/apiRoutes.tsx";
-import {IconCircleMinus, IconUserCog, IconUserMinus, IconX} from "@tabler/icons-react";
+import {IconCircleMinus, IconShare, IconUserCog, IconUserMinus, IconX} from "@tabler/icons-react";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
+import UserVisibilityDiagram from '../components/UserVisibilityDiagram';
 
 export interface Group {
     name: string;
@@ -33,6 +34,7 @@ export default function Groups() {
     const [groupToDelete, setGroupToDelete] = useState('');
     const [deleteGroupOpen, setDeleteGroupOpen] = useState(false);
     const [showAddGroup, setShowAddGroup] = useState(false);
+    const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
     const [showAddUserToGroup, setShowAddUserToGroup] = useState(false);
     const [users, setUsers] = useState<string[]>([])
     const [allUsers, setAllUsers] = useState<ComboboxItem[]>([]);
@@ -250,7 +252,10 @@ export default function Groups() {
 
     return (
         <>
-            <Button onClick={() => setShowAddGroup(true)}>Add Group</Button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <Button onClick={() => setShowAddGroup(true)}>{t("Add Group")}</Button>
+                <Button onClick={() => setShowVisibilityDiagram(true)} variant="light" leftSection={<IconShare size={14} />}>{t("User Visibility Diagram")}</Button>
+            </div>
             <Modal opened={showAddGroup} onClose={() => setShowAddGroup(false)} title={t("Add Group")}>
                 <TextInput required label={t("Name")} onChange={e => { newGroupProperties.name = e.target.value; }} mb="md" />
                 <TextInput required label={t("Description")} onChange={e => { newGroupProperties.description = e.target.value; }} mb="md" />
@@ -315,6 +320,14 @@ export default function Groups() {
                     </Button>
                     <Button onClick={() => setDeleteGroupOpen(false)}>{t("No")}</Button>
                 </Center>
+            </Modal>
+            <Modal
+              size="xl"
+              opened={showVisibilityDiagram}
+              onClose={() => setShowVisibilityDiagram(false)}
+              title={t('User Visibility Diagram')}
+            >
+                {showVisibilityDiagram && <UserVisibilityDiagram />}
             </Modal>
             <Table.ScrollContainer minWidth="100%">
                 <DataTable
