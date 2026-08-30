@@ -24,6 +24,7 @@ import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/ico
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
 import Logo from '../../images/ots-logo.png';
+import { QRCode } from 'react-qrcode-logo';
 
 const OUTER_BACKGROUND = 'rgb(35, 37, 41)';
 
@@ -69,6 +70,8 @@ export default function Login(props: PaperProps) {
     const [emailEnabled, setEmailEnabled] = useState(false);
     const [authCode, setAuthCode] = useState<string>();
     const [ldapEnabled, setLdapEnabled] = useState(false);
+    const [qrValue, setQrValue] = useState('');
+    const [qrKey, setQrKey] = useState('');
 
     useEffect(() => {
         try {
@@ -120,6 +123,32 @@ export default function Login(props: PaperProps) {
         });
     };
 
+    function startTfSetup() {
+        // First-time login for an account with two-factor required but not yet
+        // configured: set up an authenticator method and show its QR code
+        // right here, instead of leaving the user stuck with no next step.
+        axios.post(
+            apiRoutes.tfSetup,
+            { setup: 'authenticator' }
+        ).then(r => {
+            if (r.status === 200) {
+                const issuer: string = r.data.response.tf_authr_issuer;
+                const authrUsername: string = r.data.response.tf_authr_username;
+                const key: string = r.data.response.tf_authr_key;
+                setQrKey(key);
+                setQrValue(`otpauth://totp/${issuer}:${authrUsername}?secret=${key.replaceAll('-', '')}&issuer=${issuer}`);
+                setType('authenticator');
+            }
+        }).catch(err => {
+            notifications.show({
+                title: 'Failed to start two-factor setup',
+                message: err.response?.data?.response?.errors?.[0] ?? '',
+                color: 'red',
+                icon: <IconX />,
+            });
+        });
+    }
+
     function handleLogin(e:any) {
         e.preventDefault();
 
@@ -139,7 +168,11 @@ export default function Login(props: PaperProps) {
                         setType('authenticator');
                     } else if (r.data.response.tf_method === 'email') {
                         setType('email');
+                    } else {
+                        startTfSetup();
                     }
+                } else if (r.data.response.force_password_change) {
+                    window.location.href = apiRoutes.changePassword;
                 } else {getUser();}
             }
         }).catch(err => {
@@ -187,7 +220,11 @@ export default function Login(props: PaperProps) {
                     color: 'green',
                     icon: <IconCheck />,
                 });
-                getUser();
+                if (r.data.response.force_password_change) {
+                    window.location.href = apiRoutes.changePassword;
+                } else {
+                    getUser();
+                }
             }
         }).catch(err => {
             console.log(err);
@@ -278,11 +315,27 @@ export default function Login(props: PaperProps) {
                                 </>
                         )}
 
-                            {(type === 'authenticator') && (
+                            {(type === 'authenticator' && qrValue === '') && (
                                     <Text ta="center" c="white">Please check your authenticator app for an auth code</Text>
                             )}
                             {(type === 'email') && (
                                 <Text ta="center" c="white">Please check your email for an auth code</Text>
+                            )}
+
+                            {qrValue !== '' && (
+                                <Stack align="center" pb="md">
+                                    <Text ta="center" c="white">
+                                        Two-factor authentication is required for this account. Scan
+                                        this QR code with an authenticator app (or enter the key below
+                                        manually), then enter the 6-digit code it shows.
+                                    </Text>
+                                    <Paper shadow="xl" radius="md" p="xl" withBorder w="min-content" bg="white">
+                                        <Stack align="center">
+                                            <QRCode value={qrValue} size={280} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={80} logoHeight={80} />
+                                            <Text ta="center" c="black">{qrKey}</Text>
+                                        </Stack>
+                                    </Paper>
+                                </Stack>
                             )}
 
                             <div style={{ display: (type === 'email' || type === 'authenticator' ? 'block' : 'none') }}>
@@ -335,6 +388,15 @@ export default function Login(props: PaperProps) {
                         )}
 
                         <Stack align="center" mt="md" gap={4}>
+                            {type === 'login' &&
+                                <Text size="xs" c="rgba(255, 255, 255, 0.5)" ta="center">
+                                    Forgot your password? Email{' '}
+                                    <Anchor href="mailto:support@c4raven.net" size="xs" c="rgba(255, 255, 255, 0.75)">
+                                        support@c4raven.net
+                                    </Anchor>{' '}
+                                    for help.
+                                </Text>
+                            }
                             {type === 'login' && emailEnabled &&
                                 <Anchor component="button" type="button" size="sm" c="rgba(255, 255, 255, 0.85)" onClick={() => setType('Reset Password')}>
                                     Forgot password?

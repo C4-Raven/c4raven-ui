@@ -25,10 +25,13 @@ export const apiRoutes = {
   revokeSiteAccess: '/api/user/site_access/revoke',
   deleteUser: '/api/user/delete',
   adminResetPassword: '/api/user/password/reset', //Allows admins to change any user's password
+  forcePasswordReset: '/api/user/force_password_reset', //Flags a user to be forced to set a new password on next login
+  issueTempPassword: '/api/user/issue_temp_password', //Generates a temporary password for a user who has forgotten theirs
   register: '/api/register',
   tfValidate: '/api/tf-validate',
   tfSetup: '/api/tf-setup',
   resetPassword: '/api/password/reset', //Allows users to reset their own password if they forgot it
+  changePassword: '/api/password/change', //Allows a logged-in user to change their own password
   mapState: '/api/map_state',
   getScheduledJobs: '/api/scheduler/jobs',
   runJob: '/api/scheduler/job/run',
