@@ -494,16 +494,16 @@ export default function Map() {
                             />
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="Google Streets">
-                            <TileLayer url="http://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" zIndex={0} minZoom={0} maxZoom={20} />
+                            <TileLayer url="https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" zIndex={0} minZoom={0} maxZoom={20} />
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="Google Hybrid">
-                            <TileLayer url="http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&s=Ga" zIndex={0} minZoom={0} maxZoom={20} />
+                            <TileLayer url="https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&s=Ga" zIndex={0} minZoom={0} maxZoom={20} />
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="Google Terrain">
-                            <TileLayer url="http://mt1.google.com/vt/lyrs=p&amp;x={x}&amp;y={y}&amp;z={z}" zIndex={0} minZoom={0} maxZoom={20} />
+                            <TileLayer url="https://mt1.google.com/vt/lyrs=p&amp;x={x}&amp;y={y}&amp;z={z}" zIndex={0} minZoom={0} maxZoom={20} />
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="ESRI World Imagery (Clarity) Beta">
-                            <TileLayer url="http://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" minZoom={0} maxZoom={20} />
+                            <TileLayer url="https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" minZoom={0} maxZoom={20} />
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="ESRI World Topo">
                             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" minZoom={0} maxZoom={20} />
@@ -518,7 +518,7 @@ export default function Map() {
                         </LayersControl.Overlay>
                         <LayersControl.Overlay name="Weather">
                             <WMSTileLayer
-                              url="http://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi"
+                              url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi"
                               params={{
                                 layers: 'nexrad-n0r-900913',
                                 format: 'image/png',
@@ -528,10 +528,10 @@ export default function Map() {
                             />
                         </LayersControl.Overlay>
                         <LayersControl.Overlay name="Google Roads Overlay">
-                            <TileLayer url="http://mt1.google.com/vt/lyrs=h&amp;x={x}&amp;y={y}&amp;z={z}" pane="overlayPane" />
+                            <TileLayer url="https://mt1.google.com/vt/lyrs=h&amp;x={x}&amp;y={y}&amp;z={z}" pane="overlayPane" />
                         </LayersControl.Overlay>
                         <LayersControl.Overlay name="Google Terrain Overlay">
-                            <TileLayer url="http://mt1.google.com/vt/lyrs=t&amp;x={x}&amp;y={y}&amp;z={z}" pane="overlayPane" />
+                            <TileLayer url="https://mt1.google.com/vt/lyrs=t&amp;x={x}&amp;y={y}&amp;z={z}" pane="overlayPane" />
                         </LayersControl.Overlay>
                     </LayersControl>
                     <FullscreenControl />
