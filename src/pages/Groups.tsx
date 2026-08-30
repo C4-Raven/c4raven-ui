@@ -270,7 +270,7 @@ export default function Groups() {
                 >Add Group
                 </Button>
             </Modal>
-            <Modal size="xl" opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
+            <Modal size={1014} opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
                 <Paper withBorder p="md" mb="md">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>

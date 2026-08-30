@@ -22,8 +22,8 @@ interface XY { x: number; y: number; }
 // Fixed on-screen viewport size -- the logical canvas (where nodes actually
 // live) grows past this as there are more users, and zoom is what brings it
 // into view, rather than cramming more nodes into the same fixed area.
-const VIEWPORT_WIDTH = 1500;
-const VIEWPORT_HEIGHT = 820;
+const VIEWPORT_WIDTH = 1250;
+const VIEWPORT_HEIGHT = 680;
 const NODE_WIDTH = 156;
 const NODE_HEIGHT = 56;
 const NODE_GAP = 26;
@@ -44,6 +44,16 @@ function computeBoardSize(count: number): BoardSize {
 function fitZoomFor(board: BoardSize): number {
     const fit = Math.min(VIEWPORT_WIDTH / board.width, VIEWPORT_HEIGHT / board.height, 1);
     return Math.max(MIN_ZOOM, Math.round(fit * 20) / 20);
+}
+
+// Pan offset that centers the (scaled) canvas -- and so the ring of nodes
+// on it, since they're laid out around its center -- within the viewport,
+// instead of leaving it pinned to the top-left corner.
+function centeredPanFor(board: BoardSize, zoomValue: number): XY {
+    return {
+        x: (VIEWPORT_WIDTH - board.width * zoomValue) / 2,
+        y: (VIEWPORT_HEIGHT - board.height * zoomValue) / 2,
+    };
 }
 
 function layoutPositions(names: string[], board: BoardSize): Record<string, XY> {
@@ -98,9 +108,10 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
 
     function applyUsers(names: string[]) {
         const nextBoard = computeBoardSize(names.length);
+        const nextZoom = fitZoomFor(nextBoard);
         setBoardSize(nextBoard);
-        setZoom(fitZoomFor(nextBoard));
-        setPan({ x: 0, y: 0 });
+        setZoom(nextZoom);
+        setPan(centeredPanFor(nextBoard, nextZoom));
         setUsers(names);
         setPositions((prev) => {
             const next = layoutPositions(names, nextBoard);
@@ -233,10 +244,9 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
     }
 
     function zoomBy(delta: number) {
-        setZoom((z) => {
-            const next = z + delta;
-            return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 20) / 20));
-        });
+        const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((zoomRef.current + delta) * 20) / 20));
+        setZoom(next);
+        setPan(centeredPanFor(boardSizeRef.current, next));
     }
 
     function center(name: string): XY {
@@ -280,7 +290,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
                     <ActionIcon variant="light" onClick={() => zoomBy(0.1)}><IconZoomIn size={16} /></ActionIcon>
                 </Tooltip>
                 <Tooltip label={t('Reset zoom')}>
-                    <ActionIcon variant="light" onClick={() => setZoom(fitZoomFor(boardSize))}><IconZoomReset size={16} /></ActionIcon>
+                    <ActionIcon variant="light" onClick={() => { const z = fitZoomFor(boardSize); setZoom(z); setPan(centeredPanFor(boardSize, z)); }}><IconZoomReset size={16} /></ActionIcon>
                 </Tooltip>
             </Group>
 

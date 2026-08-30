@@ -635,7 +635,7 @@ export default function Users() {
                 </Group>
             </Modal>
             <Modal
-              size="xl"
+              size={1014}
               opened={showVisibilityDiagram}
               onClose={() => setShowVisibilityDiagram(false)}
               title={t('User Visibility Diagram')}
