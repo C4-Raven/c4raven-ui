@@ -20,6 +20,7 @@ import {
     IconCopy,
     IconKey,
     IconPassword,
+    IconShare,
     IconUserCog,
     IconUserMinus,
     IconUserPlus,
@@ -32,6 +33,7 @@ import { apiRoutes } from '../apiRoutes';
 import {t} from "i18next";
 import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
+import GroupVisibilityDiagram from '../components/GroupVisibilityDiagram';
 
 export interface User {
     username: string;
@@ -59,6 +61,7 @@ export default function Users() {
     const [showDeleteUser, setShowDeleteUser] = useState(false);
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
+    const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -375,7 +378,10 @@ export default function Users() {
 
     return (
         <>
-            <Button onClick={() => { setAddUserOpen(true); }} mb="md" leftSection={<IconUserPlus size={14} />}>Add User</Button>
+            <Group mb="md">
+                <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
+                <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('Group Visibility Diagram')}</Button>
+            </Group>
             <DataTable
                 withTableBorder
                 borderRadius="md"
@@ -627,6 +633,14 @@ export default function Users() {
                         )}
                     </CopyButton>
                 </Group>
+            </Modal>
+            <Modal
+              size="xl"
+              opened={showVisibilityDiagram}
+              onClose={() => setShowVisibilityDiagram(false)}
+              title={t('Group Visibility Diagram')}
+            >
+                {showVisibilityDiagram && <GroupVisibilityDiagram />}
             </Modal>
         </>
     );
