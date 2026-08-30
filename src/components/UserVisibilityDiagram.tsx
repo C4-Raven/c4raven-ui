@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { IconDeviceDesktop, IconTrash, IconX, IconZoomReset } from '@tabler/icons-react';
+import { ActionIcon, Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Text, Tooltip } from '@mantine/core';
+import { IconTrash, IconX, IconZoomIn, IconZoomOut, IconZoomReset } from '@tabler/icons-react';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { notifications } from '@mantine/notifications';
@@ -14,24 +14,42 @@ interface Edge {
 
 interface XY { x: number; y: number; }
 
-const BOARD_WIDTH = 880;
-const BOARD_HEIGHT = 560;
+// Fixed on-screen viewport size -- the logical canvas (where nodes actually
+// live) grows past this as there are more users, and zoom is what brings it
+// into view, rather than cramming more nodes into the same fixed area.
+const VIEWPORT_WIDTH = 880;
+const VIEWPORT_HEIGHT = 560;
 const NODE_WIDTH = 156;
 const NODE_HEIGHT = 56;
-const HUB_SIZE = 110;
-const MIN_ZOOM = 0.4;
+const NODE_GAP = 26;
+const MIN_RADIUS = 190;
+const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.5;
 
-function layoutPositions(names: string[]): Record<string, XY> {
-    const cx = BOARD_WIDTH / 2;
-    const cy = BOARD_HEIGHT / 2;
-    const radius = Math.min(BOARD_WIDTH, BOARD_HEIGHT) / 2 - 90;
+interface BoardSize { width: number; height: number; radius: number; }
+
+function computeBoardSize(count: number): BoardSize {
+    // Enough circumference that NODE_WIDTH-wide nodes don't overlap.
+    const radius = Math.max(MIN_RADIUS, (count * (NODE_WIDTH + NODE_GAP)) / (2 * Math.PI));
+    const height = Math.max(VIEWPORT_HEIGHT, radius * 2 + NODE_HEIGHT + 160);
+    const width = Math.max(VIEWPORT_WIDTH, height * (VIEWPORT_WIDTH / VIEWPORT_HEIGHT));
+    return { width, height, radius };
+}
+
+function fitZoomFor(board: BoardSize): number {
+    const fit = Math.min(VIEWPORT_WIDTH / board.width, VIEWPORT_HEIGHT / board.height, 1);
+    return Math.max(MIN_ZOOM, Math.round(fit * 20) / 20);
+}
+
+function layoutPositions(names: string[], board: BoardSize): Record<string, XY> {
+    const cx = board.width / 2;
+    const cy = board.height / 2;
     const positions: Record<string, XY> = {};
     names.forEach((name, i) => {
         const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2;
         positions[name] = {
-            x: cx + radius * Math.cos(angle) - NODE_WIDTH / 2,
-            y: cy + radius * Math.sin(angle) - NODE_HEIGHT / 2,
+            x: cx + board.radius * Math.cos(angle) - NODE_WIDTH / 2,
+            y: cy + board.radius * Math.sin(angle) - NODE_HEIGHT / 2,
         };
     });
     return positions;
@@ -54,6 +72,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
     const [mode, setMode] = useState<'solid' | 'dotted'>('solid');
     const [loading, setLoading] = useState(false);
     const [zoom, setZoom] = useState(1);
+    const [boardSize, setBoardSize] = useState<BoardSize>(() => computeBoardSize(0));
 
     const boardRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<{ name: string; offsetX: number; offsetY: number } | null>(null);
@@ -61,11 +80,16 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
     positionsRef.current = positions;
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
+    const boardSizeRef = useRef(boardSize);
+    boardSizeRef.current = boardSize;
 
     function applyUsers(names: string[]) {
+        const nextBoard = computeBoardSize(names.length);
+        setBoardSize(nextBoard);
+        setZoom(fitZoomFor(nextBoard));
         setUsers(names);
         setPositions((prev) => {
-            const next = layoutPositions(names);
+            const next = layoutPositions(names, nextBoard);
             names.forEach((n: string) => { if (prev[n]) next[n] = prev[n]; });
             return next;
         });
@@ -158,8 +182,9 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         const boardRect = boardRef.current.getBoundingClientRect();
         const { name, offsetX, offsetY } = dragRef.current;
         const zoomNow = zoomRef.current;
-        const x = Math.max(0, Math.min(BOARD_WIDTH - NODE_WIDTH, (e.clientX - boardRect.left) / zoomNow - offsetX));
-        const y = Math.max(0, Math.min(BOARD_HEIGHT - NODE_HEIGHT, (e.clientY - boardRect.top) / zoomNow - offsetY));
+        const board = boardSizeRef.current;
+        const x = Math.max(0, Math.min(board.width - NODE_WIDTH, (e.clientX - boardRect.left) / zoomNow - offsetX));
+        const y = Math.max(0, Math.min(board.height - NODE_HEIGHT, (e.clientY - boardRect.top) / zoomNow - offsetY));
         setPositions((prev) => ({ ...prev, [name]: { x, y } }));
     }
 
@@ -167,17 +192,16 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
         dragRef.current = null;
     }
 
-    function onWheel(e: React.WheelEvent<HTMLDivElement>) {
-        e.preventDefault();
+    function zoomBy(delta: number) {
         setZoom((z) => {
-            const next = z + (e.deltaY > 0 ? -0.1 : 0.1);
-            return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 10) / 10));
+            const next = z + delta;
+            return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 20) / 20));
         });
     }
 
     function center(name: string): XY {
         const p = positions[name];
-        if (!p) return { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT / 2 };
+        if (!p) return { x: boardSize.width / 2, y: boardSize.height / 2 };
         return { x: p.x + NODE_WIDTH / 2, y: p.y + NODE_HEIGHT / 2 };
     }
 
@@ -186,7 +210,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
     return (
         <Stack gap="md">
             <Group justify="center" gap="xs">
-                <Text size="sm" c="dimmed">{t('Click a user, choose a connection type, then click another user. Scroll to zoom:')}</Text>
+                <Text size="sm" c="dimmed">{t('Click a user, choose a connection type, then click another user:')}</Text>
                 <SegmentedControl
                     value={mode}
                     onChange={(v) => setMode(v as 'solid' | 'dotted')}
@@ -195,30 +219,35 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                         { label: t('┄ One-Way'), value: 'dotted' },
                     ]}
                 />
-                <Tooltip label={t('Reset zoom')}>
-                    <ActionIcon variant="light" onClick={() => setZoom(1)}><IconZoomReset size={16} /></ActionIcon>
+                <Tooltip label={t('Zoom out')}>
+                    <ActionIcon variant="light" onClick={() => zoomBy(-0.1)}><IconZoomOut size={16} /></ActionIcon>
                 </Tooltip>
-                <Text size="xs" c="dimmed" w={40}>{Math.round(zoom * 100)}%</Text>
+                <Text size="xs" c="dimmed" w={40} ta="center">{Math.round(zoom * 100)}%</Text>
+                <Tooltip label={t('Zoom in')}>
+                    <ActionIcon variant="light" onClick={() => zoomBy(0.1)}><IconZoomIn size={16} /></ActionIcon>
+                </Tooltip>
+                <Tooltip label={t('Reset zoom')}>
+                    <ActionIcon variant="light" onClick={() => setZoom(fitZoomFor(boardSize))}><IconZoomReset size={16} /></ActionIcon>
+                </Tooltip>
             </Group>
 
             <Box
                 ref={boardRef}
                 pos="relative"
                 w="100%"
-                h={BOARD_HEIGHT}
+                h={VIEWPORT_HEIGHT}
                 bg="dark.8"
                 style={{ borderRadius: 16, border: '1px solid var(--mantine-color-dark-4)', overflow: 'hidden', touchAction: 'none' }}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
-                onWheel={onWheel}
                 onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}
             >
               <Box
                 pos="absolute"
                 left={0}
                 top={0}
-                w={BOARD_WIDTH}
-                h={BOARD_HEIGHT}
+                w={boardSize.width}
+                h={boardSize.height}
                 style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}
               >
                 {!missingPositions && (
@@ -240,7 +269,8 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                                         stroke="var(--mantine-color-gray-5)"
                                         strokeWidth={4}
                                         strokeDasharray={edge.type === 'dotted' ? '7 8' : undefined}
-                                        markerEnd={edge.type === 'dotted' ? 'url(#uvArrow)' : undefined}
+                                        markerStart={edge.type === 'solid' ? 'url(#uvArrow)' : undefined}
+                                        markerEnd="url(#uvArrow)"
                                         pointerEvents="stroke"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => disconnect(edge)}
@@ -260,19 +290,6 @@ export default function UserVisibilityDiagram({ scopeToUsernames }: UserVisibili
                         })}
                     </svg>
                 )}
-
-                <Stack
-                    align="center"
-                    gap={2}
-                    pos="absolute"
-                    left={BOARD_WIDTH / 2 - HUB_SIZE / 2}
-                    top={BOARD_HEIGHT / 2 - HUB_SIZE / 2}
-                    w={HUB_SIZE}
-                    style={{ pointerEvents: 'none' }}
-                >
-                    <ThemeIcon size={40} radius="md" variant="light" color="blue"><IconDeviceDesktop size={22} /></ThemeIcon>
-                    <Text size="xs" fw={700} ta="center">{t('C4 RAVEN')}</Text>
-                </Stack>
 
                 {users.map((name) => {
                     const pos = positions[name];
