@@ -10,13 +10,53 @@ import {
     IconClock,
     IconDeviceMobile,
 } from '@tabler/icons-react';
-import { DonutChart } from '@mantine/charts';
-import { parseISO, intervalToDuration, formatDuration } from 'date-fns';
+import { AreaChart } from '@mantine/charts';
+import { parseISO, intervalToDuration, formatDuration, format } from 'date-fns';
 import { versions } from '../../_versions';
 import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
 import bytes_formatter from '../../bytes_formatter';
 import '@mantine/charts/styles.css';
+
+function UsageHistoryChart({ label, value, detail, data, dataKey, color }: {
+    label: string;
+    value: React.ReactNode;
+    detail?: React.ReactNode;
+    data: UsagePoint[];
+    dataKey: 'cpu' | 'memory' | 'disk';
+    color: string;
+}) {
+    return (
+        <div>
+            <Group justify="space-between" align="flex-end" mb={4}>
+                <Text size="sm" c="dimmed">{label}</Text>
+                <Group gap="xs" align="baseline">
+                    {detail && <Text size="xs" c="dimmed">{detail}</Text>}
+                    <Text size="sm" fw={700} c={`${color}.4`}>{value}</Text>
+                </Group>
+            </Group>
+            <AreaChart
+                h={110}
+                data={data}
+                dataKey="time"
+                series={[{ name: dataKey, color: `${color}.6` }]}
+                curveType="monotone"
+                withDots={false}
+                withLegend={false}
+                withTooltip
+                tooltipProps={{ labelFormatter: (v) => typeof v === 'number' ? format(new Date(v), 'HH:mm:ss') : v }}
+                withXAxis
+                withYAxis
+                yAxisProps={{ domain: [0, 100], width: 34, tickCount: 3 }}
+                xAxisProps={{ tickFormatter: (v: number) => format(new Date(v), 'HH:mm:ss'), minTickGap: 40 }}
+                gridAxis="x"
+                strokeWidth={2}
+                fillOpacity={0.25}
+                unit="%"
+            />
+        </div>
+    );
+}
 
 function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
     return (
@@ -33,6 +73,11 @@ function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.
         </Paper>
     );
 }
+
+const POLL_INTERVAL_MS = 1000;
+const HISTORY_LIMIT = 300; // 5 minutes of history at the poll interval above
+
+type UsagePoint = { time: number; cpu: number; memory: number; disk: number };
 
 export default function Dashboard() {
     const [uname, setUname] = useState({
@@ -77,8 +122,10 @@ export default function Dashboard() {
         boot_time: '',
         uptime: 0,
     });
+    const [history, setHistory] = useState<UsagePoint[]>([]);
 
     useEffect(() => {
+        const fetchStatus = () => {
             axios.get(
                 apiRoutes.status
             ).then(r => {
@@ -112,10 +159,25 @@ export default function Dashboard() {
                     });
                     setUname(r.data.uname);
                     setOsRelease(r.data.os_release);
+
+                    setHistory(prev => {
+                        const next = [...prev, {
+                            time: Date.now(),
+                            cpu: r.data.cpu_percent,
+                            memory: r.data.memory.percent,
+                            disk: r.data.disk_usage.percent,
+                        }];
+                        return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next;
+                    });
                 }
             }).catch(err => {
                 console.log(err);
             });
+        };
+
+        fetchStatus();
+        const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -135,45 +197,35 @@ export default function Dashboard() {
             <Grid mb="xl">
                 <Grid.Col span={{ base: 12, md: 8 }}>
                     <Paper radius="lg" shadow="xl" p="xl" bg="dark.8" h="100%">
-                        <Title order={4} mb="lg">Resource Usage</Title>
-                        <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                            <Stack align="center" gap="xs">
-                                <Text size="sm" c="dimmed">CPU</Text>
-                                <DonutChart
-                                  size={140}
-                                  thickness={16}
-                                  data={[
-                                        { name: 'Used', value: serverStatus.cpu_percent, color: 'blue.6' },
-                                        { name: 'Idle', value: 100 - serverStatus.cpu_percent, color: 'dark.5' },
-                                    ]}
-                                />
-                                <Text fw={700} c="blue.4">{`${serverStatus.cpu_percent}%`}</Text>
-                            </Stack>
-                            <Stack align="center" gap="xs">
-                                <Text size="sm" c="dimmed">Memory</Text>
-                                <DonutChart
-                                  size={140}
-                                  thickness={16}
-                                  data={[
-                                        { name: 'Used', value: memory.percent, color: 'blue.6' },
-                                        { name: 'Free', value: 100 - memory.percent, color: 'dark.5' },
-                                    ]}
-                                />
-                                <Text fw={700} c="blue.4">{bytes_formatter(memory.used)} / {bytes_formatter(memory.total)}</Text>
-                            </Stack>
-                            <Stack align="center" gap="xs">
-                                <Text size="sm" c="dimmed">Disk</Text>
-                                <DonutChart
-                                  size={140}
-                                  thickness={16}
-                                  data={[
-                                        { name: 'Used', value: disk.percent, color: 'blue.6' },
-                                        { name: 'Free', value: 100 - disk.percent, color: 'dark.5' },
-                                    ]}
-                                />
-                                <Text fw={700} c="blue.4">{bytes_formatter(disk.used)} / {bytes_formatter(disk.total)}</Text>
-                            </Stack>
-                        </SimpleGrid>
+                        <Group justify="space-between" mb="lg">
+                            <Title order={4}>Resource Usage</Title>
+                            <Text size="xs" c="dimmed">Live · last {Math.round(HISTORY_LIMIT * POLL_INTERVAL_MS / 6000) / 10} min</Text>
+                        </Group>
+                        <Stack gap="xl">
+                            <UsageHistoryChart
+                                label="CPU"
+                                value={`${serverStatus.cpu_percent}%`}
+                                data={history}
+                                dataKey="cpu"
+                                color="blue"
+                            />
+                            <UsageHistoryChart
+                                label="Memory"
+                                value={`${memory.percent}%`}
+                                detail={`${bytes_formatter(memory.used)} / ${bytes_formatter(memory.total)}`}
+                                data={history}
+                                dataKey="memory"
+                                color="teal"
+                            />
+                            <UsageHistoryChart
+                                label="Disk"
+                                value={`${disk.percent}%`}
+                                detail={`${bytes_formatter(disk.used)} / ${bytes_formatter(disk.total)}`}
+                                data={history}
+                                dataKey="disk"
+                                color="grape"
+                            />
+                        </Stack>
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
