@@ -1,34 +1,64 @@
-# Mantine Vite template
+# C4 Raven
 
-## Features
+<p align="center">
+  <img src="docs/screenshots/login.png" alt="C4 Raven login screen" width="600">
+</p>
 
-This template comes with the following features:
+<p align="center">
+  <a href="https://tak.c4raven.net"><strong>tak.c4raven.net</strong></a>
+</p>
 
-- [PostCSS](https://postcss.org/) with [mantine-postcss-preset](https://mantine.dev/styles/postcss-preset)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Storybook](https://storybook.js.org/)
-- [Vitest](https://vitest.dev/) setup with [React Testing Library](https://testing-library.com/docs/react-testing-library/intro)
-- ESLint setup with [eslint-config-mantine](https://github.com/mantinedev/eslint-config-mantine)
+C4 Raven is the web dashboard for our TAK (Team Awareness Kit) server — a
+Raven-branded, security-hardened fork of
+[OpenTAKServer-UI](https://github.com/brian7704/OpenTAKServer-UI). It gives
+operators a live map, device and mission management, video streaming, and
+full administrative control over the server, all from the browser.
 
-## npm scripts
+## What's in it
 
-## Build and dev scripts
+The dashboard surfaces everything an operator or admin needs at a glance:
+server CPU/memory/disk and uptime, connected EUDs (End User Devices), active
+alerts, and system details, alongside dedicated pages for the live map, data
+packages, video streams and recordings, missions, groups, and Meshtastic
+integration.
 
-- `dev` – start development server
-- `build` – build production version of the app
-- `preview` – locally preview production build
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="C4 Raven dashboard" width="700">
+</p>
 
-### Testing scripts
+On top of the upstream feature set, this fork adds a proper account security
+flow that OpenTAKServer-UI doesn't have out of the box. New accounts (and any
+account an admin flags) are forced through a real onboarding sequence on
+their next login: if two-factor authentication isn't configured yet, the
+login page generates a QR code and walks the user through setting it up
+inline, and if a password change is required, they're taken straight to
+setting a new one before they can do anything else.
 
-- `typecheck` – checks TypeScript types
-- `lint` – runs ESLint
-- `prettier:check` – checks files with Prettier
-- `vitest` – runs vitest tests
-- `vitest:watch` – starts vitest watch
-- `test` – runs `vitest`, `prettier:check`, `lint` and `typecheck` scripts
+<p align="center">
+  <img src="docs/screenshots/2fa-setup.png" alt="Inline two-factor setup on the login screen" width="600">
+</p>
 
-### Other scripts
+The admin Users page reflects this: instead of an admin having to manually
+choose and communicate a new password, there are two one-click actions —
+force a user to set a new password on their next login, or issue a
+system-generated temporary password for someone who's completely locked out.
 
-- `storybook` – starts storybook dev server
-- `storybook:build` – build production storybook bundle to `storybook-static`
-- `prettier:write` – formats all files with Prettier
+<p align="center">
+  <img src="docs/screenshots/users.png" alt="Admin users page with password actions" width="700">
+</p>
+
+## Stack
+
+React + TypeScript, [Mantine](https://mantine.dev/) for UI components, Vite
+for the build. Talks to a [OpenTAKServer](https://www.opentakserver.io/)
+backend over its REST API.
+
+## Development
+
+This project uses [Yarn](https://yarnpkg.com/) (via Corepack):
+
+```
+corepack yarn install
+corepack yarn dev      # start the dev server
+corepack yarn build    # production build to dist/
+```
