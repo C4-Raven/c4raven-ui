@@ -435,6 +435,12 @@ export default function Users() {
                         ),
                     },
                     {
+                        accessor: 'current_login_ip',
+                        title: t('Last IP'),
+                        sortable: true,
+                        render: (row) => <Text ff="monospace" size="sm">{row.current_login_ip ?? '—'}</Text>,
+                    },
+                    {
                         accessor: 'password_actions',
                         title: t('Password'),
                         render: (row) => (
