@@ -35,7 +35,15 @@ interface Plugin {
     tak_prerequisite: string;
     version: string;
     atak_version: string|null|undefined;
+    product?: string;
 }
+
+const ALL_PLUGINS = "All Plugins";
+const TAK_GOV_PRODUCTS = [
+    "ATAK-CIV", "ATAK-AUS", "ATAK-MNWG",
+    "WinTAK-CIV", "WinTAK-AUS", "WinTAK-MNWG",
+    "TAKX-CIV", "TAKX-AUS", "TAKX-MNWG",
+];
 
 export default function LinkTakGov() {
     const [linked, setLinked] = useState(false);
@@ -70,8 +78,49 @@ export default function LinkTakGov() {
         })
     }
 
+    function build_download_button(plugin: Plugin) {
+        return <Button
+            rightSection={<IconDownload size={14} />}
+            onClick={() => {
+                plugin.atak_version = productVersion;
+                download_plugin(plugin);
+            }}
+        >
+            {t("Download Plugin")}
+        </Button>;
+    }
+
     function get_plugin_list() {
         setLoading(true);
+
+        if (product === ALL_PLUGINS) {
+            Promise.all(TAK_GOV_PRODUCTS.map((p) =>
+                axios.get(apiRoutes.takgovPlugins, {params: {product: p, "product_version": productVersion}})
+                    .then((r) => (r.data as Plugin[]).map((plugin) => ({...plugin, product: p})))
+                    .catch((err) => {
+                        console.error(`Failed to get plugins for ${p}:`, err);
+                        return [] as Plugin[];
+                    })
+            )).then((results) => {
+                setLoading(false);
+
+                const tableData: TableData = {
+                    caption: '',
+                    head: [t('Product'), t('Name'), t('Description'), t('Version'), t('TAK Prerequisite'), t('Size')],
+                    body: [],
+                };
+
+                results.flat().forEach((plugin) => {
+                    if (tableData.body !== undefined) {
+                        tableData.body.push([plugin.product, plugin.display_name, plugin.description, plugin.version, plugin.tak_prerequisite, bytes_formatter(plugin.apk_size_bytes), build_download_button(plugin)]);
+                    }
+                });
+
+                setPlugins(tableData);
+            });
+            return;
+        }
+
         axios.get(apiRoutes.takgovPlugins, {params:{product: product, "product_version": productVersion}}).then((r) => {
             setLoading(false);
             if (r.status === 200) {
@@ -84,16 +133,7 @@ export default function LinkTakGov() {
 
                 r.data.map((plugin: Plugin) => {
                     if (tableData.body !== undefined) {
-                        let download_button = <Button
-                            rightSection={<IconDownload size={14} />}
-                            onClick={() => {
-                                plugin.atak_version = productVersion;
-                                download_plugin(plugin);
-                            }}
-                        >
-                            {t("Download Plugin")}
-                        </Button>
-                        tableData.body.push([plugin.display_name, plugin.description, plugin.version, plugin.tak_prerequisite, bytes_formatter(plugin.apk_size_bytes), download_button]);
+                        tableData.body.push([plugin.display_name, plugin.description, plugin.version, plugin.tak_prerequisite, bytes_formatter(plugin.apk_size_bytes), build_download_button(plugin)]);
                     }
                 })
 
@@ -243,11 +283,7 @@ export default function LinkTakGov() {
                     display={linked ? "block" : "none"}
                     pb="md"
                     value={product}
-                    data={[
-                        "ATAK-CIV", "ATAK-AUS", "ATAK-MNWG",
-                        "WinTAK-CIV", "WinTAK-AUS", "WinTAK-MNWG",
-                        "TAKX-CIV", "TAKX-AUS", "TAKX-MNWG",
-                    ]}
+                    data={[ALL_PLUGINS, ...TAK_GOV_PRODUCTS]}
                     searchable
                     onChange={(value) => {setProduct(value);}}
                     inputContainer={(children) => (
