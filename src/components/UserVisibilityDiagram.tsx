@@ -170,8 +170,8 @@ export default function UserVisibilityDiagram() {
                     value={mode}
                     onChange={(v) => setMode(v as 'solid' | 'dotted')}
                     data={[
-                        { label: t('— See + Message'), value: 'solid' },
-                        { label: t('┄ Receive Only'), value: 'dotted' },
+                        { label: t('— Two-Way'), value: 'solid' },
+                        { label: t('┄ One-Way'), value: 'dotted' },
                     ]}
                 />
                 <Tooltip label={t('Reset zoom')}>
@@ -232,7 +232,7 @@ export default function UserVisibilityDiagram() {
                                         fill="var(--mantine-color-gray-3)"
                                         style={{ paintOrder: 'stroke', stroke: 'var(--mantine-color-dark-8)', strokeWidth: 4 }}
                                     >
-                                        {edge.type === 'solid' ? t('SEE + MESSAGE') : t('RECEIVE ONLY')}
+                                        {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
                                     </text>
                                 </g>
                             );
@@ -296,8 +296,8 @@ export default function UserVisibilityDiagram() {
             </Box>
 
             <Group justify="center" gap="lg">
-                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Solid = both users can see each other and message each other')}</Text></Group>
-                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Dotted + arrow = one-way, receive only')}</Text></Group>
+                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Two-way — both send permitted TAK data (position, chat, and more) to each other')}</Text></Group>
+                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-gray-5)' }} /><Text size="sm">{t('One-way — the arrow points at the user who receives data')}</Text></Group>
             </Group>
 
             <Paper withBorder p="md" radius="md" bg="dark.7">
@@ -309,12 +309,12 @@ export default function UserVisibilityDiagram() {
                         {edges.map((edge, i) => (
                             <Group key={i} gap="xs" wrap="nowrap">
                                 <Badge color={edge.type === 'solid' ? 'blue' : 'gray'} variant="light" style={{ flexShrink: 0 }}>
-                                    {edge.type === 'solid' ? t('MUTUAL') : t('ONE-WAY')}
+                                    {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
                                 </Badge>
                                 <Text size="sm">
                                     {edge.type === 'solid'
-                                        ? t('{{a}} and {{b}} can see each other on the map and message each other.', { a: edge.source, b: edge.target })
-                                        : t('{{b}} can see {{a}} on the map and receive their data, but {{a}} cannot see {{b}}.', { a: edge.source, b: edge.target })}
+                                        ? t('{{a}} and {{b}} exchange permitted TAK data (position, chat, and more) with each other — a consequence of this is that they can see each other on the map.', { a: edge.source, b: edge.target })
+                                        : t('{{b}} receives {{a}}\'s permitted TAK data (position, chat, and more) — including seeing them on the map — but {{a}} does not receive {{b}}\'s.', { a: edge.source, b: edge.target })}
                                 </Text>
                                 <Tooltip label={t('Remove this connection')}>
                                     <ActionIcon color="red" variant="subtle" style={{ flexShrink: 0 }} onClick={() => disconnect(edge)}>
