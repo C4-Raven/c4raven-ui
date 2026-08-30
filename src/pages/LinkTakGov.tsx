@@ -243,7 +243,12 @@ export default function LinkTakGov() {
                     display={linked ? "block" : "none"}
                     pb="md"
                     value={product}
-                    data={["ATAK-CIV", "ATAK-GOV", "ATAK-MIL"]}
+                    data={[
+                        "ATAK-CIV", "ATAK-AUS", "ATAK-MNWG",
+                        "WinTAK", "WinTAK-CIV", "WinTAK-AUS", "WinTAK-MNWG",
+                        "TAKX", "TAKX-CIV", "TAKX-AUS", "TAKX-MNWG",
+                    ]}
+                    searchable
                     onChange={(value) => {setProduct(value);}}
                     inputContainer={(children) => (
                         <Group align="flex-start">
