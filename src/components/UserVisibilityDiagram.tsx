@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { IconDeviceDesktop, IconX } from '@tabler/icons-react';
+import { ActionIcon, Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconDeviceDesktop, IconTrash, IconX, IconZoomReset } from '@tabler/icons-react';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { notifications } from '@mantine/notifications';
@@ -19,6 +19,8 @@ const BOARD_HEIGHT = 560;
 const NODE_WIDTH = 156;
 const NODE_HEIGHT = 56;
 const HUB_SIZE = 110;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2.5;
 
 function layoutPositions(names: string[]): Record<string, XY> {
     const cx = BOARD_WIDTH / 2;
@@ -44,11 +46,14 @@ export default function UserVisibilityDiagram() {
     const [selected, setSelected] = useState<string | null>(null);
     const [mode, setMode] = useState<'solid' | 'dotted'>('solid');
     const [loading, setLoading] = useState(false);
+    const [zoom, setZoom] = useState(1);
 
     const boardRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<{ name: string; offsetX: number; offsetY: number } | null>(null);
     const positionsRef = useRef(positions);
     positionsRef.current = positions;
+    const zoomRef = useRef(zoom);
+    zoomRef.current = zoom;
 
     function loadUsers() {
         axios.get(apiRoutes.allUsers).then((r) => {
@@ -121,8 +126,8 @@ export default function UserVisibilityDiagram() {
         if (!pos) return;
         dragRef.current = {
             name,
-            offsetX: e.clientX - boardRect.left - pos.x,
-            offsetY: e.clientY - boardRect.top - pos.y,
+            offsetX: (e.clientX - boardRect.left) / zoomRef.current - pos.x,
+            offsetY: (e.clientY - boardRect.top) / zoomRef.current - pos.y,
         };
         e.currentTarget.setPointerCapture(e.pointerId);
     }
@@ -131,13 +136,22 @@ export default function UserVisibilityDiagram() {
         if (!dragRef.current || !boardRef.current) return;
         const boardRect = boardRef.current.getBoundingClientRect();
         const { name, offsetX, offsetY } = dragRef.current;
-        const x = Math.max(0, Math.min(BOARD_WIDTH - NODE_WIDTH, e.clientX - boardRect.left - offsetX));
-        const y = Math.max(0, Math.min(BOARD_HEIGHT - NODE_HEIGHT, e.clientY - boardRect.top - offsetY));
+        const zoomNow = zoomRef.current;
+        const x = Math.max(0, Math.min(BOARD_WIDTH - NODE_WIDTH, (e.clientX - boardRect.left) / zoomNow - offsetX));
+        const y = Math.max(0, Math.min(BOARD_HEIGHT - NODE_HEIGHT, (e.clientY - boardRect.top) / zoomNow - offsetY));
         setPositions((prev) => ({ ...prev, [name]: { x, y } }));
     }
 
     function onPointerUp() {
         dragRef.current = null;
+    }
+
+    function onWheel(e: React.WheelEvent<HTMLDivElement>) {
+        e.preventDefault();
+        setZoom((z) => {
+            const next = z + (e.deltaY > 0 ? -0.1 : 0.1);
+            return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 10) / 10));
+        });
     }
 
     function center(name: string): XY {
@@ -151,7 +165,7 @@ export default function UserVisibilityDiagram() {
     return (
         <Stack gap="md">
             <Group justify="center" gap="xs">
-                <Text size="sm" c="dimmed">{t('Click a user, choose a connection type, then click another user:')}</Text>
+                <Text size="sm" c="dimmed">{t('Click a user, choose a connection type, then click another user. Scroll to zoom:')}</Text>
                 <SegmentedControl
                     value={mode}
                     onChange={(v) => setMode(v as 'solid' | 'dotted')}
@@ -160,6 +174,10 @@ export default function UserVisibilityDiagram() {
                         { label: t('┄ Receive Only'), value: 'dotted' },
                     ]}
                 />
+                <Tooltip label={t('Reset zoom')}>
+                    <ActionIcon variant="light" onClick={() => setZoom(1)}><IconZoomReset size={16} /></ActionIcon>
+                </Tooltip>
+                <Text size="xs" c="dimmed" w={40}>{Math.round(zoom * 100)}%</Text>
             </Group>
 
             <Box
@@ -171,8 +189,17 @@ export default function UserVisibilityDiagram() {
                 style={{ borderRadius: 16, border: '1px solid var(--mantine-color-dark-4)', overflow: 'hidden', touchAction: 'none' }}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
+                onWheel={onWheel}
                 onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}
             >
+              <Box
+                pos="absolute"
+                left={0}
+                top={0}
+                w={BOARD_WIDTH}
+                h={BOARD_HEIGHT}
+                style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}
+              >
                 {!missingPositions && (
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
@@ -265,6 +292,7 @@ export default function UserVisibilityDiagram() {
                         {t('No users yet.')}
                     </Text>
                 )}
+              </Box>
             </Box>
 
             <Group justify="center" gap="lg">
@@ -288,8 +316,10 @@ export default function UserVisibilityDiagram() {
                                         ? t('{{a}} and {{b}} can see each other on the map and message each other.', { a: edge.source, b: edge.target })
                                         : t('{{b}} can see {{a}} on the map and receive their data, but {{a}} cannot see {{b}}.', { a: edge.source, b: edge.target })}
                                 </Text>
-                                <Tooltip label={t('Click the line on the diagram to remove this connection')}>
-                                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>({t('click line to remove')})</Text>
+                                <Tooltip label={t('Remove this connection')}>
+                                    <ActionIcon color="red" variant="subtle" style={{ flexShrink: 0 }} onClick={() => disconnect(edge)}>
+                                        <IconTrash size={16} />
+                                    </ActionIcon>
                                 </Tooltip>
                             </Group>
                         ))}
