@@ -1,18 +1,24 @@
 import {
+    ActionIcon,
     Button,
     Center, Grid,
+    Group,
     Modal, MultiSelect,
     Paper,
     PasswordInput,
     Select,
     Switch,
     TableData,
-    ComboboxItem,
     TextInput, Title, Tooltip,
+    ComboboxItem,
+    CopyButton,
+    Text,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
     IconCheck,
+    IconCopy,
+    IconKey,
     IconPassword,
     IconUserCog,
     IconUserMinus,
@@ -50,8 +56,8 @@ export default function Users() {
         direction: 'asc',
     });
     const [addUserOpen, setAddUserOpen] = useState(false);
-    const [showResetPassword, setShowResetPassword] = useState(false);
     const [showDeleteUser, setShowDeleteUser] = useState(false);
+    const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -330,28 +336,41 @@ export default function Users() {
         });
     }
 
-    function resetPassword(e:any) {
-            e.preventDefault();
-            axios.post(
-                apiRoutes.adminResetPassword,
-                { username, new_password: password }
-            ).then(r => {
-                if (r.status === 200) {
-                    getUsers();
-                    setShowResetPassword(false);
-                    setPassword('');
-                    notifications.show({
-                        message: `${username}'s password has been changed`,
-                        color: 'green',
-                    });
-                }
-            }).catch(err => {
+    function forcePasswordReset(username: string) {
+        axios.post(
+            apiRoutes.forcePasswordReset,
+            { username }
+        ).then(r => {
+            if (r.status === 200) {
                 notifications.show({
-                    title: `Failed to change ${username}'s password`,
-                    message: err.response.data.error,
-                    color: 'red',
+                    message: `${username} will be asked to set a new password next time they log in`,
+                    color: 'green',
                 });
+            }
+        }).catch(err => {
+            notifications.show({
+                title: `Failed to flag ${username} for a password reset`,
+                message: err.response.data.error,
+                color: 'red',
             });
+        });
+    }
+
+    function issueTempPassword(username: string) {
+        axios.post(
+            apiRoutes.issueTempPassword,
+            { username }
+        ).then(r => {
+            if (r.status === 200) {
+                setTempPasswordInfo({ username, password: r.data.password });
+            }
+        }).catch(err => {
+            notifications.show({
+                title: `Failed to issue a temporary password for ${username}`,
+                message: err.response.data.error,
+                color: 'red',
+            });
+        });
     }
 
     return (
@@ -416,39 +435,27 @@ export default function Users() {
                         ),
                     },
                     {
-                        accessor: 'last_login_at',
-                        title: t('Last Login'),
-                        sortable: true,
-                    },
-                    {
-                        accessor: 'last_login_ip',
-                        title: t('Last Login IP'),
-                    },
-                    {
-                        accessor: 'current_login_at',
-                        title: t('Current Login'),
-                        sortable: true,
-                    },
-                    {
-                        accessor: 'current_login_ip',
-                        title: t('Current Login IP'),
-                    },
-                    {
-                        accessor: 'login_count',
-                        title: t('Login Count'),
-                        sortable: true,
-                    },
-                    {
-                        accessor: 'reset_password',
-                        title: '',
+                        accessor: 'password_actions',
+                        title: t('Password'),
                         render: (row) => (
-                            <Button
-                                onClick={() => {
-                                    setShowResetPassword(true);
-                                    setUsername(row.username);
-                                }}
-                                rightSection={<IconPassword />}
-                            >Reset Password</Button>
+                            <Group gap="xs" wrap="nowrap">
+                                <Tooltip label={t('Force this user to set a new password on next login')}>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        onClick={() => forcePasswordReset(row.username)}
+                                    >
+                                        <IconPassword size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label={t('Issue a temporary password (for a user who forgot theirs)')}>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        onClick={() => issueTempPassword(row.username)}
+                                    >
+                                        <IconKey size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
                         ),
                     },
                     {
@@ -581,18 +588,6 @@ export default function Users() {
                 />
                 <Button onClick={(e) => { addUser(e); }}>Add User</Button>
             </Modal>
-            <Modal opened={showResetPassword} onClose={() => setShowResetPassword(false)} title={`Reset ${username}'s Password`}>
-                <PasswordInput
-                  label="Password"
-                  placeholder="Password"
-                  required
-                  mt="md"
-                  mb="md"
-                  onChange={(e) => setPassword(e.target.value)}
-                  value={password}
-                />
-                <Button onClick={(e) => { resetPassword(e); }}>Change Password</Button>
-            </Modal>
             <Modal opened={showDeleteUser} onClose={() => setShowDeleteUser(false)} title={`Are you sure you want to delete ${username}?`}>
                 <Center>
                     <Button
@@ -605,6 +600,27 @@ export default function Users() {
                     </Button>
                     <Button onClick={() => setShowDeleteUser(false)}>No</Button>
                 </Center>
+            </Modal>
+            <Modal
+              opened={tempPasswordInfo !== null}
+              onClose={() => setTempPasswordInfo(null)}
+              title={`Temporary password for ${tempPasswordInfo?.username}`}
+            >
+                <Text size="sm" c="dimmed" mb="md">
+                    {t('Give this to the user directly. It only works once — they\'ll be forced to set their own password immediately after logging in.')}
+                </Text>
+                <Group justify="center" gap="xs">
+                    <Text size="xl" fw={700} ff="monospace">{tempPasswordInfo?.password}</Text>
+                    <CopyButton value={tempPasswordInfo?.password ?? ''}>
+                        {({ copied, copy }) => (
+                            <Tooltip label={copied ? t('Copied') : t('Copy')}>
+                                <ActionIcon variant="subtle" onClick={copy}>
+                                    {copied ? <IconCheck size={18} /> : <IconCopy size={18} />}
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </CopyButton>
+                </Group>
             </Modal>
         </>
     );
