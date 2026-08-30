@@ -245,8 +245,8 @@ export default function LinkTakGov() {
                     value={product}
                     data={[
                         "ATAK-CIV", "ATAK-AUS", "ATAK-MNWG",
-                        "WinTAK", "WinTAK-CIV", "WinTAK-AUS", "WinTAK-MNWG",
-                        "TAKX", "TAKX-CIV", "TAKX-AUS", "TAKX-MNWG",
+                        "WinTAK-CIV", "WinTAK-AUS", "WinTAK-MNWG",
+                        "TAKX-CIV", "TAKX-AUS", "TAKX-MNWG",
                     ]}
                     searchable
                     onChange={(value) => {setProduct(value);}}
