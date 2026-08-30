@@ -33,7 +33,7 @@ import { apiRoutes } from '../apiRoutes';
 import {t} from "i18next";
 import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
-import GroupVisibilityDiagram from '../components/GroupVisibilityDiagram';
+import UserVisibilityDiagram from '../components/UserVisibilityDiagram';
 
 export interface User {
     username: string;
@@ -380,7 +380,7 @@ export default function Users() {
         <>
             <Group mb="md">
                 <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
-                <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('Group Visibility Diagram')}</Button>
+                <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('User Visibility Diagram')}</Button>
             </Group>
             <DataTable
                 withTableBorder
@@ -638,9 +638,9 @@ export default function Users() {
               size="xl"
               opened={showVisibilityDiagram}
               onClose={() => setShowVisibilityDiagram(false)}
-              title={t('Group Visibility Diagram')}
+              title={t('User Visibility Diagram')}
             >
-                {showVisibilityDiagram && <GroupVisibilityDiagram />}
+                {showVisibilityDiagram && <UserVisibilityDiagram />}
             </Modal>
         </>
     );

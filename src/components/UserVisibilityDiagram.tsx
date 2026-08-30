@@ -16,14 +16,14 @@ interface XY { x: number; y: number; }
 
 const BOARD_WIDTH = 880;
 const BOARD_HEIGHT = 560;
-const NODE_WIDTH = 168;
-const NODE_HEIGHT = 60;
+const NODE_WIDTH = 156;
+const NODE_HEIGHT = 56;
 const HUB_SIZE = 110;
 
 function layoutPositions(names: string[]): Record<string, XY> {
     const cx = BOARD_WIDTH / 2;
     const cy = BOARD_HEIGHT / 2;
-    const radius = Math.min(BOARD_WIDTH, BOARD_HEIGHT) / 2 - 95;
+    const radius = Math.min(BOARD_WIDTH, BOARD_HEIGHT) / 2 - 90;
     const positions: Record<string, XY> = {};
     names.forEach((name, i) => {
         const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2;
@@ -35,8 +35,10 @@ function layoutPositions(names: string[]): Record<string, XY> {
     return positions;
 }
 
-export default function GroupVisibilityDiagram() {
-    const [groups, setGroups] = useState<string[]>([]);
+// Only used to give this the same look as the visual planning mockup that
+// inspired it — has no bearing on the actual users/groups underneath.
+export default function UserVisibilityDiagram() {
+    const [users, setUsers] = useState<string[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [positions, setPositions] = useState<Record<string, XY>>({});
     const [selected, setSelected] = useState<string | null>(null);
@@ -48,46 +50,48 @@ export default function GroupVisibilityDiagram() {
     const positionsRef = useRef(positions);
     positionsRef.current = positions;
 
-    function loadGroups() {
-        axios.get(apiRoutes.allGroups).then((r) => {
-            const names = r.data.map((g: any) => g.name).filter((n: string) => n !== '__ANON__');
-            setGroups(names);
+    function loadUsers() {
+        axios.get(apiRoutes.allUsers).then((r) => {
+            const names = r.data
+                .filter((u: any) => u.active)
+                .map((u: any) => u.username as string);
+            setUsers(names);
             setPositions((prev) => {
                 const next = layoutPositions(names);
                 names.forEach((n: string) => { if (prev[n]) next[n] = prev[n]; });
                 return next;
             });
         }).catch((err) => {
-            notifications.show({ title: t('Failed to load groups'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
+            notifications.show({ title: t('Failed to load users'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
         });
     }
 
     function loadEdges() {
         setLoading(true);
-        axios.get(apiRoutes.groupVisibility).then((r) => {
+        axios.get(apiRoutes.userVisibility).then((r) => {
             setLoading(false);
             setEdges(r.data);
         }).catch((err) => {
             setLoading(false);
-            notifications.show({ title: t('Failed to load group visibility'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
+            notifications.show({ title: t('Failed to load visibility'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
         });
     }
 
-    useEffect(() => { loadGroups(); loadEdges(); }, []);
+    useEffect(() => { loadUsers(); loadEdges(); }, []);
 
     function connect(source: string, target: string) {
         setLoading(true);
-        axios.put(apiRoutes.groupVisibility, { source, target, type: mode }).then(() => {
+        axios.put(apiRoutes.userVisibility, { source, target, type: mode }).then(() => {
             loadEdges();
         }).catch((err) => {
             setLoading(false);
-            notifications.show({ title: t('Failed to connect groups'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
+            notifications.show({ title: t('Failed to connect users'), message: err.response?.data?.error, icon: <IconX />, color: 'red' });
         });
     }
 
     function disconnect(edge: Edge) {
         setLoading(true);
-        axios.delete(apiRoutes.groupVisibility, { params: { source: edge.source, target: edge.target, type: edge.type } }).then(() => {
+        axios.delete(apiRoutes.userVisibility, { params: { source: edge.source, target: edge.target } }).then(() => {
             loadEdges();
         }).catch((err) => {
             setLoading(false);
@@ -142,12 +146,12 @@ export default function GroupVisibilityDiagram() {
         return { x: p.x + NODE_WIDTH / 2, y: p.y + NODE_HEIGHT / 2 };
     }
 
-    const missingPositions = groups.some((g) => !positions[g]);
+    const missingPositions = users.some((u) => !positions[u]);
 
     return (
         <Stack gap="md">
             <Group justify="center" gap="xs">
-                <Text size="sm" c="dimmed">{t('Click a group, choose a connection type, then click another group:')}</Text>
+                <Text size="sm" c="dimmed">{t('Click a user, choose a connection type, then click another user:')}</Text>
                 <SegmentedControl
                     value={mode}
                     onChange={(v) => setMode(v as 'solid' | 'dotted')}
@@ -172,7 +176,7 @@ export default function GroupVisibilityDiagram() {
                 {!missingPositions && (
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
-                            <marker id="rvArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+                            <marker id="uvArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
                                 <path d="M0,0 L0,7 L8,3.5 z" fill="var(--mantine-color-gray-4)" />
                             </marker>
                         </defs>
@@ -188,7 +192,7 @@ export default function GroupVisibilityDiagram() {
                                         stroke="var(--mantine-color-gray-5)"
                                         strokeWidth={4}
                                         strokeDasharray={edge.type === 'dotted' ? '7 8' : undefined}
-                                        markerEnd={edge.type === 'dotted' ? 'url(#rvArrow)' : undefined}
+                                        markerEnd={edge.type === 'dotted' ? 'url(#uvArrow)' : undefined}
                                         pointerEvents="stroke"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => disconnect(edge)}
@@ -222,7 +226,7 @@ export default function GroupVisibilityDiagram() {
                     <Text size="xs" fw={700} ta="center">{t('C4 RAVEN')}</Text>
                 </Stack>
 
-                {groups.map((name) => {
+                {users.map((name) => {
                     const pos = positions[name];
                     if (!pos) return null;
                     const isSelected = selected === name;
@@ -256,22 +260,22 @@ export default function GroupVisibilityDiagram() {
                     );
                 })}
 
-                {groups.length === 0 && (
+                {users.length === 0 && (
                     <Text pos="absolute" top="50%" left="50%" style={{ transform: 'translate(-50%, calc(-50% + 70px))' }} c="dimmed" size="sm">
-                        {t('No groups yet — create some on the Groups page first.')}
+                        {t('No users yet.')}
                     </Text>
                 )}
             </Box>
 
             <Group justify="center" gap="lg">
-                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Solid = both groups can see each other and message each other')}</Text></Group>
+                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Solid = both users can see each other and message each other')}</Text></Group>
                 <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Dotted + arrow = one-way, receive only')}</Text></Group>
             </Group>
 
             <Paper withBorder p="md" radius="md" bg="dark.7">
                 <Text fw={700} size="sm" mb={6}>{t('What this means, plainly:')}</Text>
                 {edges.length === 0 ? (
-                    <Text size="sm" c="dimmed">{t('No connections yet. Click a group, then another, to connect them.')}</Text>
+                    <Text size="sm" c="dimmed">{t('No connections yet. Click a user, then another, to connect them.')}</Text>
                 ) : (
                     <Stack gap={4}>
                         {edges.map((edge, i) => (
@@ -281,8 +285,8 @@ export default function GroupVisibilityDiagram() {
                                 </Badge>
                                 <Text size="sm">
                                     {edge.type === 'solid'
-                                        ? t('{{a}} and {{b}} can see each other\'s data and message each other.', { a: edge.source, b: edge.target })
-                                        : t('{{b}} receives {{a}}\'s data, but {{a}} does not receive {{b}}\'s.', { a: edge.source, b: edge.target })}
+                                        ? t('{{a}} and {{b}} can see each other on the map and message each other.', { a: edge.source, b: edge.target })
+                                        : t('{{b}} can see {{a}} on the map and receive their data, but {{a}} cannot see {{b}}.', { a: edge.source, b: edge.target })}
                                 </Text>
                                 <Tooltip label={t('Click the line on the diagram to remove this connection')}>
                                     <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>({t('click line to remove')})</Text>
@@ -294,7 +298,7 @@ export default function GroupVisibilityDiagram() {
             </Paper>
 
             <Text size="xs" c="dimmed" ta="center">
-                {t('This diagram always reflects your real group permissions — connecting or disconnecting here immediately changes what users in those groups can see.')}
+                {t('This diagram always reflects real permissions — connecting or disconnecting here immediately changes what each user can see and send.')}
             </Text>
         </Stack>
     );
