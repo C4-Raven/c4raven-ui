@@ -47,6 +47,25 @@ system-generated temporary password for someone who's completely locked out.
   <img src="docs/screenshots/users.png" alt="Admin users page with password actions" width="700">
 </p>
 
+## Federation Hub
+
+A dedicated tab for managing [TAK Server Federation
+Hub](https://github.com/C4Raven/federation-hub-setup) — status, trusted CA
+groups, and outgoing connections to partner hubs, plus a drag-and-click
+policy diagram for drawing data-sharing rules between them, all through a
+normal admin login. The backend holds Federation Hub's own admin client
+certificate and proxies every call, so nobody needs that certificate
+imported into their browser just to check on federation status day to day.
+
+<p align="center">
+  <img src="docs/federation-hub/federations-diagram.jpg" alt="Federation Hub policy diagram" width="700">
+</p>
+
+See [`docs/federation-hub`](docs/federation-hub) for the rest of the
+screenshots (status, CA groups, and the 2FA-gated admin certificate download
+for the smaller number of cases that still need Federation Hub's own native
+console directly).
+
 ## Stack
 
 React + TypeScript, [Mantine](https://mantine.dev/) for UI components, Vite
