@@ -66,6 +66,16 @@ screenshots (status, CA groups, and the 2FA-gated admin certificate download
 for the smaller number of cases that still need Federation Hub's own native
 console directly).
 
+## Video Streaming
+
+The Video Streams tab lists and plays back whatever's currently publishing
+through the server's MediaMTX instance — there's no separate stream key to
+issue: an encoder authenticates with a real C4 Raven account over RTMP (or
+RTSP/SRT), and the stream shows up automatically. See
+[`docs/video-streaming`](docs/video-streaming) for the exact URL format,
+which ports need to be open for each protocol, and troubleshooting a
+publish that won't connect.
+
 ## Stack
 
 React + TypeScript, [Mantine](https://mantine.dev/) for UI components, Vite
