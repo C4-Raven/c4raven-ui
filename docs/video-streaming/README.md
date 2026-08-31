@@ -42,6 +42,36 @@ rtmp://<server>/<path>?user=<username>&pass=<password>
   **Admin → Users** that the account exists and the password is current;
   reset it there (or from **Profile**, if it's your own account) if unsure.
 
+## Example: publish then view a stream
+
+Publish a webcam or a test file with `ffmpeg`, path `drone1`, account
+`streamer`:
+
+```
+ffmpeg -re -i /dev/video0 -c:v libx264 -f flv \
+  "rtmp://tak.c4raven.net/drone1?user=streamer&pass=YOUR_PASSWORD"
+```
+
+**In OBS Studio:** Settings → Stream → Service: *Custom...*
+
+- Server: `rtmp://tak.c4raven.net`
+- Stream Key: `drone1?user=streamer&pass=YOUR_PASSWORD`
+
+(OBS joins Server and Stream Key with a `/` to build the same URL as above.)
+
+To view it, either:
+
+- **In the dashboard** — open the Video Streams tab and click **Watch**
+  next to `drone1`; it plays back over HLS automatically, no extra setup.
+- **Outside the dashboard** — click **Copy HLS Link** (or WebRTC/RTSP) in
+  that row and paste it into VLC, `ffplay`, or a browser. The copied link
+  already carries whatever the app itself needs to authenticate playback,
+  e.g. the HLS link looks like:
+
+  ```
+  ffplay "https://tak.c4raven.net/hls/drone1/?jwt=<token copied from the table>"
+  ```
+
 ## Available protocols
 
 | Protocol | Port | Default firewall state |
