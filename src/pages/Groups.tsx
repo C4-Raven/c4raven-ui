@@ -271,7 +271,7 @@ export default function Groups() {
                 </Button>
             </Modal>
             <Modal size={1014} opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
-                <Paper withBorder p="md" mb="md">
+                <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
                             <Title order={6}>{t("Sends to {{group}}", { group })}</Title>
@@ -290,7 +290,7 @@ export default function Groups() {
                         </Grid.Col>
                     </Grid>
                 </Paper>
-                <Paper withBorder mb="md" p="md">
+                <Paper mb="md" p="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
                             <Title order={6}>{t("Receives from {{group}}", { group })}</Title>

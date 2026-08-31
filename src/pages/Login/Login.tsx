@@ -37,14 +37,20 @@ const CARD_BACKGROUND = `
 
 const fieldStyles = {
     input: {
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
         borderColor: 'rgba(255, 255, 255, 0.35)',
         color: '#fff',
+        transition: 'border-color 150ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out',
         '&::placeholder': {
             color: 'rgba(255, 255, 255, 0.55)',
             textTransform: 'uppercase' as const,
             fontSize: '0.8rem',
             letterSpacing: '0.5px',
+        },
+        '&:focus': {
+            borderColor: 'var(--mantine-color-blue-5)',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 0 0 3px rgba(76, 110, 245, 0.25)',
         },
     },
     section: {
@@ -270,9 +276,19 @@ export default function Login(props: PaperProps) {
                         </Stack>
                     )}
 
-                    <Paper radius="lg" p="xl" shadow="xl" {...props} style={{ background: CARD_BACKGROUND }}>
+                    <Paper
+                      radius="xl"
+                      p="xl"
+                      shadow="xl"
+                      {...props}
+                      style={{
+                        background: CARD_BACKGROUND,
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        boxShadow: '0 32px 64px -24px rgba(0, 0, 0, 0.65), 0 12px 24px -12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                      }}
+                    >
                         <Center mb="lg">
-                            <Image src={Logo} h={161} w="auto" />
+                            <Image src={Logo} h={64} w="auto" fit="contain" style={{ maxWidth: '100%' }} />
                         </Center>
 
                         <Stack>
@@ -351,6 +367,7 @@ export default function Login(props: PaperProps) {
                                     </Center>
                                     <Button
                                       variant="white"
+                                      className="raven-cta"
                                       fullWidth
                                       onClick={(e) => { handleAuthCode(e); }}
                                     >
@@ -370,6 +387,7 @@ export default function Login(props: PaperProps) {
                         {(type === 'login' || type === 'register' || type === 'Reset Password') && (
                             <Button
                               variant="white"
+                              className="raven-cta"
                               fullWidth
                               radius="md"
                               size="md"

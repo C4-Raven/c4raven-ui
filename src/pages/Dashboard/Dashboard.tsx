@@ -96,11 +96,11 @@ function NetworkHistoryChart({ label, value, data }: {
     );
 }
 
-function StatTile({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
+function StatTile({ icon, value, label, color = 'blue' }: { icon: React.ReactNode; value: React.ReactNode; label: string; color?: string }) {
     return (
-        <Paper radius="lg" shadow="xl" p="lg" bg="dark.8">
+        <Paper radius="lg" p="lg" className="raven-surface raven-surface--tile">
             <Group wrap="nowrap">
-                <ThemeIcon size={44} radius="md" variant="light" color="blue">
+                <ThemeIcon size={44} radius="md" variant="light" color={color}>
                     {icon}
                 </ThemeIcon>
                 <Stack gap={0}>
@@ -245,16 +245,16 @@ export default function Dashboard() {
             </Flex>
 
             <SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} mb="xl">
-                <StatTile icon={<IconDeviceMobile size={24} />} value={alerts.online_euds} label="Online EUDs" />
-                <StatTile icon={<IconCpu size={24} />} value={`${serverStatus.cpu_percent}%`} label="CPU Usage" />
-                <StatTile icon={<IconDatabase size={24} />} value={`${memory.percent}%`} label={`Memory · ${bytes_formatter(memory.used)} used`} />
-                <StatTile icon={<IconDeviceFloppy size={24} />} value={`${disk.percent}%`} label={`Disk · ${bytes_formatter(disk.used)} used`} />
-                <StatTile icon={<IconClock size={24} />} value={formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }), { format: ['days', 'hours'] })} label="Uptime" />
+                <StatTile icon={<IconDeviceMobile size={24} />} value={alerts.online_euds} label="Online EUDs" color="blue" />
+                <StatTile icon={<IconCpu size={24} />} value={`${serverStatus.cpu_percent}%`} label="CPU Usage" color="orange" />
+                <StatTile icon={<IconDatabase size={24} />} value={`${memory.percent}%`} label={`Memory · ${bytes_formatter(memory.used)} used`} color="teal" />
+                <StatTile icon={<IconDeviceFloppy size={24} />} value={`${disk.percent}%`} label={`Disk · ${bytes_formatter(disk.used)} used`} color="grape" />
+                <StatTile icon={<IconClock size={24} />} value={formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }), { format: ['days', 'hours'] })} label="Uptime" color="cyan" />
             </SimpleGrid>
 
             <Grid mb="xl">
                 <Grid.Col span={{ base: 12, md: 8 }}>
-                    <Paper radius="lg" shadow="xl" p="xl" bg="dark.8" h="100%">
+                    <Paper radius="lg" p="xl" className="raven-surface" h="100%">
                         <Group justify="space-between" mb="lg">
                             <Title order={4}>Resource Usage</Title>
                             <Text size="xs" c="dimmed">Live · last {Math.round(HISTORY_LIMIT * POLL_INTERVAL_MS / 6000) / 10} min</Text>
@@ -265,7 +265,7 @@ export default function Dashboard() {
                                 value={`${serverStatus.cpu_percent}%`}
                                 data={history}
                                 dataKey="cpu"
-                                color="blue"
+                                color="orange"
                             />
                             <UsageHistoryChart
                                 label="Memory"
@@ -292,7 +292,7 @@ export default function Dashboard() {
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Paper radius="lg" shadow="xl" p="xl" bg="dark.8" h="100%">
+                    <Paper radius="lg" p="xl" className="raven-surface" h="100%">
                         <Title order={4} mb="md">Uptime</Title>
                         <Flex mb="xs"><Text fw={700}>System:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }))}</Text></Flex>
                         <Flex mb="lg"><Text fw={700}>Boot Time:</Text><Space w="md" /><Text>{uptime.boot_time && parseISO(uptime.boot_time).toLocaleString()}</Text></Flex>
@@ -305,7 +305,7 @@ export default function Dashboard() {
             <Divider my="lg" />
             <Title mb="lg" order={2}>Server Details</Title>
             <SimpleGrid cols={{ base: 1, lg: 3 }} mb="xl">
-                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                <Paper radius="lg" p="xl" className="raven-surface">
                     <Title order={4} mb="md">uname</Title>
                     <Flex><Text fw={700}>System:</Text><Space w="md" /><Text>{uname.system}</Text></Flex>
                     <Flex><Text fw={700}>Release:</Text><Space w="md" />{uname.release}</Flex>
@@ -313,14 +313,14 @@ export default function Dashboard() {
                     <Flex><Text fw={700}>Architecture:</Text><Space w="md" />{uname.machine}</Flex>
                     <Flex><Text fw={700}>Hostname:</Text><Space w="md" />{uname.node}</Flex>
                 </Paper>
-                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                <Paper radius="lg" p="xl" className="raven-surface">
                     <Title order={4} mb="md">OS Release</Title>
                     <Flex><Text fw={700}>Name:</Text><Space w="md" /><Text>{osRelease.NAME}</Text></Flex>
                     <Flex><Text fw={700}>Pretty Name:</Text><Space w="md" /><Text>{osRelease.PRETTY_NAME}</Text></Flex>
                     <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{osRelease.VERSION}</Text></Flex>
                     <Flex><Text fw={700}>Code Name:</Text><Space w="md" /><Text>{osRelease.VERSION_CODENAME}</Text></Flex>
                 </Paper>
-                <Paper radius="lg" shadow="xl" p="xl" bg="dark.8">
+                <Paper radius="lg" p="xl" className="raven-surface">
                     <Title order={4} mb="md">C4 RAVEN</Title>
                     <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{ots.version}</Text></Flex>
                     <Flex><Text fw={700}>UI Version:</Text><Space w="md" /><Text>{versions.gitTag}</Text></Flex>

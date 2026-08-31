@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Badge,
     AppShell,
     Anchor,
+    Avatar,
     Burger,
     Group,
     Image,
@@ -16,6 +16,7 @@ import {
     Text,
     Tooltip,
     Center,
+    UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -30,6 +31,7 @@ import {
     IconMail,
     IconRefresh,
     IconCircleMinus,
+    IconChevronDown,
     IconX,
 } from '@tabler/icons-react';
 import { Navigate, useNavigate, Link } from 'react-router';
@@ -226,21 +228,29 @@ export function DefaultLayout() {
                 }}
               padding="md"
             >
-                <AppShell.Header pb={0} bg="dark.8">
+                <AppShell.Header pb={0} className="raven-mesh" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
                     <Group justify="space-between" pr={5} h="100%">
-                        <Group h="100%" w={300}>
+                        <Group h="100%" w={300} gap="xs">
                             <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" pl={5} color="white" />
                             <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" color="white" />
-                            <Anchor href="https://c4raven.net" target="_blank" rel="noopener noreferrer" display="flex" ml={-8}>
-                                <Image src={Logo} h={60} w="auto" />
+                            <Anchor href="https://c4raven.net" target="_blank" rel="noopener noreferrer" display="flex">
+                                <Image src={Logo} h={34} w="auto" />
                             </Anchor>
                         </Group>
                         <Group>
-                            <Menu shadow="md" width={220} trigger="click-hover">
+                            <Menu shadow="md" width={220} trigger="click-hover" position="bottom-end">
                                 <Menu.Target>
-                                    <Badge autoContrast variant="light" size="md" style={{ cursor: 'pointer' }}>
-                                        {localStorage.getItem('username')}
-                                    </Badge>
+                                    <UnstyledButton className="raven-user-trigger">
+                                        <Group gap={8} wrap="nowrap">
+                                            <Avatar radius="xl" size={30} color="blue" variant="light">
+                                                {(localStorage.getItem('username') || '?').slice(0, 2).toUpperCase()}
+                                            </Avatar>
+                                            <Text size="sm" fw={600} c="white" visibleFrom="xs">
+                                                {localStorage.getItem('username')}
+                                            </Text>
+                                            <IconChevronDown size={14} style={{ opacity: 0.6 }} />
+                                        </Group>
+                                    </UnstyledButton>
                                 </Menu.Target>
 
                                 <Menu.Dropdown>
@@ -280,7 +290,7 @@ export function DefaultLayout() {
                         </Group>
                     </Group>
                 </AppShell.Header>
-                <AppShell.Navbar pl="md" pr="md" bg="dark.8">
+                <AppShell.Navbar pl="md" pr="md" className="raven-mesh" style={{ borderRight: '1px solid var(--mantine-color-dark-4)' }}>
                     <Navbar />
                 </AppShell.Navbar>
                 <AppShell.Main bg="dark.7"><AppContent /></AppShell.Main>

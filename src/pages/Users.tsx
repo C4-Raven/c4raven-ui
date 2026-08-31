@@ -513,7 +513,7 @@ export default function Users() {
                 minHeight={180}
             />
             <Modal size="lg" opened={showManageGroups} onClose={() => setShowManageGroups(false)} title={`Manage Groups for ${username}`}>
-                <Paper withBorder p="md" mb="md">
+                <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
                             <Title order={6} mb="md">Direction: IN</Title>
@@ -531,7 +531,7 @@ export default function Users() {
                         </Grid.Col>
                     </Grid>
                 </Paper>
-                <Paper withBorder p="md" mb="md">
+                <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
                             <Title order={6} mb="md">{t("Direction")}: OUT</Title>

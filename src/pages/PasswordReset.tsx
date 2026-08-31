@@ -54,14 +54,14 @@ export default function PasswordReset() {
             <Header />
             <Container size={420} my={40}>
                 <Center>
-                    <Image src={Logo} h={250} w="auto" />
+                    <Image src={Logo} h={64} w="auto" fit="contain" style={{ maxWidth: '100%' }} />
                 </Center>
 
                     <Stack align="center">
                         <Title order={2}>{t("Password Reset")}</Title>
                     </Stack>
 
-                <Paper radius="md" p="xl" withBorder bg="dark.8">
+                <Paper radius="md" p="xl" className="raven-surface">
                     <Stack>
                         <div>
                             <PasswordInput

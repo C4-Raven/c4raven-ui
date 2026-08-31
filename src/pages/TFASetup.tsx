@@ -157,7 +157,7 @@ export default function TFASetup() {
                 </div>
                 <div style={{ display: (setup === 'email' || setup === 'authenticator' ? 'block' : 'none') }}>
                     <Center>
-                        <Paper radius="md" p="xl" withBorder shadow="xl" w="min-content">
+                        <Paper radius="md" p="xl" w="min-content" className="raven-surface">
                             <Stack>
                                 <PinInput
                                   type="number"

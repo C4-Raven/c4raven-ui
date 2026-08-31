@@ -16,7 +16,7 @@ interface HeaderProps {
     logoHeight?: number;
 }
 
-export const Header = ({ logoHeight = 50 }: HeaderProps = {}) => {
+export const Header = ({ logoHeight = 34 }: HeaderProps = {}) => {
     const loggedIn = localStorage.getItem('loggedIn') === 'true';
 
     const navigate = useNavigate();
@@ -33,10 +33,10 @@ export const Header = ({ logoHeight = 50 }: HeaderProps = {}) => {
     };
 
     return (
-        <Box pb={0} bg="#373a40">
+        <Box pb={0} className="raven-mesh">
             <header className={classes.header}>
                 <Group justify="space-between" h="100%">
-                    <Image src={Logo} h={logoHeight} w="auto" />
+                    <Image src={Logo} h={logoHeight} w="auto" fit="contain" style={{ maxWidth: '55%' }} />
 
                     <Group>
                         <Button

@@ -474,7 +474,7 @@ export default function Map() {
                     {positionRows}
                 </Table>
             </Drawer>
-            <Paper shadow="xl" radius="md" p="md" withBorder>
+            <Paper radius="md" p="md" className="raven-surface">
                 <MapContainer
                   center={[10, 0]}
                   zoom={3}

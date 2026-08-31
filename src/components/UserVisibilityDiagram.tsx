@@ -418,7 +418,7 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
                 <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-gray-5)' }} /><Text size="sm">{t('One-way — the arrow points at the user who receives data')}</Text></Group>
             </Group>
 
-            <Paper withBorder p="md" radius="md" bg="dark.7">
+            <Paper p="md" radius="md" className="raven-surface raven-surface--tile">
                 <Text fw={700} size="sm" mb={6}>{t('What this means, plainly:')}</Text>
                 {edges.length === 0 ? (
                     <Text size="sm" c="dimmed">{t('No connections yet. Click a user, then another, to connect them.')}</Text>

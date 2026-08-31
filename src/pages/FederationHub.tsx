@@ -513,23 +513,23 @@ export default function FederationHub() {
 
                 <Tabs.Panel value="status" pt="md">
                     <SimpleGrid cols={{ base: 2, md: 4 }} mb="md">
-                        <Card withBorder>
+                        <Card className="raven-surface raven-surface--tile">
                             <Text size="xs" c="dimmed">{t('Connected Clients')}</Text>
                             <Text size="xl" fw={700}>{globalMetrics?.numConnectedClients ?? '-'}</Text>
                         </Card>
-                        <Card withBorder>
+                        <Card className="raven-surface raven-surface--tile">
                             <Text size="xs" c="dimmed">{t('CPU Utilized')}</Text>
                             <Text size="xl" fw={700}>
                                 {globalMetrics && globalMetrics.cpuUtilized >= 0 ? `${(globalMetrics.cpuUtilized * 100).toFixed(1)}%` : '-'}
                             </Text>
                         </Card>
-                        <Card withBorder>
+                        <Card className="raven-surface raven-surface--tile">
                             <Text size="xs" c="dimmed">{t('Heap Utilized')}</Text>
                             <Text size="xl" fw={700}>
                                 {globalMetrics && globalMetrics.heapUtilized >= 0 ? `${(globalMetrics.heapUtilized * 100).toFixed(1)}%` : '-'}
                             </Text>
                         </Card>
-                        <Card withBorder>
+                        <Card className="raven-surface raven-surface--tile">
                             <Text size="xs" c="dimmed">{t('Messages Dropped')}</Text>
                             <Text size="xl" fw={700}>{brokerMetrics?.totalMessagesDropped ?? '-'}</Text>
                         </Card>
@@ -690,7 +690,7 @@ export default function FederationHub() {
                         </Table.ScrollContainer>
 
                         {selectedFederation && (
-                            <Card withBorder>
+                            <Card className="raven-surface">
                                 <Group justify="space-between" mb="xs">
                                     <Title order={4}>{t('Outgoing Connection Configuration')}</Title>
                                     <Button size="xs" variant="subtle" leftSection={<IconPlus size={14} />} onClick={openAddOutgoing}>

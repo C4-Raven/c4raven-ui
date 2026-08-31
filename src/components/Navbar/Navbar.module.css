@@ -30,31 +30,30 @@
     font-size: var(--mantine-font-size-sm);
     color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-sm);
+    border-radius: var(--mantine-radius-xl);
     font-weight: 500;
-    transition: all .3s ease-out;
+    transition: background-color 150ms var(--raven-ease-out, ease-out), color 150ms var(--raven-ease-out, ease-out), transform 150ms var(--raven-ease-out, ease-out);
 
     @mixin hover {
         background-color: var(--mantine-color-dark-6);
         color: white;
-        transition: all .3s ease-out;
+        transform: translateX(2px);
 
         .linkIcon {
             color: var(--mantine-color-white);
-            transition: all .3s ease-out;
         }
     }
 
     &[data-active] {
         &,
         &:hover {
-            background-color: var(--mantine-color-blue-7);
+            background: linear-gradient(135deg, var(--mantine-color-blue-6), var(--mantine-color-blue-8));
             color: var(--mantine-color-white);
-            transition: all .3s ease-in;
+            box-shadow: 0 6px 16px -6px var(--raven-glow-blue, rgba(76, 110, 245, 0.45));
+            transform: none;
 
             .linkIcon {
                 color: var(--mantine-color-white);
-                transition: all .3s ease-in;
             }
         }
     }

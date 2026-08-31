@@ -15,6 +15,7 @@ import {
     IconPlug,
     IconUsersGroup, IconLink,
     IconChevronRight,
+    IconChevronDown,
     IconFlag,
     IconAffiliate,
 } from '@tabler/icons-react';
@@ -23,6 +24,7 @@ import {
     ScrollArea,
     Menu,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { Link, useLocation } from 'react-router';
 import classes from './Navbar.module.css';
 import axios from '../../axios_config';
@@ -54,6 +56,12 @@ const adminLinks = [
 export default function Navbar() {
     const administrator = localStorage.getItem('administrator') === 'true';
     const location = useLocation();
+    // Below the AppShell's navbar breakpoint the sidebar is a full-width
+    // mobile drawer, so a flyout to the right has nowhere to go and renders
+    // off-screen — drop the submenu down instead.
+    const isMobile = useMediaQuery('(max-width: 48em)');
+    const submenuPosition = isMobile ? 'bottom-start' : 'right-start';
+    const SubmenuChevron = isMobile ? IconChevronDown : IconChevronRight;
     const [plugins, setPlugins] = useState([]);
     const [pluginNavLinks, setPluginNavLinks] = useState<ReactElement[]>([]);
 
@@ -111,14 +119,14 @@ export default function Navbar() {
             </div>
             {administrator &&
                 <div className={classes.footer}>
-                    <Menu shadow="md" width={240} position="right-start" offset={4} withinPortal>
+                    <Menu shadow="md" width={240} position={submenuPosition} offset={4} withinPortal>
                         <Menu.Target>
                             <NavLink
                               className={classes.link}
                               active={adminActive || undefined}
                               label={t("Admin")}
                               leftSection={<IconSettings className={classes.linkIcon} stroke={1.5} />}
-                              rightSection={<IconChevronRight size={14} />}
+                              rightSection={<SubmenuChevron size={14} />}
                               mt="md"
                             />
                         </Menu.Target>
@@ -137,13 +145,13 @@ export default function Navbar() {
                     </Menu>
 
                     {pluginNavLinks.length > 0 &&
-                        <Menu shadow="md" width={240} position="right-start" offset={4} withinPortal>
+                        <Menu shadow="md" width={240} position={submenuPosition} offset={4} withinPortal>
                             <Menu.Target>
                                 <NavLink
                                   className={classes.link}
                                   label={t("Plugins")}
                                   leftSection={<IconPlug className={classes.linkIcon} stroke={1.5} />}
-                                  rightSection={<IconChevronRight size={14} />}
+                                  rightSection={<SubmenuChevron size={14} />}
                                   mt="md"
                                 />
                             </Menu.Target>

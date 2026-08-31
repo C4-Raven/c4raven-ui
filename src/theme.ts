@@ -1,4 +1,4 @@
-import { createTheme, MantineColorsTuple } from '@mantine/core';
+import { createTheme, MantineColorsTuple, Button, ActionIcon, Paper, Card, Modal } from '@mantine/core';
 
 const paleBlue: MantineColorsTuple = [
   '#eef3ff',
@@ -33,5 +33,35 @@ export const theme = createTheme({
   colors: {
     paleBlue,
     dark,
+  },
+  shadows: {
+    xl: '0 20px 45px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04)',
+  },
+  components: {
+    Button: Button.extend({
+      defaultProps: {
+        radius: 'xl',
+      },
+    }),
+    ActionIcon: ActionIcon.extend({
+      defaultProps: {
+        radius: 'xl',
+      },
+    }),
+    Paper: Paper.extend({
+      defaultProps: {
+        radius: 'lg',
+      },
+    }),
+    Card: Card.extend({
+      defaultProps: {
+        radius: 'lg',
+      },
+    }),
+    Modal: Modal.extend({
+      defaultProps: {
+        radius: 'lg',
+      },
+    }),
   },
 });

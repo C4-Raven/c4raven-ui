@@ -33,7 +33,7 @@ export default function EUDStats() {
     return (
         <>
             <Title order={1}>{searchParams.get("callsign")}</Title>
-            <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
+            <Paper radius="md" p="xl" mr="md" mb="md" className="raven-surface">
                 <LineChart
                     h={300}
                     data={data}
@@ -48,7 +48,7 @@ export default function EUDStats() {
                     curveType="linear"
                 />
             </Paper>
-            <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
+            <Paper radius="md" p="xl" mr="md" mb="md" className="raven-surface">
                 <LineChart
                     h={300}
                     data={data}
@@ -62,7 +62,7 @@ export default function EUDStats() {
                     curveType="linear"
                 />
             </Paper>
-            <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
+            <Paper radius="md" p="xl" mr="md" mb="md" className="raven-surface">
                 <LineChart
                     h={300}
                     data={data}
@@ -78,7 +78,7 @@ export default function EUDStats() {
                     curveType="linear"
                 />
             </Paper>
-            <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
+            <Paper radius="md" p="xl" mr="md" mb="md" className="raven-surface">
                 <LineChart
                     h={300}
                     data={data}
