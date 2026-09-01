@@ -5,7 +5,7 @@ import { IconCheck, IconX } from '@tabler/icons-react';
 import { QRCode } from 'react-qrcode-logo';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
-import Logo from "@/images/ots-logo.png";
+import Logo from "@/images/c4raven-icon.png";
 import {t} from "i18next";
 
 export default function TFASetup() {

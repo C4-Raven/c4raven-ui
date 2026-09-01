@@ -11,7 +11,7 @@ import axios from "axios";
 import {apiRoutes} from "@/apiRoutes.tsx";
 import {IconCircleMinus, IconQrcode, IconMail, IconCheck, IconX, IconPlus, IconEdit} from "@tabler/icons-react";
 import { QRCode } from 'react-qrcode-logo';
-import Logo from "@/images/ots-logo.png";
+import Logo from "@/images/c4raven-icon.png";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import sortBy from "lodash.sortby";

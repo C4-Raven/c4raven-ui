@@ -24,6 +24,7 @@ import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/ico
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
 import Logo from '../../images/ots-logo.png';
+import QrLogo from '../../images/c4raven-icon.png';
 import { QRCode } from 'react-qrcode-logo';
 
 const OUTER_BACKGROUND = 'rgb(35, 37, 41)';
@@ -341,7 +342,7 @@ export default function Login(props: PaperProps) {
                                     </Text>
                                     <Paper shadow="xl" radius="md" p="xl" withBorder w="min-content" bg="white">
                                         <Stack align="center">
-                                            <QRCode value={qrValue} size={280} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={80} logoHeight={80} />
+                                            <QRCode value={qrValue} size={280} quietZone={10} logoImage={QrLogo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={80} logoHeight={80} />
                                             <Text ta="center" c="black">{qrKey}</Text>
                                         </Stack>
                                     </Paper>
