@@ -234,7 +234,7 @@ export function DefaultLayout() {
                             <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" pl={5} color="white" />
                             <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" color="white" />
                             <Anchor href="https://c4raven.net" target="_blank" rel="noopener noreferrer" display="flex">
-                                <Image src={Logo} h={34} w="auto" />
+                                <Image src={Logo} h={39} w="auto" />
                             </Anchor>
                         </Group>
                         <Group>

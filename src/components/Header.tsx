@@ -16,7 +16,7 @@ interface HeaderProps {
     logoHeight?: number;
 }
 
-export const Header = ({ logoHeight = 34 }: HeaderProps = {}) => {
+export const Header = ({ logoHeight = 48 }: HeaderProps = {}) => {
     const loggedIn = localStorage.getItem('loggedIn') === 'true';
 
     const navigate = useNavigate();
