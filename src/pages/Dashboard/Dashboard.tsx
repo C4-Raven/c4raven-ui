@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon} from '@mantine/core';
+import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack, ThemeIcon, Anchor, Center} from '@mantine/core';
 import {
     IconCheck,
     IconX,
@@ -329,6 +329,12 @@ export default function Dashboard() {
                     <Flex><Text fw={700}>Python Version:</Text><Space w="md" /><Text>{ots.python_version}</Text></Flex>
                 </Paper>
             </SimpleGrid>
+
+            <Center mt="xl" mb="lg">
+                <Text size="xs" c="dimmed" ta="center">
+                    Built on <Anchor href="https://github.com/brian7704/OpenTAKServer" target="_blank" rel="noopener noreferrer" size="xs" c="dimmed" td="underline">OpenTAKServer</Anchor> by Brian (brian7704) — we couldn't have done this without his work. Thank you!
+                </Text>
+            </Center>
         </ScrollArea>
     );
 }
