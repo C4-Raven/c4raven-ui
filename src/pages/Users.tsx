@@ -13,11 +13,13 @@ import {
     ComboboxItem,
     CopyButton,
     Text,
+    FileButton,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
     IconCheck,
     IconCopy,
+    IconFileUpload,
     IconKey,
     IconPassword,
     IconShare,
@@ -47,6 +49,12 @@ export interface User {
     login_count: number;
 }
 
+// System/service accounts (e.g. "Server", used to send files) that admins
+// can't modify from this page — keep in sync with RAVEN_PROTECTED_USERNAMES
+// on the backend, which is the actual enforcement point.
+const PROTECTED_USERNAMES = ['Server'];
+const isProtectedUser = (username: string) => PROTECTED_USERNAMES.includes(username);
+
 export default function Users() {
     const [users, setUsers] = useState<User[]>([]);
     const [userCount, setUserCount] = useState<number>(0);
@@ -62,6 +70,10 @@ export default function Users() {
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
     const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
+    const [showSendFile, setShowSendFile] = useState(false);
+    const [sendFileUsername, setSendFileUsername] = useState('');
+    const [sendFileFile, setSendFileFile] = useState<File | null>(null);
+    const [sendingFile, setSendingFile] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -359,6 +371,35 @@ export default function Users() {
         });
     }
 
+    function sendFileToUser() {
+        if (!sendFileFile) { return; }
+        setSendingFile(true);
+        const formData = new FormData();
+        formData.append('username', sendFileUsername);
+        formData.append('file', sendFileFile);
+        axios.post(apiRoutes.sendFileToUser, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then(r => {
+                setSendingFile(false);
+                if (r.status === 200) {
+                    notifications.show({
+                        message: `${sendFileFile.name} sent to ${sendFileUsername}`,
+                        icon: <IconCheck />,
+                        color: 'green',
+                    });
+                    setShowSendFile(false);
+                    setSendFileFile(null);
+                }
+            }).catch(err => {
+                setSendingFile(false);
+                notifications.show({
+                    title: `Failed to send file to ${sendFileUsername}`,
+                    message: err.response.data.error,
+                    icon: <IconX />,
+                    color: 'red',
+                });
+            });
+    }
+
     function issueTempPassword(username: string) {
         axios.post(
             apiRoutes.issueTempPassword,
@@ -401,7 +442,7 @@ export default function Users() {
                     {
                         accessor: 'role',
                         title: t('Role'),
-                        render: (row) => row.username === localStorage.getItem('username')
+                        render: (row) => row.username === localStorage.getItem('username') || isProtectedUser(row.username)
                             ? row.roles[0]?.name
                             : (
                                 <Select
@@ -417,7 +458,7 @@ export default function Users() {
                         title: t('Active'),
                         render: (row) => (
                             <Switch
-                                disabled={row.username === localStorage.getItem('username')}
+                                disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
                                 checked={row.active}
                                 onChange={(e) => {
                                     if (e.target.checked) { activateUser(row.username); } else { deactivateUser(row.username); }
@@ -431,7 +472,7 @@ export default function Users() {
                         render: (row) => (
                             <Tooltip label={t('Controls access to this website only — EUDs and TAK clients are unaffected')}>
                                 <Switch
-                                    disabled={row.username === localStorage.getItem('username')}
+                                    disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
                                     checked={row.site_access}
                                     onChange={(e) => {
                                         if (e.target.checked) { grantSiteAccess(row.username); } else { revokeSiteAccess(row.username); }
@@ -454,6 +495,7 @@ export default function Users() {
                                 <Tooltip label={t('Force this user to set a new password on next login')}>
                                     <ActionIcon
                                         variant="subtle"
+                                        disabled={isProtectedUser(row.username)}
                                         onClick={() => forcePasswordReset(row.username)}
                                     >
                                         <IconPassword size={18} />
@@ -462,6 +504,7 @@ export default function Users() {
                                 <Tooltip label={t('Issue a temporary password (for a user who forgot theirs)')}>
                                     <ActionIcon
                                         variant="subtle"
+                                        disabled={isProtectedUser(row.username)}
                                         onClick={() => issueTempPassword(row.username)}
                                     >
                                         <IconKey size={18} />
@@ -476,6 +519,7 @@ export default function Users() {
                         render: (row) => (
                             <Button
                                 rightSection={<IconUserCog />}
+                                disabled={isProtectedUser(row.username)}
                                 onClick={() => {
                                     setShowManageGroups(true);
                                     getAllGroups();
@@ -486,12 +530,29 @@ export default function Users() {
                         ),
                     },
                     {
+                        accessor: 'send_file',
+                        title: '',
+                        render: (row) => (
+                            <Tooltip label={t('Send this user a file — it will be pushed to their TAK device(s)')}>
+                                <Button
+                                    variant="light"
+                                    rightSection={<IconFileUpload size={16} />}
+                                    onClick={() => {
+                                        setSendFileUsername(row.username);
+                                        setSendFileFile(null);
+                                        setShowSendFile(true);
+                                    }}
+                                >{t('Send File')}</Button>
+                            </Tooltip>
+                        ),
+                    },
+                    {
                         accessor: 'delete_user',
                         title: '',
                         render: (row) => (
                             <Button
                                 color='red'
-                                disabled={row.username === localStorage.getItem('username')}
+                                disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
                                 rightSection={<IconUserMinus />}
                                 onClick={() => {
                                     setUsername(row.username);
@@ -632,6 +693,26 @@ export default function Users() {
                             </Tooltip>
                         )}
                     </CopyButton>
+                </Group>
+            </Modal>
+            <Modal
+              opened={showSendFile}
+              onClose={() => { setShowSendFile(false); setSendFileFile(null); }}
+              title={`${t('Send File to')} ${sendFileUsername}`}
+            >
+                <Text size="sm" c="dimmed" mb="md">
+                    {t('The file will be pushed to every TAK device this user is signed into.')}
+                </Text>
+                <Group justify="space-between">
+                    <FileButton onChange={setSendFileFile}>
+                        {(props) => <Button variant="light" {...props}>{sendFileFile ? sendFileFile.name : t('Choose File')}</Button>}
+                    </FileButton>
+                    <Button
+                        disabled={!sendFileFile}
+                        loading={sendingFile}
+                        rightSection={<IconFileUpload size={16} />}
+                        onClick={() => { sendFileToUser(); }}
+                    >{t('Send')}</Button>
                 </Group>
             </Modal>
             <Modal

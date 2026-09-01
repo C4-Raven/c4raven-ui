@@ -24,6 +24,7 @@ export const apiRoutes = {
   grantSiteAccess: '/api/user/site_access/grant',
   revokeSiteAccess: '/api/user/site_access/revoke',
   deleteUser: '/api/user/delete',
+  sendFileToUser: '/api/user/send_file',
   adminResetPassword: '/api/user/password/reset', //Allows admins to change any user's password
   forcePasswordReset: '/api/user/force_password_reset', //Flags a user to be forced to set a new password on next login
   issueTempPassword: '/api/user/issue_temp_password', //Generates a temporary password for a user who has forgotten theirs

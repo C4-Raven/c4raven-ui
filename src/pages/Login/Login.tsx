@@ -90,15 +90,9 @@ export default function Login(props: PaperProps) {
                 setEmailEnabled(r.data.response.identity_attributes.includes('email'));
                 setLdapEnabled(r.data.response.identity_attributes.includes('ldap'));
                 localStorage.setItem('emailEnabled', r.data.response.identity_attributes.includes('email'));
-                axios.interceptors.request.use((config) => {
-                    if (['post', 'delete', 'patch', 'put'].includes(config.method!)) {
-                        if (r.data.response.csrf_token !== '') {
-                            config.headers['X-XSRF-Token'] = r.data.response.csrf_token;
-                            axios.defaults.headers.common = { 'X-XSRF-Token': r.data.response.csrf_token };
-                        }
-                    }
-                    return config;
-                }, (error) => Promise.reject(error));
+                if (r.data.response.csrf_token !== '') {
+                    axios.defaults.headers.common['X-XSRF-Token'] = r.data.response.csrf_token;
+                }
 
                 setCsrfToken(r.data.response.csrf_token);
             });
