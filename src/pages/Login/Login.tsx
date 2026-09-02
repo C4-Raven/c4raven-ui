@@ -17,14 +17,13 @@ import {
     rem,
     Box,
 } from '@mantine/core';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/icons-react';
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
 import Logo from '../../images/ots-logo.png';
-import QrLogo from '../../images/c4raven-icon.png';
 import { QRCode } from 'react-qrcode-logo';
 
 const OUTER_BACKGROUND = 'rgb(35, 37, 41)';
@@ -79,6 +78,88 @@ export default function Login(props: PaperProps) {
     const [ldapEnabled, setLdapEnabled] = useState(false);
     const [qrValue, setQrValue] = useState('');
     const [qrKey, setQrKey] = useState('');
+    const [turnstileEnabled, setTurnstileEnabled] = useState(false);
+    const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
+    const [turnstileReady, setTurnstileReady] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const turnstileRef = useRef<HTMLDivElement>(null);
+    const turnstileWidgetId = useRef<string | null>(null);
+
+    useEffect(() => {
+        axios.get(apiRoutes.turnstile).then(r => {
+            setTurnstileEnabled(!!r.data.enabled);
+            setTurnstileSiteKey(r.data.site_key || '');
+        }).catch(err => {
+            console.log(err);
+        });
+    }, []);
+
+    // Cloudflare's widget script is only loaded once Turnstile is confirmed
+    // enabled server-side, so a Turnstile-disabled deployment never fetches
+    // a third-party script.
+    useEffect(() => {
+        if (!turnstileEnabled) return;
+
+        if ((window as any).turnstile) {
+            setTurnstileReady(true);
+            return;
+        }
+
+        const existing = document.getElementById('cf-turnstile-script');
+        if (existing) {
+            existing.addEventListener('load', () => setTurnstileReady(true));
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.id = 'cf-turnstile-script';
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => setTurnstileReady(true);
+        document.body.appendChild(script);
+    }, [turnstileEnabled]);
+
+    useEffect(() => {
+        const w = (window as any).turnstile;
+        if (!turnstileReady || !turnstileEnabled || !turnstileSiteKey || type !== 'login' || !w || !turnstileRef.current) {
+            return;
+        }
+
+        turnstileWidgetId.current = w.render(turnstileRef.current, {
+            sitekey: turnstileSiteKey,
+            theme: 'dark',
+            callback: (token: string) => setTurnstileToken(token),
+            'expired-callback': () => setTurnstileToken(''),
+            'error-callback': () => setTurnstileToken(''),
+        });
+
+        return () => {
+            if (turnstileWidgetId.current && w.remove) {
+                w.remove(turnstileWidgetId.current);
+            }
+            turnstileWidgetId.current = null;
+        };
+    }, [turnstileReady, turnstileEnabled, turnstileSiteKey, type]);
+
+    function resetTurnstile() {
+        const w = (window as any).turnstile;
+        if (w && turnstileWidgetId.current) {
+            w.reset(turnstileWidgetId.current);
+        }
+        setTurnstileToken('');
+    }
+
+    function turnstileSatisfied() {
+        if (!turnstileEnabled || turnstileToken) return true;
+        notifications.show({
+            title: 'Verification required',
+            message: 'Please complete the human verification challenge',
+            color: 'red',
+            icon: <IconX />,
+        });
+        return false;
+    }
 
     useEffect(() => {
         try {
@@ -153,13 +234,15 @@ export default function Login(props: PaperProps) {
     function handleLogin(e:any) {
         e.preventDefault();
 
+        if (!turnstileSatisfied()) return;
+
         let loginUrl = apiRoutes.login;
         if (ldapEnabled)
             loginUrl = apiRoutes.ldapLogin;
 
         axios.post(
             loginUrl,
-            JSON.stringify({ username, password, submit: 'Login', csrf_token: csrfToken })
+            JSON.stringify({ username, password, submit: 'Login', csrf_token: csrfToken, turnstile_token: turnstileToken })
         ).then(r => {
             if (r.status === 200) {
                 localStorage.setItem('loggedIn', 'true');
@@ -177,6 +260,7 @@ export default function Login(props: PaperProps) {
                 } else {getUser();}
             }
         }).catch(err => {
+            resetTurnstile();
             notifications.show({
                 title: 'Login Failed',
                 message: err.response.data.response.errors[0],
@@ -342,7 +426,7 @@ export default function Login(props: PaperProps) {
                                     </Text>
                                     <Paper shadow="xl" radius="md" p="xl" withBorder w="min-content" bg="white">
                                         <Stack align="center">
-                                            <QRCode value={qrValue} size={280} quietZone={10} logoImage={QrLogo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={80} logoHeight={80} />
+                                            <QRCode value={qrValue} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                                             <Text ta="center" c="black">{qrKey}</Text>
                                         </Stack>
                                     </Paper>
@@ -399,6 +483,12 @@ export default function Login(props: PaperProps) {
                                 {type.toUpperCase()}
                             </Button>
                         )}
+
+                        {type === 'login' && turnstileEnabled &&
+                            <Center mt="lg">
+                                <div ref={turnstileRef} />
+                            </Center>
+                        }
 
                         <Stack align="center" mt="md" gap={4}>
                             {type === 'login' &&

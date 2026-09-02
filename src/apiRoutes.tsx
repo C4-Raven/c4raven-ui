@@ -85,4 +85,5 @@ export const apiRoutes = {
   fedhubAdminCertVerify2fa: '/api/fedhub/admin_cert/verify_2fa',
   fedhubFederations: '/api/fedhub/federations',
   fedhubPolicy: '/api/fedhub/policy',
+  turnstile: '/api/turnstile',
 };
