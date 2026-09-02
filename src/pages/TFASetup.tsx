@@ -5,7 +5,6 @@ import { IconCheck, IconX } from '@tabler/icons-react';
 import { QRCode } from 'react-qrcode-logo';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
-import Logo from "@/images/c4raven-icon.png";
 import {t} from "i18next";
 
 export default function TFASetup() {
@@ -149,7 +148,7 @@ export default function TFASetup() {
                         </Text>
                         <Paper shadow="xl" radius="md" p="xl" withBorder w="min-content" bg="white">
                             <Stack align="center">
-                                <QRCode value={qrValue} size={350} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={100} logoHeight={100} />
+                                <QRCode value={qrValue} size={350} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                                 <Text ta="center" c="black">{qrKey}</Text>
                             </Stack>
                         </Paper>

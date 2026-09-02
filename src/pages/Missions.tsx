@@ -11,7 +11,6 @@ import axios from "axios";
 import {apiRoutes} from "@/apiRoutes.tsx";
 import {IconCircleMinus, IconQrcode, IconMail, IconCheck, IconX, IconPlus, IconEdit} from "@tabler/icons-react";
 import { QRCode } from 'react-qrcode-logo';
-import Logo from "@/images/c4raven-icon.png";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import sortBy from "lodash.sortby";
@@ -371,7 +370,7 @@ export default function Missions() {
             <Modal opened={showQrCode} onClose={() => setShowQrCode(false)} title={qrTitle}>
                 <Center>
                     <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode value={qrContent} size={350} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={100} logoHeight={100} />
+                        <QRCode value={qrContent} size={350} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                     </Paper>
                 </Center>
             </Modal>

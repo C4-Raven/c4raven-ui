@@ -11,7 +11,6 @@ import { IconCircleMinus, IconX, IconCheck, IconQrcode, IconPlus, IconReload, Ic
 import { QRCode } from 'react-qrcode-logo';
 import axios from '@/axios_config';
 import { apiRoutes } from '@/apiRoutes';
-import Logo from "@/images/c4raven-icon.png";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 
@@ -283,7 +282,7 @@ export default function Meshtastic() {
             <Modal opened={showQrCode} onClose={() => setShowQrCode(false)} title={qrTitle}>
                 <Center>
                     <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode value={channelUrl} size={350} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={100} logoHeight={100} />
+                        <QRCode value={channelUrl} size={350} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                     </Paper>
                 </Center>
             </Modal>

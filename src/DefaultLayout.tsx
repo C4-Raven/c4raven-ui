@@ -40,7 +40,6 @@ import { QRCode } from 'react-qrcode-logo';
 import { DateTimePicker } from '@mantine/dates';
 import { formatISO, parseISO } from 'date-fns';
 import Logo from './images/ots-logo.png';
-import QrLogo from './images/c4raven-icon.png';
 import { AppContent } from './components/AppContent';
 import axios from './axios_config';
 import { apiRoutes } from './apiRoutes';
@@ -299,7 +298,7 @@ export function DefaultLayout() {
             <Modal opened={showItakQr} onClose={() => setShowItakQr(false)} p="md" title={t("iTAK Connection Details")}>
                 <Center>
                     <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={itakQrString} quietZone={10} logoImage={QrLogo} qrStyle="dots" ecLevel="H" eyeRadius={50} logoWidth={100} logoHeight={100} />
+                        <QRCode size={350} value={itakQrString} quietZone={10} qrStyle="dots" ecLevel="H" eyeRadius={50} />
                     </Paper>
                 </Center>
             </Modal>
@@ -340,7 +339,7 @@ export function DefaultLayout() {
                 </Center>
                 <Flex direction="column" gap="md" align="center" display={atakQR.qr_string === '' ? "none" : "flex"}>
                     <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={atakQR.qr_string} quietZone={10} logoImage={QrLogo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={100} logoHeight={100} />
+                        <QRCode size={350} value={atakQR.qr_string} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                     </Paper>
                     <Tooltip label={t("Tap here if you're reading this on the EUD you want to connect to C4 RAVEN")}>
                         <Button component="a" href={atakQR.qr_string}>{t("Open ATAK")}</Button>
