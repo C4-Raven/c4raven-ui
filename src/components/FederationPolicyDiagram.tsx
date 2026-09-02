@@ -14,7 +14,7 @@ import {
     Button,
     TagsInput,
 } from '@mantine/core';
-import { IconTrash, IconZoomIn, IconZoomOut, IconZoomReset } from '@tabler/icons-react';
+import { IconArrowsExchange, IconServer2, IconTrash, IconZoomIn, IconZoomOut, IconZoomReset } from '@tabler/icons-react';
 import { t } from 'i18next';
 
 export interface DiagramEntity {
@@ -275,8 +275,20 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
 
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Text size="sm" c="dimmed">{t('Click a partner, then click another, to draw a rule allowing data between them.')}</Text>
+            <Group justify="space-between" wrap="nowrap">
+                <Group gap="lg" wrap="wrap">
+                    <Text size="sm" c="dimmed">{t('Click two partners to draw a federation rule between them.')}</Text>
+                    <Group gap="md">
+                        <Group gap={6}>
+                            <Box style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--mantine-color-grape-7)' }} />
+                            <Text size="xs" c="dimmed">{t('Outgoing connection')}</Text>
+                        </Group>
+                        <Group gap={6}>
+                            <Box style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--mantine-color-dark-4)' }} />
+                            <Text size="xs" c="dimmed">{t('CA group')}</Text>
+                        </Group>
+                    </Group>
+                </Group>
                 <Group gap="xs">
                     <Tooltip label={t('Zoom out')}>
                         <ActionIcon variant="light" onClick={() => zoomBy(-0.1)}><IconZoomOut size={16} /></ActionIcon>
@@ -317,8 +329,8 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                 >
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
-                            <marker id="fpArrowEnd" markerWidth="4" markerHeight="3" refX="2.7" refY="1.35" orient="auto">
-                                <path d="M0,0 L0,2.7 L3,1.35 z" fill="var(--mantine-color-grape-4)" />
+                            <marker id="fpArrowEnd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-grape-4)" />
                             </marker>
                         </defs>
                         {rules.map((rule) => {
@@ -329,26 +341,58 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                             const dy = bCenter.y - aCenter.y;
                             const a = edgePoint(aCenter, dx, dy);
                             const b = edgePoint(bCenter, -dx, -dy);
-                            const mx = (a.x + b.x) / 2;
-                            const my = (a.y + b.y) / 2;
+                            // Bow the connector perpendicular to its own direction so
+                            // parallel/overlapping rules between the same two nodes fan
+                            // out instead of drawing exactly on top of each other.
+                            const dist = Math.max(Math.hypot(b.x - a.x, b.y - a.y), 1);
+                            const nx = -(b.y - a.y) / dist;
+                            const ny = (b.x - a.x) / dist;
+                            const bow = Math.min(40, dist * 0.18);
+                            const cx = (a.x + b.x) / 2 + nx * bow;
+                            const cy = (a.y + b.y) / 2 + ny * bow;
+                            const labelX = 0.25 * a.x + 0.5 * cx + 0.25 * b.x;
+                            const labelY = 0.25 * a.y + 0.5 * cy + 0.25 * b.y;
                             return (
                                 <g key={rule.id}>
-                                    <line
-                                        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                                        stroke="var(--mantine-color-grape-4)"
+                                    <path
+                                        d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
+                                        fill="none"
+                                        stroke="var(--mantine-color-grape-5)"
                                         strokeWidth={3}
+                                        strokeLinecap="round"
                                         markerEnd="url(#fpArrowEnd)"
                                         pointerEvents="stroke"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     />
+                                    <path
+                                        d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
+                                        fill="none"
+                                        stroke="var(--mantine-color-grape-2)"
+                                        strokeWidth={1.5}
+                                        strokeDasharray="1 7"
+                                        strokeLinecap="round"
+                                        opacity={0.9}
+                                        pointerEvents="none"
+                                    >
+                                        <animate attributeName="stroke-dashoffset" from="16" to="0" dur="0.6s" repeatCount="indefinite" />
+                                    </path>
+                                    <rect
+                                        x={labelX - (rule.name.length * 3.4 + 10)} y={labelY - 11}
+                                        width={rule.name.length * 6.8 + 20} height={20}
+                                        rx={10}
+                                        fill="var(--mantine-color-dark-7)"
+                                        stroke="var(--mantine-color-dark-4)"
+                                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                                        onClick={() => openEditRule(rule)}
+                                    />
                                     <text
-                                        x={mx} y={my - 8}
+                                        x={labelX} y={labelY + 4}
                                         textAnchor="middle"
                                         fontSize={11}
-                                        fontWeight={700}
-                                        fill="var(--mantine-color-gray-3)"
-                                        style={{ paintOrder: 'stroke', stroke: 'var(--mantine-color-dark-8)', strokeWidth: 4, pointerEvents: 'all', cursor: 'pointer' }}
+                                        fontWeight={600}
+                                        fill="var(--mantine-color-gray-2)"
+                                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     >
                                         {rule.name}
@@ -371,9 +415,9 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                 top={pos.y}
                                 w={NODE_WIDTH}
                                 h={NODE_HEIGHT}
-                                p="xs"
-                                radius="md"
-                                shadow="md"
+                                px="sm"
+                                radius="lg"
+                                shadow={isSelected ? 'xl' : 'md'}
                                 withBorder
                                 bg={isSelected ? 'blue.9' : isOutgoing ? 'grape.9' : 'dark.6'}
                                 style={{
@@ -381,44 +425,74 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     userSelect: 'none',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderColor: isSelected ? 'var(--mantine-color-blue-4)' : undefined,
+                                    gap: 8,
+                                    borderColor: isSelected
+                                        ? 'var(--mantine-color-blue-4)'
+                                        : isOutgoing
+                                            ? 'var(--mantine-color-grape-5)'
+                                            : 'var(--mantine-color-dark-3)',
                                     borderWidth: isSelected ? 2 : 1,
+                                    transition: 'box-shadow 120ms ease, border-color 120ms ease',
                                 }}
                                 onPointerDown={(ev) => onNodePointerDown(ev, e.id)}
                                 onClick={(ev) => { ev.stopPropagation(); handleNodeClick(e.id); }}
                             >
-                                <Text size="sm" fw={700} ta="center" style={{ overflowWrap: 'anywhere' }}>
-                                    {e.displayName || e.name}
-                                </Text>
+                                <Box
+                                    style={{
+                                        flexShrink: 0,
+                                        width: 26,
+                                        height: 26,
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: isOutgoing ? 'var(--mantine-color-grape-7)' : 'var(--mantine-color-dark-4)',
+                                    }}
+                                >
+                                    {isOutgoing ? <IconArrowsExchange size={15} /> : <IconServer2 size={15} />}
+                                </Box>
+                                <Stack gap={0} style={{ minWidth: 0 }}>
+                                    <Text size="sm" fw={700} truncate style={{ lineHeight: 1.2 }}>
+                                        {e.displayName || e.name}
+                                    </Text>
+                                    <Text size="10px" c={isSelected || isOutgoing ? 'gray.4' : 'dimmed'} truncate>
+                                        {isOutgoing ? t('Outgoing connection') : t('CA group')}
+                                    </Text>
+                                </Stack>
                             </Paper>
                         );
                     })}
 
                     {entities.length === 0 && (
                         <Text pos="absolute" top="50%" left="50%" style={{ transform: 'translate(-50%, -50%)' }} c="dimmed" size="sm">
-                            {t('No partners yet — add a CA group or outgoing connection first.')}
+                            {t('No federation partners yet — add a CA group or an outgoing connection to see them mapped out here.')}
                         </Text>
                     )}
                 </Box>
             </Box>
 
-            <Stack gap={4}>
+            <Stack gap={6}>
+                <Text size="sm" fw={600} c="dimmed">{t('Federation Rules')} {rules.length > 0 && `(${rules.length})`}</Text>
                 {rules.length === 0 ? (
-                    <Text size="sm" c="dimmed">{t('No rules yet. Click two partners in the diagram to connect them.')}</Text>
+                    <Text size="sm" c="dimmed">{t('No rules yet — connect two partners above to allow data to flow between them.')}</Text>
                 ) : (
                     rules.map((rule) => (
-                        <Group key={rule.id} gap="xs" wrap="nowrap">
-                            <Badge color="grape" variant="light" style={{ flexShrink: 0 }}>{rule.filter?.groupsFilterType || 'ALL'}</Badge>
-                            <Text size="sm" style={{ flex: 1, cursor: 'pointer' }} onClick={() => openEditRule(rule)}>
-                                {rule.name} ({entityLabel(rule.source)} &rarr; {entityLabel(rule.destination)})
-                            </Text>
-                            <Tooltip label={t('Remove rule')}>
-                                <ActionIcon color="red" variant="subtle" onClick={() => deleteRule(rule.id)}>
-                                    <IconTrash size={16} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
+                        <Paper key={rule.id} p="xs" radius="md" withBorder bg="dark.7">
+                            <Group gap="xs" wrap="nowrap">
+                                <Badge color="grape" variant="light" style={{ flexShrink: 0 }}>{rule.filter?.groupsFilterType || 'ALL'}</Badge>
+                                <Group gap={6} style={{ flex: 1, cursor: 'pointer', minWidth: 0 }} onClick={() => openEditRule(rule)}>
+                                    <Text size="sm" fw={600} truncate>{rule.name}</Text>
+                                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                                        {entityLabel(rule.source)} &rarr; {entityLabel(rule.destination)}
+                                    </Text>
+                                </Group>
+                                <Tooltip label={t('Remove rule')}>
+                                    <ActionIcon color="red" variant="subtle" onClick={() => deleteRule(rule.id)}>
+                                        <IconTrash size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        </Paper>
                     ))
                 )}
             </Stack>

@@ -472,7 +472,7 @@ export default function FederationHub() {
                     </Tooltip>
                     <Button
                         component="a"
-                        href="https://tak.c4raven.net:9100"
+                        href="https://fed.c4raven.net:9100"
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="default"
@@ -753,7 +753,10 @@ export default function FederationHub() {
                                     </Table>
                                 </Table.ScrollContainer>
 
-                                <Title order={4} mb="xs">{t('Federation Policy Diagram')}</Title>
+                                <Title order={4}>{t('Connection Map')}</Title>
+                                <Text size="sm" c="dimmed" mb="sm">
+                                    {t('How this federation routes data between your CA groups and outgoing connections.')}
+                                </Text>
                                 <FederationPolicyDiagram
                                     entities={getEntities()}
                                     rules={getRules()}
