@@ -47,6 +47,7 @@ export interface User {
     current_login_at: string | null;
     current_login_ip: string | null;
     login_count: number;
+    euds: { uid: string; callsign: string | null }[];
 }
 
 // System/service accounts (e.g. "Server", used to send files) that admins
@@ -438,6 +439,18 @@ export default function Users() {
                         title: t('Username'),
                         sortable: true,
                         render: (row) => <Link to={`/profile/${row.username}`}>{row.username}</Link>,
+                    },
+                    {
+                        accessor: 'callsign',
+                        title: t('Callsign'),
+                        render: (row) => {
+                            const callsigns = (row.euds ?? [])
+                                .map((eud) => eud.callsign)
+                                .filter((callsign): callsign is string => !!callsign);
+                            return callsigns.length
+                                ? <Text size="sm">{callsigns.join(', ')}</Text>
+                                : <Text size="sm" c="dimmed">—</Text>;
+                        },
                     },
                     {
                         accessor: 'role',
