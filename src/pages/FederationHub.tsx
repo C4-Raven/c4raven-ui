@@ -17,6 +17,7 @@ import {
     Switch,
     Table,
     Tabs,
+    TagsInput,
     Text,
     TextInput,
     Title,
@@ -167,6 +168,10 @@ export default function FederationHub() {
     const [outgoingForm, setOutgoingForm] = useState<OutgoingForm>(EMPTY_OUTGOING_FORM);
     const [editingOutgoing, setEditingOutgoing] = useState(false);
 
+    const [showGroupSetModal, setShowGroupSetModal] = useState(false);
+    const [editingGroupSet, setEditingGroupSet] = useState(false);
+    const [groupSetForm, setGroupSetForm] = useState<{ id: string; name: string; groups: string[] }>({ id: '', name: '', groups: [] });
+
     const [showAdminCertModal, setShowAdminCertModal] = useState(false);
     const [adminCert2faCode, setAdminCert2faCode] = useState('');
     const [adminCert2faVerified, setAdminCert2faVerified] = useState(false);
@@ -300,6 +305,28 @@ export default function FederationHub() {
         setPolicyJson(JSON.stringify(policy, null, 2));
     }
 
+    // Named, reusable groups of CA group identities -- Federation Hub's policy
+    // schema already carries these (policy.groupSets), the diagram just never
+    // exposed a way to manage them from here before.
+    function getGroupSets(): { id: string; name: string; groups: string[] }[] {
+        try {
+            return JSON.parse(policyJson).groupSets || [];
+        } catch {
+            return [];
+        }
+    }
+
+    function setGroupSets(groupSets: { id: string; name: string; groups: string[] }[]) {
+        let policy: any = {};
+        try {
+            policy = JSON.parse(policyJson);
+        } catch {
+            policy = {};
+        }
+        policy.groupSets = groupSets;
+        setPolicyJson(JSON.stringify(policy, null, 2));
+    }
+
     function openAddOutgoing() {
         setOutgoingForm({ ...EMPTY_OUTGOING_FORM, id: crypto.randomUUID() });
         setEditingOutgoing(false);
@@ -367,6 +394,41 @@ export default function FederationHub() {
 
     function deleteEntity(id: string) {
         setEntities(getEntities().filter((e) => e.id !== id));
+    }
+
+    function openAddGroupSet() {
+        setGroupSetForm({ id: crypto.randomUUID(), name: '', groups: [] });
+        setEditingGroupSet(false);
+        setShowGroupSetModal(true);
+    }
+
+    function openEditGroupSet(set: { id: string; name: string; groups: string[] }) {
+        setGroupSetForm(set);
+        setEditingGroupSet(true);
+        setShowGroupSetModal(true);
+    }
+
+    function saveGroupSet() {
+        if (!groupSetForm.name) {
+            notifications.show({ title: t('Missing name'), message: '', icon: <IconX />, color: 'red' });
+            return;
+        }
+        const existing = getGroupSets();
+        const updated = editingGroupSet
+            ? existing.map((s) => (s.id === groupSetForm.id ? groupSetForm : s))
+            : [...existing, groupSetForm];
+        setGroupSets(updated);
+        setShowGroupSetModal(false);
+        notifications.show({
+            title: t('Group set saved to policy draft'),
+            message: t('Click Save Policy to apply it'),
+            icon: <IconCheck />,
+            color: 'blue',
+        });
+    }
+
+    function deleteGroupSet(id: string) {
+        setGroupSets(getGroupSets().filter((s) => s.id !== id));
     }
 
     function savePolicy() {
@@ -753,6 +815,46 @@ export default function FederationHub() {
                                     </Table>
                                 </Table.ScrollContainer>
 
+                                <Group justify="space-between" mb="xs">
+                                    <Title order={4}>{t('Group Sets')}</Title>
+                                    <Button size="xs" variant="subtle" leftSection={<IconPlus size={14} />} onClick={openAddGroupSet}>
+                                        {t('Create Group Set')}
+                                    </Button>
+                                </Group>
+                                <Text size="sm" c="dimmed" mb="xs">
+                                    {t('Named, reusable lists of CA group identities -- pick a set instead of retyping the same groups into every rule\'s Allowed/Disallowed lists.')}
+                                </Text>
+                                {getGroupSets().length === 0 ? (
+                                    <Text size="sm" c="dimmed" mb="md">{t('No group sets yet')}</Text>
+                                ) : (
+                                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} mb="md">
+                                        {getGroupSets().map((set) => (
+                                            <Card key={set.id} withBorder radius="md" p="sm" className="raven-surface raven-surface--tile">
+                                                <Group justify="space-between" wrap="nowrap" mb={4}>
+                                                    <Text fw={600} size="sm" truncate>{set.name}</Text>
+                                                    <Group gap={4}>
+                                                        <ActionIcon size="sm" variant="subtle" onClick={() => openEditGroupSet(set)}>
+                                                            <IconEdit size={14} />
+                                                        </ActionIcon>
+                                                        <ActionIcon size="sm" color="red" variant="subtle" onClick={() => deleteGroupSet(set.id)}>
+                                                            <IconTrash size={14} />
+                                                        </ActionIcon>
+                                                    </Group>
+                                                </Group>
+                                                {set.groups.length === 0 ? (
+                                                    <Text size="xs" c="dimmed">{t('No groups in this set')}</Text>
+                                                ) : (
+                                                    <Group gap={4}>
+                                                        {set.groups.map((g) => (
+                                                            <Badge key={g} size="sm" variant="light" color="indigo">{g}</Badge>
+                                                        ))}
+                                                    </Group>
+                                                )}
+                                            </Card>
+                                        ))}
+                                    </SimpleGrid>
+                                )}
+
                                 <Title order={4}>{t('Connection Map')}</Title>
                                 <Text size="sm" c="dimmed" mb="sm">
                                     {t('How this federation routes data between your CA groups and outgoing connections.')}
@@ -924,6 +1026,33 @@ export default function FederationHub() {
                 <Group justify="flex-end" mt="md">
                     <Button variant="default" onClick={() => setShowOutgoingModal(false)}>{t('Cancel')}</Button>
                     <Button onClick={saveOutgoing}>{editingOutgoing ? t('Save') : t('Add')}</Button>
+                </Group>
+            </Modal>
+
+            <Modal
+                key={groupSetForm.id}
+                opened={showGroupSetModal}
+                onClose={() => setShowGroupSetModal(false)}
+                title={editingGroupSet ? t('Edit Group Set') : t('Create Group Set')}
+            >
+                <Stack gap="sm">
+                    <TextInput
+                        label={t('Name')}
+                        placeholder={t('e.g. Trusted Partners')}
+                        value={groupSetForm.name}
+                        onChange={(e) => setGroupSetForm({ ...groupSetForm, name: e.currentTarget.value })}
+                        required
+                    />
+                    <TagsInput
+                        label={t('Groups')}
+                        data={caGroups.map((ca) => ca.nickname || ca.alias)}
+                        value={groupSetForm.groups}
+                        onChange={(v) => setGroupSetForm({ ...groupSetForm, groups: v })}
+                    />
+                </Stack>
+                <Group justify="flex-end" mt="md">
+                    <Button variant="default" onClick={() => setShowGroupSetModal(false)}>{t('Cancel')}</Button>
+                    <Button onClick={saveGroupSet}>{editingGroupSet ? t('Save') : t('Create')}</Button>
                 </Group>
             </Modal>
         </>

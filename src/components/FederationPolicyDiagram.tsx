@@ -13,6 +13,7 @@ import {
     Tooltip,
     Button,
     TagsInput,
+    Switch,
 } from '@mantine/core';
 import { IconArrowsExchange, IconServer2, IconTrash, IconZoomIn, IconZoomOut, IconZoomReset } from '@tabler/icons-react';
 import { t } from 'i18next';
@@ -25,8 +26,13 @@ export interface DiagramEntity {
     config?: Record<string, any>;
 }
 
+// Matches Federation Hub's actual GroupsFilterType enum values exactly (decompiled
+// from the native admin panel's JS bundle) -- these are NOT the same casing/words
+// as anywhere else in this app, and a mismatched value here is silently ignored by
+// the broker rather than erroring, so a rule can look configured in this UI while
+// doing nothing (or the wrong thing) for real traffic.
 export interface DiagramRuleFilter {
-    groupsFilterType: 'ALL' | 'ALLOWED' | 'DISALLOWED' | 'ALLOWED_AND_DISALLOWED';
+    groupsFilterType: 'allGroups' | 'allowed' | 'disallowed' | 'allowedAndDisallowed';
     allowedGroups: string[];
     disallowedGroups: string[];
 }
@@ -67,7 +73,21 @@ function defaultLayout(entities: DiagramEntity[]): Record<string, XY> {
     return positions;
 }
 
-const EMPTY_FILTER: DiagramRuleFilter = { groupsFilterType: 'ALL', allowedGroups: [], disallowedGroups: [] };
+const EMPTY_FILTER: DiagramRuleFilter = { groupsFilterType: 'allGroups', allowedGroups: [], disallowedGroups: [] };
+
+// bidirectional is a UI-only convenience on the add-rule form -- it isn't a
+// real field in the saved rule, saving with it checked just creates a second
+// mirrored rule alongside the first.
+type RuleFormState = DiagramRule & { bidirectional?: boolean };
+
+function filterTypeLabel(type: DiagramRuleFilter['groupsFilterType']): string {
+    switch (type) {
+        case 'allowed': return t('Allowed only');
+        case 'disallowed': return t('Except disallowed');
+        case 'allowedAndDisallowed': return t('Allowed, except disallowed');
+        default: return t('All');
+    }
+}
 
 // Federation Hub stores "views" as an arbitrary JsonNode blob and appears to
 // normalize an empty array to `{}` on its own round-trip (confirmed live: we
@@ -136,7 +156,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
 
     const [showRuleModal, setShowRuleModal] = useState(false);
     const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-    const [ruleForm, setRuleForm] = useState<DiagramRule>({ id: '', name: '', source: '', destination: '', filter: EMPTY_FILTER });
+    const [ruleForm, setRuleForm] = useState<RuleFormState>({ id: '', name: '', source: '', destination: '', filter: EMPTY_FILTER, bidirectional: false });
 
     const boardRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
@@ -249,20 +269,34 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
             source,
             destination,
             filter: { ...EMPTY_FILTER },
+            bidirectional: false,
         });
         setEditingRuleId(null);
         setShowRuleModal(true);
     }
 
     function openEditRule(rule: DiagramRule) {
-        setRuleForm({ ...rule, filter: rule.filter || { ...EMPTY_FILTER } });
+        setRuleForm({ ...rule, filter: rule.filter || { ...EMPTY_FILTER }, bidirectional: false });
         setEditingRuleId(rule.id);
         setShowRuleModal(true);
     }
 
     function saveRule() {
-        const next = editingRuleId ? rules.map((r) => (r.id === ruleForm.id ? ruleForm : r)) : [...rules, ruleForm];
-        onRulesChange(next);
+        const { bidirectional, ...rule } = ruleForm;
+        if (editingRuleId) {
+            onRulesChange(rules.map((r) => (r.id === rule.id ? rule : r)));
+        } else if (bidirectional) {
+            const reverse: DiagramRule = {
+                ...rule,
+                id: crypto.randomUUID(),
+                name: `${entityLabel(rule.destination)} -> ${entityLabel(rule.source)}`,
+                source: rule.destination,
+                destination: rule.source,
+            };
+            onRulesChange([...rules, rule, reverse]);
+        } else {
+            onRulesChange([...rules, rule]);
+        }
         setShowRuleModal(false);
     }
 
@@ -270,8 +304,8 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
         onRulesChange(rules.filter((r) => r.id !== id));
     }
 
-    const showAllowed = ruleForm.filter.groupsFilterType === 'ALLOWED' || ruleForm.filter.groupsFilterType === 'ALLOWED_AND_DISALLOWED';
-    const showDisallowed = ruleForm.filter.groupsFilterType === 'DISALLOWED' || ruleForm.filter.groupsFilterType === 'ALLOWED_AND_DISALLOWED';
+    const showAllowed = ruleForm.filter.groupsFilterType === 'allowed' || ruleForm.filter.groupsFilterType === 'allowedAndDisallowed';
+    const showDisallowed = ruleForm.filter.groupsFilterType === 'disallowed' || ruleForm.filter.groupsFilterType === 'allowedAndDisallowed';
 
     return (
         <Stack gap="md">
@@ -280,7 +314,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                     <Text size="sm" c="dimmed">{t('Click two partners to draw a federation rule between them.')}</Text>
                     <Group gap="md">
                         <Group gap={6}>
-                            <Box style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--mantine-color-grape-7)' }} />
+                            <Box style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--mantine-color-indigo-7)' }} />
                             <Text size="xs" c="dimmed">{t('Outgoing connection')}</Text>
                         </Group>
                         <Group gap={6}>
@@ -330,7 +364,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
                             <marker id="fpArrowEnd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
-                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-grape-4)" />
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-indigo-4)" />
                             </marker>
                         </defs>
                         {rules.map((rule) => {
@@ -357,7 +391,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     <path
                                         d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
                                         fill="none"
-                                        stroke="var(--mantine-color-grape-5)"
+                                        stroke="var(--mantine-color-indigo-5)"
                                         strokeWidth={3}
                                         strokeLinecap="round"
                                         markerEnd="url(#fpArrowEnd)"
@@ -368,7 +402,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     <path
                                         d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
                                         fill="none"
-                                        stroke="var(--mantine-color-grape-2)"
+                                        stroke="var(--mantine-color-indigo-2)"
                                         strokeWidth={1.5}
                                         strokeDasharray="1 7"
                                         strokeLinecap="round"
@@ -419,7 +453,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                 radius="lg"
                                 shadow={isSelected ? 'xl' : 'md'}
                                 withBorder
-                                bg={isSelected ? 'blue.9' : isOutgoing ? 'grape.9' : 'dark.6'}
+                                bg={isSelected ? 'blue.9' : isOutgoing ? 'indigo.9' : 'dark.6'}
                                 style={{
                                     cursor: 'grab',
                                     userSelect: 'none',
@@ -429,7 +463,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     borderColor: isSelected
                                         ? 'var(--mantine-color-blue-4)'
                                         : isOutgoing
-                                            ? 'var(--mantine-color-grape-5)'
+                                            ? 'var(--mantine-color-indigo-5)'
                                             : 'var(--mantine-color-dark-3)',
                                     borderWidth: isSelected ? 2 : 1,
                                     transition: 'box-shadow 120ms ease, border-color 120ms ease',
@@ -446,7 +480,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        background: isOutgoing ? 'var(--mantine-color-grape-7)' : 'var(--mantine-color-dark-4)',
+                                        background: isOutgoing ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-dark-4)',
                                     }}
                                 >
                                     {isOutgoing ? <IconArrowsExchange size={15} /> : <IconServer2 size={15} />}
@@ -479,7 +513,9 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                     rules.map((rule) => (
                         <Paper key={rule.id} p="xs" radius="md" withBorder bg="dark.7">
                             <Group gap="xs" wrap="nowrap">
-                                <Badge color="grape" variant="light" style={{ flexShrink: 0 }}>{rule.filter?.groupsFilterType || 'ALL'}</Badge>
+                                <Badge color="indigo" variant="light" style={{ flexShrink: 0 }}>
+                                    {filterTypeLabel(rule.filter?.groupsFilterType || 'allGroups')}
+                                </Badge>
                                 <Group gap={6} style={{ flex: 1, cursor: 'pointer', minWidth: 0 }} onClick={() => openEditRule(rule)}>
                                     <Text size="sm" fw={600} truncate>{rule.name}</Text>
                                     <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
@@ -510,14 +546,22 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                     <Select
                         label={t('Group Filter')}
                         value={ruleForm.filter.groupsFilterType}
-                        onChange={(v) => setRuleForm({ ...ruleForm, filter: { ...ruleForm.filter, groupsFilterType: (v as any) || 'ALL' } })}
+                        onChange={(v) => setRuleForm({ ...ruleForm, filter: { ...ruleForm.filter, groupsFilterType: (v as any) || 'allGroups' } })}
                         data={[
-                            { value: 'ALL', label: t('All groups') },
-                            { value: 'ALLOWED', label: t('Only allowed groups') },
-                            { value: 'DISALLOWED', label: t('All except disallowed groups') },
-                            { value: 'ALLOWED_AND_DISALLOWED', label: t('Allowed, except disallowed') },
+                            { value: 'allGroups', label: t('All groups') },
+                            { value: 'allowed', label: t('Only allowed groups') },
+                            { value: 'disallowed', label: t('All except disallowed groups') },
+                            { value: 'allowedAndDisallowed', label: t('Allowed, except disallowed') },
                         ]}
                     />
+                    {!editingRuleId && (
+                        <Switch
+                            label={t('Also allow the reverse direction')}
+                            description={t('Creates a second rule for destination -> source with the same filter')}
+                            checked={ruleForm.bidirectional}
+                            onChange={(e) => setRuleForm({ ...ruleForm, bidirectional: e.currentTarget.checked })}
+                        />
+                    )}
                     {showAllowed && (
                         <TagsInput
                             label={t('Allowed Groups')}
