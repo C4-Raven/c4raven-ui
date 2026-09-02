@@ -508,6 +508,24 @@ export default function Map() {
                         <LayersControl.BaseLayer name="ESRI World Topo">
                             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" minZoom={0} maxZoom={20} />
                         </LayersControl.BaseLayer>
+                        <LayersControl.BaseLayer name="CARTO Positron">
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                              zIndex={0}
+                              minZoom={0}
+                              maxZoom={20}
+                            />
+                        </LayersControl.BaseLayer>
+                        <LayersControl.BaseLayer name="CARTO Dark Matter">
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                              zIndex={0}
+                              minZoom={0}
+                              maxZoom={20}
+                            />
+                        </LayersControl.BaseLayer>
                     </LayersControl>
                     <LayersControl position="topright">
                         <LayersControl.Overlay name="Google Street View Coverage">
