@@ -1,42 +1,54 @@
 import {
+    ActionIcon,
     AspectRatio,
+    Badge,
+    Box,
     Button,
-    Center, CopyButton,
+    Card,
+    Center,
+    CopyButton,
+    Group,
+    Image,
+    LoadingOverlay,
+    Menu,
     Modal,
     Pagination,
+    Select,
+    SimpleGrid,
+    Stack,
     Switch,
-    Table,
-    TableData,
+    Text,
     TextInput,
+    Title,
     Tooltip,
-    Image, LoadingOverlay
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
-import { IconCheck, IconCircleMinus, IconPlus, IconVideo, IconX } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCircleMinus,
+    IconCopy,
+    IconDeviceTv,
+    IconLink,
+    IconPlayerPlay,
+    IconPlus,
+    IconVideo,
+    IconVideoOff,
+} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
-import {t} from "i18next";
-import {DataTable, DataTableSortStatus} from "mantine-datatable";
+import { t } from 'i18next';
 
 interface VideoStream {
     thumbnail: string;
-    thumbnail_image: React.ReactNode;
     username: string;
     path: string;
     rtsp_link: string;
-    rtsp_button: React.ReactNode;
     webrtc_link: string;
-    webrtc_button: React.ReactNode;
     hls_link: string;
-    hls_button: React.ReactNode;
     source: string;
     ready: boolean;
-    ready_icon: React.ReactNode;
     record: boolean;
-    record_switch: React.ReactNode;
-    watch_button: React.ReactNode;
-    delete_button: React.ReactNode;
 }
 
 export default function VideoStreams() {
@@ -47,43 +59,31 @@ export default function VideoStreams() {
     const [deleteVideoOpened, setDeleteVideoOpened] = useState(false);
     const [deletePath, setDeletePath] = useState('');
     const [path, setPath] = useState('');
-    const [source, setSource] = useState<string|null>(null);
+    const [source, setSource] = useState<string | null>(null);
     const [showVideo, setShowVideo] = useState(false);
     const [videoUrl, setVideoUrl] = useState('');
     const [thumbnail, setThumbnail] = useState('');
     const [thumbnailOpened, setThumbnailOpened] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(12);
     const [streamCount, setStreamCount] = useState(0);
-    const [sortStatus, setSortStatus] = useState<DataTableSortStatus<VideoStream>>({
-        columnAccessor: 'path',
-        direction: 'asc',
-    });
 
-    function setRecord(path:string, record:boolean) {
-        setLoading(true)
+    function setRecord(streamPath: string, record: boolean) {
+        setLoading(true);
         axios.patch(
             apiRoutes.updateVideoStream,
-            { path, record, sourceOnDemand: !record }
+            { path: streamPath, record, sourceOnDemand: !record }
         ).then(r => {
             setLoading(false);
             if (r.status === 200) {
-                if (record) {
-                    notifications.show({
-                        message: t(`${path} is now recording`),
-                        color: 'green',
-                    });
-                } else {
-                    notifications.show({
-                        message: t(`${path} is no longer recording`),
-                        color: 'red',
-                    });
-                }
+                notifications.show({
+                    message: record ? t(`${streamPath} is now recording`) : t(`${streamPath} is no longer recording`),
+                    color: record ? 'green' : 'red',
+                });
                 getVideoStreams();
             }
         }).catch(err => {
             setLoading(false);
-            console.log(err);
             notifications.show({
                 title: t('Recording Failed'),
                 message: err.response.data.error,
@@ -93,98 +93,20 @@ export default function VideoStreams() {
     }
 
     function getVideoStreams() {
-        setLoading(true)
+        setLoading(true);
         axios.get(
             apiRoutes.video_streams,
-            { params: {
-                    page: activePage,
-                    per_page: pageSize,
-                    sort_by: sortStatus.columnAccessor,
-                    sort_direction: sortStatus.direction
-                } }
+            { params: { page: activePage, per_page: pageSize, sort_by: 'path', sort_direction: 'asc' } }
         ).then(r => {
             setLoading(false);
             if (r.status === 200) {
-                let streams: VideoStream[] = [];
                 setStreamCount(r.data.total);
-
-                r.data.results.map((row: VideoStream) => {
-
-                    row.thumbnail_image = <Image src={row.thumbnail} onClick={() => {
-                        setThumbnail(row.thumbnail);
-                        setThumbnailOpened(true);
-                    }} />
-
-                    row.delete_button = <Button
-                      onClick={() => {
-                            setDeleteVideoOpened(true);
-                            setDeletePath(row.path);
-                        }}
-                      key={`${row.path}_delete`}
-                      rightSection={<IconCircleMinus size={14} />}
-                      color="red"
-                    >Delete
-                                          </Button>;
-
-                    row.watch_button = <Button
-                      key={`${row.path}_watch`}
-                      onClick={() => {
-                        setVideoUrl(`${row.hls_link}?jwt=${localStorage.getItem('token')}`);
-                        setShowVideo(true);
-                        setPath(row.path);
-                    }}
-                    >Watch
-                                         </Button>;
-                    if (row.ready) {
-                        row.ready_icon = <IconCheck size={14} color="green" />;
-                    } else {
-                        row.ready_icon = <IconX size={14} color="red" />;
-                    }
-
-                    row.record_switch = <Switch
-                      checked={row.record}
-                      onChange={(e) => {
-                          setRecord(row.path, e.target.checked); getVideoStreams();
-                      }}
-                    />;
-
-                    row.webrtc_button = <CopyButton value={row.webrtc_link}>{({ copied, copy }) => (
-                        <Tooltip label={row.webrtc_link}>
-                            <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                                {copied ? t('Copied WebRTC Link') : t('Copy WebRTC Link')}
-                            </Button>
-                        </Tooltip>
-                    )}
-                                          </CopyButton>;
-
-                    row.rtsp_button = <CopyButton value={row.rtsp_link}>{({ copied, copy }) => (
-                        <Tooltip label={row.rtsp_link}>
-                            <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                                {copied ? t('Copied RTSP Link') : t('Copy RTSP Link')}
-                            </Button>
-                        </Tooltip>
-                    )}
-                    </CopyButton>;
-
-                    row.hls_button = <CopyButton value={`${row.hls_link}?jwt=${localStorage.getItem('token')}`}>{({ copied, copy }) => (
-                        <Tooltip label={`${row.hls_link}?jwt=${localStorage.getItem('token')}`}>
-                            <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                                {copied ? t('Copied HLS Link') : t('Copy HLS Link')}
-                            </Button>
-                        </Tooltip>
-                    )}
-                    </CopyButton>;
-
-                    streams.push(row);
-                });
-
+                setVideoStreams(r.data.results);
                 setPage(r.data.current_page);
                 setTotalPages(r.data.total_pages);
-                setVideoStreams(streams);
             }
         }).catch(err => {
             setLoading(false);
-            console.log(err);
             notifications.show({
                 title: t('Failed to get video streams'),
                 message: err.response.data.error,
@@ -195,41 +117,38 @@ export default function VideoStreams() {
 
     useEffect(() => {
         getVideoStreams();
-    }, [activePage, sortStatus]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activePage]);
 
     useEffect(() => {
         setPage(1);
         getVideoStreams();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pageSize]);
 
     function deleteVideoStream() {
         setLoading(true);
         axios.delete(
             apiRoutes.deleteVideoStream,
-            { params: {
-                    path: deletePath,
-                } },
-        ).then(r => {
+            { params: { path: deletePath } },
+        ).then(() => {
             setLoading(false);
             notifications.show({
-                title: '',
                 message: t('Successfully deleted video stream'),
                 color: 'green',
             });
             getVideoStreams();
         }).catch(err => {
             setLoading(false);
-            console.log(err)
             notifications.show({
                 title: t('Failed to delete video stream'),
                 message: err.response.data.error,
                 color: 'red',
             });
-            console.log(err);
         });
     }
 
-    function addVideo(e:any) {
+    function addVideo(e: any) {
         setLoading(true);
         e.preventDefault();
         axios.post(
@@ -243,99 +162,221 @@ export default function VideoStreams() {
             }
         }).catch(err => {
             setLoading(false);
-            console.log(err);
             notifications.show({
                 title: t('Failed to add video stream'),
                 message: err.response.data.error,
                 color: 'red',
             });
         });
-        setPath("");
+        setPath('');
         setSource(null);
     }
 
     function startStreaming() {
-        window.open(`${window.location.protocol}//${window.location.hostname}:8889/${localStorage.getItem('username')}_browser/publish?jwt=${localStorage.getItem('token')}`,'_blank');
+        window.open(`${window.location.protocol}//${window.location.hostname}:8889/${localStorage.getItem('username')}_browser/publish?jwt=${localStorage.getItem('token')}`, '_blank');
+    }
+
+    function watch(stream: VideoStream) {
+        setVideoUrl(`${stream.hls_link}?jwt=${localStorage.getItem('token')}`);
+        setShowVideo(true);
+        setPath(stream.path);
     }
 
     return (
         <>
-            <LoadingOverlay visible={loading} zIndex={1000} overlayProps={{ radius: "sm", blur: 2, fixed: true }} />
+            <LoadingOverlay visible={loading} zIndex={1000} overlayProps={{ radius: 'sm', blur: 2, fixed: true }} />
 
-            <Button onClick={() => { setAddVideoOpened(true); }} mb="md" mr="md" leftSection={<IconPlus size={14} />}>Add Video</Button>
-            <Tooltip
-              multiline
-              w={220}
-              withArrow
-              label={t("Start streaming in the browser using your device's camera")}
-            >
-                <Button onClick={() => { startStreaming(); }} mb="md" leftSection={<IconVideo size={14} />}>Start Streaming</Button>
-            </Tooltip>
-            <Table.ScrollContainer minWidth="100%">
-                <DataTable
-                    withTableBorder
-                    borderRadius="md"
-                    shadow="sm"
-                    striped
-                    highlightOnHover
-                    records={videoStreams}
-                    columns={[{accessor: "thumbnail_image", title: t("Thumbnail")}, {accessor: "username", title: t("Username"), sortable: true},
-                        {accessor: "path", title: t("Path"), sortable: true}, {accessor: "rtsp_button", title: t("RTSP Link"), sortable: true},
-                        {accessor: "webrtc_button", title: t("WebRTC Link"), sortable: true}, {accessor: "hls_button", title: t("HLS Link"), sortable: true},
-                        {accessor: "source", title: t("Source")}, {accessor: "ready_icon", title: t("Ready"), sortable: true},
-                        {accessor: "record_switch", title: t("Record"), sortable: true}, {accessor: "watch_button", title: t("Watch")},
-                        {accessor: "delete_button", title: t("Delete")}]}
-                    page={activePage}
-                    onPageChange={(p) => setPage(p)}
-                    onRecordsPerPageChange={setPageSize}
-                    totalRecords={streamCount}
-                    recordsPerPage={pageSize}
-                    recordsPerPageOptions={[10, 15, 20, 25, 30, 35, 40, 45, 50]}
-                    sortStatus={sortStatus}
-                    onSortStatusChange={setSortStatus}
-                    fetching={loading}
-                    minHeight={180}
-                />
-            </Table.ScrollContainer>
-            <Modal opened={addVideoOpened} onClose={() => setAddVideoOpened(false)} title={t("Add Video")}>
-                <TextInput required label={t("Path")} onChange={e => { setPath(e.target.value); }} />
-                <TextInput label={t("Source")} onChange={e => { setSource(e.target.value); }} mb="md" />
-                <Button onClick={(e) => { addVideo(e); }}>{t("Add Video Stream")}</Button>
+            <Group justify="space-between" mb="lg" wrap="wrap">
+                <div>
+                    <Title order={2}>{t('Streaming')}</Title>
+                    <Text size="sm" c="dimmed">{t('Live and recorded video streams available on this server')}</Text>
+                </div>
+                <Group>
+                    <Tooltip multiline w={220} withArrow label={t("Start streaming in the browser using your device's camera")}>
+                        <Button variant="default" onClick={startStreaming} leftSection={<IconVideo size={16} />}>
+                            {t('Start Streaming')}
+                        </Button>
+                    </Tooltip>
+                    <Button onClick={() => setAddVideoOpened(true)} leftSection={<IconPlus size={16} />}>
+                        {t('Add Video')}
+                    </Button>
+                </Group>
+            </Group>
+
+            {videoStreams.length === 0 && !loading && (
+                <Card withBorder radius="lg" p="xl" className="raven-surface">
+                    <Center>
+                        <Stack align="center" gap={4}>
+                            <IconVideoOff size={32} opacity={0.5} />
+                            <Text c="dimmed">{t('No video streams yet')}</Text>
+                        </Stack>
+                    </Center>
+                </Card>
+            )}
+
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                {videoStreams.map((stream) => (
+                    <Card key={stream.path} withBorder radius="lg" padding={0} className="raven-surface raven-surface--tile raven-surface--interactive" style={{ overflow: 'hidden' }}>
+                        <Box
+                            pos="relative"
+                            style={{ cursor: 'pointer', aspectRatio: '16 / 9', background: 'var(--mantine-color-dark-8)' }}
+                            onClick={() => {
+                                if (stream.thumbnail) {
+                                    setThumbnail(stream.thumbnail);
+                                    setThumbnailOpened(true);
+                                }
+                            }}
+                        >
+                            {stream.thumbnail ? (
+                                <Image src={stream.thumbnail} h="100%" fit="cover" alt={stream.path} />
+                            ) : (
+                                <Center h="100%">
+                                    <IconDeviceTv size={36} opacity={0.35} />
+                                </Center>
+                            )}
+
+                            <Group gap={6} pos="absolute" top={8} left={8}>
+                                <Badge
+                                    size="sm"
+                                    variant="filled"
+                                    color={stream.ready ? 'green' : 'gray'}
+                                    leftSection={
+                                        <Box
+                                            style={{
+                                                width: 6,
+                                                height: 6,
+                                                borderRadius: '50%',
+                                                background: 'white',
+                                                animation: stream.ready ? 'raven-pulse 1.5s ease-in-out infinite' : undefined,
+                                            }}
+                                        />
+                                    }
+                                >
+                                    {stream.ready ? t('Live') : t('Offline')}
+                                </Badge>
+                                {stream.record && <Badge size="sm" variant="filled" color="red">{t('REC')}</Badge>}
+                            </Group>
+
+                            <ActionIcon
+                                variant="filled"
+                                color="dark"
+                                size="lg"
+                                radius="xl"
+                                pos="absolute"
+                                top="50%"
+                                left="50%"
+                                style={{ transform: 'translate(-50%, -50%)', opacity: 0.9 }}
+                                onClick={(e) => { e.stopPropagation(); watch(stream); }}
+                            >
+                                <IconPlayerPlay size={18} />
+                            </ActionIcon>
+                        </Box>
+
+                        <Stack gap={6} p="md">
+                            <div>
+                                <Text fw={700} truncate>{stream.path}</Text>
+                                <Text size="xs" c="dimmed" truncate>{stream.username} &middot; {stream.source || t('No source')}</Text>
+                            </div>
+
+                            <Group justify="space-between" mt={4}>
+                                <Tooltip label={stream.record ? t('Recording') : t('Not recording')}>
+                                    <Switch
+                                        size="sm"
+                                        checked={stream.record}
+                                        onChange={(e) => setRecord(stream.path, e.currentTarget.checked)}
+                                    />
+                                </Tooltip>
+                                <Group gap={4}>
+                                    <Menu shadow="md" position="bottom-end" withinPortal>
+                                        <Menu.Target>
+                                            <ActionIcon variant="subtle" title={t('Copy stream link')}>
+                                                <IconLink size={16} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Label>{t('Copy Link')}</Menu.Label>
+                                            {([
+                                                ['RTSP', stream.rtsp_link],
+                                                ['WebRTC', stream.webrtc_link],
+                                                ['HLS', `${stream.hls_link}?jwt=${localStorage.getItem('token')}`],
+                                            ] as const).map(([label, link]) => (
+                                                <CopyButton key={label} value={link}>
+                                                    {({ copied, copy }) => (
+                                                        <Menu.Item leftSection={<IconCopy size={14} />} onClick={copy} color={copied ? 'teal' : undefined}>
+                                                            {copied ? t(`Copied ${label} Link`) : t(`${label} Link`)}
+                                                        </Menu.Item>
+                                                    )}
+                                                </CopyButton>
+                                            ))}
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="red"
+                                        title={t('Delete')}
+                                        onClick={() => { setDeleteVideoOpened(true); setDeletePath(stream.path); }}
+                                    >
+                                        <IconCircleMinus size={16} />
+                                    </ActionIcon>
+                                </Group>
+                            </Group>
+                        </Stack>
+                    </Card>
+                ))}
+            </SimpleGrid>
+
+            {videoStreams.length > 0 && (
+                <Group justify="space-between" mt="lg">
+                    <Select
+                        w={140}
+                        size="xs"
+                        value={String(pageSize)}
+                        onChange={(v) => setPageSize(Number(v) || 12)}
+                        data={['8', '12', '16', '24', '32'].map((v) => ({ value: v, label: t(`${v} per page`) }))}
+                    />
+                    <Text size="xs" c="dimmed">{t(`${streamCount} stream(s)`)}</Text>
+                    <Pagination total={totalPages} value={activePage} onChange={setPage} size="sm" />
+                </Group>
+            )}
+
+            <Modal opened={addVideoOpened} onClose={() => setAddVideoOpened(false)} title={t('Add Video')}>
+                <Stack gap="sm">
+                    <TextInput required label={t('Path')} onChange={e => setPath(e.target.value)} />
+                    <TextInput label={t('Source')} onChange={e => setSource(e.target.value)} />
+                    <Button onClick={addVideo}>{t('Add Video Stream')}</Button>
+                </Stack>
             </Modal>
+
             <Modal opened={deleteVideoOpened} onClose={() => setDeleteVideoOpened(false)} title={t(`Are you sure you want to delete ${deletePath}?`)}>
                 <Center>
-                    <Button
-                      mr="md"
-                      onClick={() => {
-                        deleteVideoStream();
-                        setDeleteVideoOpened(false);
-                    }}
-                    >Yes
-                    </Button>
-                    <Button onClick={() => setDeleteVideoOpened(false)}>No</Button>
+                    <Button mr="md" onClick={() => { deleteVideoStream(); setDeleteVideoOpened(false); }}>{t('Yes')}</Button>
+                    <Button variant="default" onClick={() => setDeleteVideoOpened(false)}>{t('No')}</Button>
                 </Center>
             </Modal>
-            <Modal opened={thumbnailOpened} onClose={() => setThumbnailOpened(false)} title={t("Thumbnail")} size="xl">
+
+            <Modal opened={thumbnailOpened} onClose={() => setThumbnailOpened(false)} title={t('Thumbnail')} size="xl">
                 <Image src={thumbnail} />
             </Modal>
 
-            <AspectRatio ratio={16 / 9} display={showVideo ? 'block' : 'none'} h="100%" mb="xl" mt="md">
-                <iframe
-                    src={videoUrl}
-                    title={path}
-                    style={{border: 0}}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                />
-                <Button
-                    fullWidth
-                    onClick={() => {
-                        setShowVideo(false);
-                        setVideoUrl('');
-                    }}
-
-                >{t("Close Stream")}</Button>
-            </AspectRatio>
+            {showVideo && (
+                <AspectRatio ratio={16 / 9} h="100%" mb="xl" mt="md">
+                    <>
+                        <iframe
+                            src={videoUrl}
+                            title={path}
+                            style={{ border: 0 }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        />
+                        <Button
+                            fullWidth
+                            onClick={() => { setShowVideo(false); setVideoUrl(''); }}
+                        >
+                            {t('Close Stream')}
+                        </Button>
+                    </>
+                </AspectRatio>
+            )}
         </>
-);
+    );
 }
