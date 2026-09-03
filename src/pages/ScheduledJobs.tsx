@@ -48,7 +48,7 @@ export default function ScheduledJobs() {
             console.log(error);
             notifications.show({
                 title: t('Error'),
-                message: error.response.data.errors,
+                message: error.response.data.error,
                 color: 'red',
                 icon: <IconX />,
             });
@@ -74,7 +74,7 @@ export default function ScheduledJobs() {
             console.log(error);
             notifications.show({
                 title: t('Error'),
-                message: error.response.data.errors,
+                message: error.response.data.error,
                 color: 'red',
                 icon: <IconX />,
             });
@@ -99,7 +99,7 @@ export default function ScheduledJobs() {
             console.log(error);
             notifications.show({
                 title: t('Error'),
-                message: error.response.data.errors,
+                message: error.response.data.error,
                 color: 'red',
                 icon: <IconX />,
             });

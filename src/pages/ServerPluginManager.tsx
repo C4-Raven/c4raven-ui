@@ -1,4 +1,5 @@
 import {
+    Group,
     Modal,
     Table,
     TableData,
@@ -10,7 +11,6 @@ import axios from 'axios';
 import { notifications } from '@mantine/notifications';
 import { socket } from '@/socketio';
 import { apiRoutes } from '../apiRoutes';
-import {Link} from "react-router";
 import Markdown from "react-markdown";
 import CodeMirror from "@uiw/react-codemirror";
 import {ViewPlugin} from "@codemirror/view";
@@ -67,6 +67,22 @@ export default function ServerPluginManager() {
     const [pluginRepo, setPluginRepo] = useState('https://repo.opentakserver.io/brian/prod/');
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [installingPlugin, setInstallingPlugin] = useState(false);
+    // Installing/uninstalling a server plugin runs arbitrary code on the
+    // server -- staged here instead of firing straight from the button's
+    // onClick so there's a confirmation step in between.
+    const [pendingPluginAction, setPendingPluginAction] = useState<{ update: Plugin; title: string } | null>(null);
+
+    function requestPluginAction(update: Plugin, title: string) {
+        setPendingPluginAction({ update, title });
+    }
+
+    function confirmPluginAction() {
+        if (!pendingPluginAction) return;
+        setShowCommandOutput(true);
+        setPlugin({ ...plugin, ...pendingPluginAction.update });
+        setCommandOutputTitle(pendingPluginAction.title);
+        setPendingPluginAction(null);
+    }
     const [plugins, setPlugins] = useState<TableData>({
         caption: '',
         head: ['Name', 'Show Info', 'Install', 'Delete'],
@@ -284,7 +300,7 @@ export default function ServerPluginManager() {
                     plugins_list.push(installedPlugin.name.toLowerCase())
                     tableData.body?.push([installedPlugin.name.toLowerCase(), <Button onClick={(e) => {e.preventDefault(); setShowInfo(true); getInstalledPluginInfo(installedPlugin.distro)}}><IconInfoCircle /></Button>,
                         <Button disabled><IconDownload /></Button>,
-                        <Button color="red" onClick={(e) => {e.preventDefault(); setShowCommandOutput(true); setPlugin({...plugin, 'plugin_name': installedPlugin.name, 'action': 'delete', 'plugin_distro': installedPlugin.distro}); setCommandOutputTitle(`Deleting ${installedPlugin.name}`) }}><IconCircleMinus /></Button>])
+                        <Button color="red" onClick={(e) => {e.preventDefault(); requestPluginAction({'plugin_name': installedPlugin.name, 'action': 'delete', 'plugin_distro': installedPlugin.distro}, `Deleting ${installedPlugin.name}`) }}><IconCircleMinus /></Button>])
                 });
                 setInstalledPlugins(plugins_list);
                 setPlugins(tableData);
@@ -310,7 +326,7 @@ export default function ServerPluginManager() {
                 r.data.result.projects.map((p:string) => {
                     const plugin_distro = p.replace(/-/g, "_");
                     const row = [plugin_distro, <Button onClick={(e) => {e.preventDefault(); setShowInfo(true); getAvailablePluginInfo(plugin_distro)}}><IconInfoCircle /></Button>,
-                        <Button onClick={(e) => {e.preventDefault(); setShowCommandOutput(true); setPlugin({...plugin, plugin_distro, 'action': 'install', 'plugin_name': p}); setCommandOutputTitle(`Installing ${p}`)}}><IconDownload /></Button>,
+                        <Button onClick={(e) => {e.preventDefault(); requestPluginAction({plugin_distro, 'action': 'install', 'plugin_name': p}, `Installing ${p}`)}}><IconDownload /></Button>,
                         <Button disabled><IconCircleMinus /></Button>
                     ];
                     if (!installedPlugins?.includes(p)) {
@@ -346,6 +362,13 @@ export default function ServerPluginManager() {
         <>
             <LoadingOverlay visible={loading} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
 
+            <Modal title="Are you sure?" opened={pendingPluginAction !== null} onClose={() => setPendingPluginAction(null)}>
+                <Text mb="md">{pendingPluginAction?.title} — this runs on the server and can't be undone from here.</Text>
+                <Group justify="flex-end">
+                    <Button variant="default" onClick={() => setPendingPluginAction(null)}>Cancel</Button>
+                    <Button color="red" onClick={confirmPluginAction}>Continue</Button>
+                </Group>
+            </Modal>
             <Button mb="md" onClick={() => setShowUploadModal(true)}>Upload Plugin</Button>
             <Modal title="Upload Plugin" w="50vw" size="xl" opened={showUploadModal} onClose={() => setShowUploadModal(false)} closeOnEscape={!installingPlugin} closeOnClickOutside={!installingPlugin} withCloseButton={!installingPlugin}>
                 <FileInput mb="md" clearable={!installingPlugin} disabled={installingPlugin} label="Select your zip, whl, or tar.gz file" onChange={(file) => {setInstallingPlugin(true); setPlugin({...plugin, 'plugin_file': file, 'action': 'install_local', 'plugin_file_name': file?.name})}} />
@@ -363,8 +386,8 @@ export default function ServerPluginManager() {
                     <Text size="md"><Text span inherit fw={700}>Author Email:</Text> {about?.author_email}</Text>
                     <Text size="md"><Text span inherit fw={700}>License:</Text> {about?.license}</Text>
                     <Text size="md"><Text span inherit fw={700}>Version:</Text> {about?.version}</Text>
-                    <Text size="md"><Text span inherit fw={700}>Documentation:</Text> <Link to={docUrl}>{docUrl}</Link></Text>
-                    <Text size="md"><Text span inherit fw={700}>Repository:</Text> <Link to={repoUrl}>{repoUrl}</Link></Text>
+                    <Text size="md"><Text span inherit fw={700}>Documentation:</Text> <a href={docUrl} target="_blank" rel="noopener noreferrer">{docUrl}</a></Text>
+                    <Text size="md"><Text span inherit fw={700}>Repository:</Text> <a href={repoUrl} target="_blank" rel="noopener noreferrer">{repoUrl}</a></Text>
                     <Divider mt="md" />
                     <Markdown>{about?.description}</Markdown>
                 </ScrollArea>

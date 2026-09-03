@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import Markdown from 'react-markdown'
-import {Link, useSearchParams} from "react-router";
+import {useSearchParams} from "react-router";
 import {Tabs, Text, Button, ScrollArea, Divider, Switch, Flex} from "@mantine/core";
 import {
     IconAlignLeft,
@@ -219,8 +219,8 @@ export default function Plugin() {
                         <Text size="md"><Text span inherit fw={700}>{t("Author Email:")}</Text> {about?.author_email}</Text>
                         <Text size="md"><Text span inherit fw={700}>{t("License:")}</Text> {about?.license}</Text>
                         <Text size="md"><Text span inherit fw={700}>{t("Version:")}</Text> {about?.version}</Text>
-                        <Text size="md"><Text span inherit fw={700}>{t("Documentation:")}</Text> <Link to={docUrl}>{docUrl}</Link></Text>
-                        <Text size="md"><Text span inherit fw={700}>{t("Repository:")}</Text> <Link to={repoUrl}>{repoUrl}</Link></Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Documentation:")}</Text> <a href={docUrl} target="_blank" rel="noopener noreferrer">{docUrl}</a></Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Repository:")}</Text> <a href={repoUrl} target="_blank" rel="noopener noreferrer">{repoUrl}</a></Text>
                         <Switch styles={{ label: {fontWeight: 700}}} label={t("Enabled:")} labelPosition="left" size="md" checked={enabled} onChange={() => togglePlugin()} />
                         <Divider mt="md" />
                         <Markdown>{about?.description}</Markdown>

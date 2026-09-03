@@ -309,7 +309,7 @@ export default function LinkTakGov() {
             <Container display={linked ? "none" : "block"} mt="md">
                 <Title ta="center" order={2}>{t("Link your TAK.gov account")}</Title>
                 <Text ta="center">{t("Linking your TAK.gov account allows you to download plugins directly from your TAK.gov account \
-                to this server and make them available to EUDs. Please log into your TAK.gov account before starting.")}"</Text>
+                to this server and make them available to EUDs. Please log into your TAK.gov account before starting.")}</Text>
 
                 <Divider label={t("Step 1")} labelPosition="center" pt="md" />
                 <Center><Button onClick={() => {get_codes()}} mt="md">{t("Get Link Code")}</Button></Center>

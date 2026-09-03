@@ -156,11 +156,19 @@ export default function PluginUpdates() {
                 }
         }).catch(err => {
             console.log(err);
+            // The backend's form-validation failure returns errors as a
+            // {field: [message, ...]} dict, not a flat array -- flatten it
+            // into something readable instead of indexing into it as if it
+            // were one.
+            const errors = err.response?.data?.errors;
+            const message = errors && typeof errors === 'object'
+                ? Object.values(errors).flat().join(', ')
+                : err.response?.data?.error;
             notifications.show({
                 icon: <IconX />,
                 color: 'red',
                 title: t('Failed to upload plugin'),
-                message: err.response.data.errors[0],
+                message,
             });
             setUploading(false);
         });
