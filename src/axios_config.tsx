@@ -31,4 +31,24 @@ export function refreshCsrfToken(): Promise<string> {
         });
 }
 
+// PrivateRoute only ever checks localStorage's "loggedIn" flag, set once at
+// login and never re-verified -- if the server session later expires or is
+// otherwise invalidated (cookie cleared, server restart, plain timeout)
+// while that flag is still "true", every page keeps rendering as if
+// authenticated, and every request it fires just 401s forever with nothing
+// to send the user back to the login page. Catch that centrally instead of
+// relying on each of the ~20 pages that call the API to handle it
+// themselves. Registered on both axios instances used across the app (this
+// wrapped one, and the plain default axios import several pages use
+// directly) since interceptors don't cross between them.
+function redirectToLoginOn401(error: any) {
+    if (error?.response?.status === 401 && window.location.pathname !== '/login') {
+        localStorage.removeItem('loggedIn');
+        window.location.href = '/login';
+    }
+    return Promise.reject(error);
+}
+axios.interceptors.response.use((r) => r, redirectToLoginOn401);
+instance.interceptors.response.use((r) => r, redirectToLoginOn401);
+
 export default instance;
