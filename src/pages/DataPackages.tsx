@@ -145,10 +145,17 @@ export default function DataPackages() {
                     getDatapackages();
                 }
             }).catch(err => {
+                // edit_data_package() returns a WTForms {field: [message, ...]}
+                // dict as `errors` on validation failure, not a flat `.error`
+                // string.
+                const errors = err.response?.data?.errors;
+                const message = errors && typeof errors === 'object'
+                    ? Object.values(errors).flat().join(', ')
+                    : err.response?.data?.error;
                 notifications.show({
                     icon: <IconX />,
                     title: t('Failed to update data package'),
-                    message: err.response.data.error,
+                    message,
                     color: 'red',
                 });
         });

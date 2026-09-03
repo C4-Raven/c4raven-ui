@@ -84,9 +84,16 @@ export default function VideoStreams() {
             }
         }).catch(err => {
             setLoading(false);
+            // add_update_stream() (POST and PATCH both) returns a WTForms
+            // {field: [message, ...]} dict as `errors` on validation
+            // failure, not a flat `.error` string.
+            const errors = err.response?.data?.errors;
+            const message = errors && typeof errors === 'object'
+                ? Object.values(errors).flat().join(', ')
+                : err.response?.data?.error;
             notifications.show({
                 title: t('Recording Failed'),
-                message: err.response.data.error,
+                message,
                 color: 'red',
             });
         });
@@ -162,9 +169,15 @@ export default function VideoStreams() {
             }
         }).catch(err => {
             setLoading(false);
+            // Same shape as setRecord's handler above -- add_update_stream()
+            // returns a WTForms {field: [message, ...]} dict as `errors`.
+            const errors = err.response?.data?.errors;
+            const message = errors && typeof errors === 'object'
+                ? Object.values(errors).flat().join(', ')
+                : err.response?.data?.error;
             notifications.show({
                 title: t('Failed to add video stream'),
-                message: err.response.data.error,
+                message,
                 color: 'red',
             });
         });

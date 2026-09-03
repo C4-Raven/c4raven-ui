@@ -161,11 +161,18 @@ export default function DeviceProfiles() {
                 }
             }).catch(err => {
                 console.log(err);
+                // The backend returns a WTForms {field: [message, ...]}
+                // dict as `errors` on a validation failure, not a flat
+                // `.error` string -- flatten it into something readable.
+                const errors = err.response?.data?.errors;
+                const message = errors && typeof errors === 'object'
+                    ? Object.values(errors).flat().join(', ')
+                    : err.response?.data?.error;
                 notifications.show({
                     icon: <IconX />,
                     color: 'red',
                     title: t('Failed to add device profile'),
-                    message: e.response.data.error,
+                    message,
                 });
         });
     }
