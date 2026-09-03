@@ -9,6 +9,7 @@ import {
     Select,
     Switch,
     TableData,
+    TagsInput,
     TextInput, Title, Tooltip,
     ComboboxItem,
     CopyButton,
@@ -87,6 +88,45 @@ export default function Users() {
         head: [t('Group Name'), t('Direction'), t('Active')],
         body: [],
     });
+    const [userFilters, setUserFilters] = useState<{ id: number; name: string; usernames: string[] }[]>([]);
+    const [activeFilterId, setActiveFilterId] = useState<string | null>(null);
+
+    function getUserFilters() {
+        axios.get(apiRoutes.userFilters).then((r) => {
+            setUserFilters(r.data);
+        }).catch((err) => {
+            console.log(err);
+        });
+    }
+
+    // Which filters a given username currently belongs to, by name --
+    // what the per-row TagsInput both displays and diffs against.
+    function filterNamesFor(user: string): string[] {
+        return userFilters.filter((f) => f.usernames.includes(user)).map((f) => f.name);
+    }
+
+    // TagsInput hands back the full desired tag list on every change --
+    // diff it against what the user is actually in and make only the
+    // add/remove calls that changed, creating a new filter by that name
+    // the first time it's used (see the backend's PUT /api/users/filters).
+    function setUserFilterTags(targetUsername: string, nextNames: string[]) {
+        const current = filterNamesFor(targetUsername);
+        const toAdd = nextNames.filter((n) => !current.includes(n));
+        const toRemove = current.filter((n) => !nextNames.includes(n));
+        Promise.all([
+            ...toAdd.map((filter_name) => axios.put(apiRoutes.userFilters, { username: targetUsername, filter_name })),
+            ...toRemove.map((filter_name) => axios.delete(apiRoutes.userFilters, { params: { username: targetUsername, filter_name } })),
+        ]).then(() => {
+            getUserFilters();
+        }).catch((err) => {
+            notifications.show({
+                title: t('Failed to update filters for {{username}}', { username: targetUsername }),
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
 
     function getUsers() {
         setLoading(true);
@@ -96,6 +136,7 @@ export default function Users() {
                 per_page: pageSize,
                 sort_by: sortStatus.columnAccessor,
                 sort_direction: sortStatus.direction,
+                filter_id: activeFilterId,
             }
         }).then(r => {
             setLoading(false);
@@ -117,7 +158,9 @@ export default function Users() {
         });
     }
 
+    useEffect(() => { getUserFilters(); }, []);
     useEffect(() => { setPage(1); getUsers(); }, [pageSize]);
+    useEffect(() => { setPage(1); getUsers(); }, [activeFilterId]);
     useEffect(() => { getUsers(); }, [activePage, sortStatus]);
 
     function getAllGroups() {
@@ -420,9 +463,19 @@ export default function Users() {
 
     return (
         <>
-            <Group mb="md">
-                <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
-                <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('User Visibility Diagram')}</Button>
+            <Group mb="md" justify="space-between">
+                <Group>
+                    <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
+                    <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('User Visibility Diagram')}</Button>
+                </Group>
+                <Select
+                    placeholder={t('All users')}
+                    clearable
+                    w={220}
+                    value={activeFilterId}
+                    onChange={setActiveFilterId}
+                    data={userFilters.map((f) => ({ value: String(f.id), label: f.name }))}
+                />
             </Group>
             <DataTable
                 withTableBorder
@@ -439,6 +492,19 @@ export default function Users() {
                         title: t('Username'),
                         sortable: true,
                         render: (row) => <Link to={`/profile/${row.username}`}>{row.username}</Link>,
+                    },
+                    {
+                        accessor: 'filters',
+                        title: t('Filters'),
+                        render: (row) => (
+                            <TagsInput
+                                variant="unstyled"
+                                placeholder={t('Add to filter…')}
+                                data={userFilters.map((f) => f.name)}
+                                value={filterNamesFor(row.username)}
+                                onChange={(names) => setUserFilterTags(row.username, names)}
+                            />
+                        ),
                     },
                     {
                         accessor: 'callsign',

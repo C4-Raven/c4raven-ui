@@ -66,6 +66,7 @@ export const apiRoutes = {
   groupMembers: '/api/groups/members',
   userVisibility: '/api/users/visibility',
   userGroups: '/api/users/groups',
+  userFilters: '/api/users/filters',
   takgov: '/api/takgov',
   takgovLink: '/api/takgov/link',
   takgovToken: '/api/takgov/token',

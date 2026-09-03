@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Text, Tooltip } from '@mantine/core';
+import { Accordion, ActionIcon, Badge, Box, Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconTrash, IconX, IconZoomIn, IconZoomOut, IconZoomReset } from '@tabler/icons-react';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
@@ -89,6 +89,12 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
     const [positions, setPositions] = useState<Record<string, XY>>({});
     const [selected, setSelected] = useState<string | null>(null);
     const [mode, setMode] = useState<'solid' | 'dotted'>('solid');
+    // A member's own group access already implies a connection to every
+    // other member with matching access -- drawing all of those by default
+    // turns any group past a handful of people into a solid mesh of lines.
+    // Only the connections someone actually drew here (manual/removable)
+    // are shown by default; the inherited ones are one toggle away.
+    const [showInherited, setShowInherited] = useState(false);
     const [loading, setLoading] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [boardSize, setBoardSize] = useState<BoardSize>(() => computeBoardSize(0));
@@ -269,6 +275,8 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
     }
 
     const missingPositions = users.some((u) => !positions[u]);
+    const inheritedCount = edges.filter((e) => !e.manual).length;
+    const visibleEdges = showInherited ? edges : edges.filter((e) => e.manual);
 
     return (
         <Stack gap="md">
@@ -282,6 +290,16 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
                         { label: t('┄ One-Way'), value: 'dotted' },
                     ]}
                 />
+                {inheritedCount > 0 && (
+                    <Tooltip label={t('Connections implied by shared groups — off by default to keep the diagram readable')}>
+                        <Switch
+                            size="sm"
+                            checked={showInherited}
+                            onChange={(e) => setShowInherited(e.currentTarget.checked)}
+                            label={t('Show {{count}} group-inherited', { count: inheritedCount })}
+                        />
+                    </Tooltip>
+                )}
                 <Tooltip label={t('Zoom out')}>
                     <ActionIcon variant="light" onClick={() => zoomBy(-0.1)}><IconZoomOut size={16} /></ActionIcon>
                 </Tooltip>
@@ -354,51 +372,82 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
                     <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         <defs>
                             {/* Points forward (toward the target) -- used for markerEnd. */}
-                            <marker id="uvArrowEnd" markerWidth="4" markerHeight="3" refX="2.7" refY="1.35" orient="auto">
-                                <path d="M0,0 L0,2.7 L3,1.35 z" fill="var(--mantine-color-blue-4)" />
+                            <marker id="uvArrowEnd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-indigo-4)" />
                             </marker>
                             {/* Mirror image, points backward -- used for markerStart, so on a
                                 solid (two-way) line the two arrowheads point out away from
                                 each other instead of both the same direction. */}
-                            <marker id="uvArrowStart" markerWidth="4" markerHeight="3" refX="0.3" refY="1.35" orient="auto">
-                                <path d="M3,0 L3,2.7 L0,1.35 z" fill="var(--mantine-color-blue-4)" />
+                            <marker id="uvArrowStart" markerWidth="9" markerHeight="9" refX="2" refY="4.5" orient="auto">
+                                <path d="M9,0 L0,4.5 L9,9 L6.5,4.5 z" fill="var(--mantine-color-indigo-4)" />
+                            </marker>
+                            <marker id="uvArrowEndMuted" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-dark-2)" />
+                            </marker>
+                            <marker id="uvArrowStartMuted" markerWidth="9" markerHeight="9" refX="2" refY="4.5" orient="auto">
+                                <path d="M9,0 L0,4.5 L9,9 L6.5,4.5 z" fill="var(--mantine-color-dark-2)" />
                             </marker>
                         </defs>
-                        {edges.map((edge, i) => {
+                        {visibleEdges.map((edge, i) => {
                             const aCenter = center(edge.source);
                             const bCenter = center(edge.target);
                             const dx = bCenter.x - aCenter.x;
                             const dy = bCenter.y - aCenter.y;
                             const a = edgePoint(aCenter, dx, dy);
                             const b = edgePoint(bCenter, -dx, -dy);
-                            const mx = (a.x + b.x) / 2;
-                            const my = (a.y + b.y) / 2;
+                            // Bow the connector perpendicular to its own direction so a
+                            // two-way pair (which draws as two edges here) fans out into a
+                            // pair of arcs instead of drawing exactly on top of itself.
+                            const dist = Math.max(Math.hypot(b.x - a.x, b.y - a.y), 1);
+                            const nx = -(b.y - a.y) / dist;
+                            const ny = (b.x - a.x) / dist;
+                            const bow = Math.min(40, dist * 0.18) * (i % 2 === 0 ? 1 : -1);
+                            const cx = (a.x + b.x) / 2 + nx * bow;
+                            const cy = (a.y + b.y) / 2 + ny * bow;
                             const removable = edge.manual;
+                            const pathD = `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`;
+                            const label = (edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')) + (removable ? '' : ` (${t('via group')})`);
                             return (
                                 <g key={`${edge.source}-${edge.target}-${edge.type}-${i}`}>
-                                    <line
-                                        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                                        stroke={removable ? 'var(--mantine-color-gray-5)' : 'var(--mantine-color-dark-2)'}
-                                        strokeWidth={4}
-                                        strokeDasharray={edge.type === 'dotted' ? '7 8' : undefined}
-                                        markerStart={edge.type === 'solid' ? 'url(#uvArrowStart)' : undefined}
-                                        markerEnd="url(#uvArrowEnd)"
+                                    {/* A wide, invisible hit-path under the visible one -- makes
+                                        hovering/clicking a thin curve forgiving without having
+                                        to draw it thick, and carries the hover tooltip so the
+                                        canvas doesn't need a permanent floating label per edge. */}
+                                    <path
+                                        d={pathD}
+                                        fill="none"
+                                        stroke="transparent"
+                                        strokeWidth={16}
                                         pointerEvents="stroke"
                                         style={{ cursor: removable ? 'pointer' : 'not-allowed' }}
                                         onClick={() => { if (removable) disconnect(edge); else notifications.show({ title: t('Not directly removable'), message: t('This comes from a shared group\'s Access list — remove one of them from that group instead.'), color: 'yellow' }); }}
                                     >
-                                        {!removable && <title>{t('Via a shared group\'s Access list — not directly removable here')}</title>}
-                                    </line>
-                                    <text
-                                        x={mx} y={my - 8}
-                                        textAnchor="middle"
-                                        fontSize={11}
-                                        fontWeight={700}
-                                        fill="var(--mantine-color-gray-3)"
-                                        style={{ paintOrder: 'stroke', stroke: 'var(--mantine-color-dark-8)', strokeWidth: 4 }}
-                                    >
-                                        {(edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')) + (removable ? '' : ` (${t('via group')})`)}
-                                    </text>
+                                        <title>{removable ? label : `${label} — ${t('Via a shared group\'s Access list — not directly removable here')}`}</title>
+                                    </path>
+                                    <path
+                                        d={pathD}
+                                        fill="none"
+                                        stroke={removable ? 'var(--mantine-color-indigo-5)' : 'var(--mantine-color-dark-2)'}
+                                        strokeWidth={3}
+                                        strokeLinecap="round"
+                                        markerStart={edge.type === 'solid' ? `url(#uvArrowStart${removable ? '' : 'Muted'})` : undefined}
+                                        markerEnd={`url(#uvArrowEnd${removable ? '' : 'Muted'})`}
+                                        pointerEvents="none"
+                                    />
+                                    {removable && (
+                                        <path
+                                            d={pathD}
+                                            fill="none"
+                                            stroke="var(--mantine-color-indigo-2)"
+                                            strokeWidth={1.5}
+                                            strokeDasharray="1 7"
+                                            strokeLinecap="round"
+                                            opacity={0.9}
+                                            pointerEvents="none"
+                                        >
+                                            <animate attributeName="stroke-dashoffset" from="16" to="0" dur="0.6s" repeatCount="indefinite" />
+                                        </path>
+                                    )}
                                 </g>
                             );
                         })}
@@ -414,49 +463,49 @@ export default function UserVisibilityDiagram({ scopeToUsernames, onChange }: Us
             </Box>
 
             <Group justify="center" gap="lg">
-                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-gray-5)' }} /><Text size="sm">{t('Two-way — both send permitted TAK data (position, chat, and more) to each other')}</Text></Group>
-                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-gray-5)' }} /><Text size="sm">{t('One-way — the arrow points at the user who receives data')}</Text></Group>
+                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px solid var(--mantine-color-indigo-5)' }} /><Text size="sm">{t('Two-way — both send permitted TAK data (position, chat, and more) to each other')}</Text></Group>
+                <Group gap={6}><Box w={32} h={0} style={{ borderTop: '3px dashed var(--mantine-color-indigo-5)' }} /><Text size="sm">{t('One-way — the arrow points at the user who receives data')}</Text></Group>
             </Group>
 
-            <Paper p="md" radius="md" className="raven-surface raven-surface--tile">
-                <Text fw={700} size="sm" mb={6}>{t('What this means, plainly:')}</Text>
-                {edges.length === 0 ? (
-                    <Text size="sm" c="dimmed">{t('No connections yet. Click a user, then another, to connect them.')}</Text>
-                ) : (
-                    <Stack gap={4}>
-                        {edges.map((edge, i) => (
-                            <Group key={i} gap="xs" wrap="nowrap">
-                                <Badge color={edge.type === 'solid' ? 'blue' : 'gray'} variant="light" style={{ flexShrink: 0 }}>
-                                    {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
-                                </Badge>
-                                <Text size="sm">
-                                    {edge.type === 'solid'
-                                        ? t('{{a}} and {{b}} exchange permitted TAK data (position, chat, and more) with each other — a consequence of this is that they can see each other on the map.', { a: edge.source, b: edge.target })
-                                        : t('{{b}} receives {{a}}\'s permitted TAK data (position, chat, and more) — including seeing them on the map — but {{a}} does not receive {{b}}\'s.', { a: edge.source, b: edge.target })}
-                                    {!edge.manual && <Text component="span" size="xs" c="dimmed"> ({t('via a shared group')})</Text>}
-                                </Text>
-                                {edge.manual ? (
-                                    <Tooltip label={t('Remove this connection')}>
-                                        <ActionIcon color="red" variant="subtle" style={{ flexShrink: 0 }} onClick={() => disconnect(edge)}>
-                                            <IconTrash size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                ) : (
-                                    <Tooltip label={t('Comes from a shared group\'s Access list — remove one of them from that group instead')}>
-                                        <ActionIcon color="gray" variant="subtle" style={{ flexShrink: 0 }} disabled>
-                                            <IconTrash size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                            </Group>
-                        ))}
-                    </Stack>
-                )}
-            </Paper>
-
-            <Text size="xs" c="dimmed" ta="center">
-                {t('This diagram always reflects real permissions — connecting or disconnecting here immediately changes what each user can see and send.')}
-            </Text>
+            {visibleEdges.length > 0 && (
+                <Accordion variant="contained" radius="md" className="raven-surface raven-surface--tile">
+                    <Accordion.Item value="plain-language">
+                        <Accordion.Control icon={<Badge circle size="lg" variant="light" color="indigo">{visibleEdges.length}</Badge>}>
+                            <Text fw={700} size="sm">{t('What this means, plainly')}</Text>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <Stack gap={4}>
+                                {visibleEdges.map((edge, i) => (
+                                    <Group key={i} gap="xs" wrap="nowrap">
+                                        <Badge color={edge.type === 'solid' ? 'indigo' : 'gray'} variant="light" style={{ flexShrink: 0 }}>
+                                            {edge.type === 'solid' ? t('TWO-WAY') : t('ONE-WAY')}
+                                        </Badge>
+                                        <Text size="sm">
+                                            {edge.type === 'solid'
+                                                ? t('{{a}} and {{b}} exchange permitted TAK data (position, chat, and more) with each other — a consequence of this is that they can see each other on the map.', { a: edge.source, b: edge.target })
+                                                : t('{{b}} receives {{a}}\'s permitted TAK data (position, chat, and more) — including seeing them on the map — but {{a}} does not receive {{b}}\'s.', { a: edge.source, b: edge.target })}
+                                            {!edge.manual && <Text component="span" size="xs" c="dimmed"> ({t('via a shared group')})</Text>}
+                                        </Text>
+                                        {edge.manual ? (
+                                            <Tooltip label={t('Remove this connection')}>
+                                                <ActionIcon color="red" variant="subtle" style={{ flexShrink: 0 }} onClick={() => disconnect(edge)}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip label={t('Comes from a shared group\'s Access list — remove one of them from that group instead')}>
+                                                <ActionIcon color="gray" variant="subtle" style={{ flexShrink: 0 }} disabled>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </Group>
+                                ))}
+                            </Stack>
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>
+            )}
         </Stack>
     );
 }

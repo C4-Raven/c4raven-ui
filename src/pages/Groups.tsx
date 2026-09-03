@@ -1,15 +1,16 @@
 import {
-    Button,
-    Center, ComboboxItem, Grid, Modal, MultiSelect, Paper,
-    Switch,
+    ActionIcon, Avatar, Button,
+    Center, ComboboxItem, Modal, MultiSelect, Paper,
+    Select,
+    Stack,
     Table,
-    TableData, Text, TextInput, Title, Tooltip,
+    Text, TextInput, Title, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
 import axios from "axios";
 import {apiRoutes} from "@/apiRoutes.tsx";
-import {IconCircleMinus, IconUserCog, IconUserMinus, IconX} from "@tabler/icons-react";
+import {IconCirclePlus, IconPlus, IconTrash, IconUserCog, IconX} from "@tabler/icons-react";
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import UserVisibilityDiagram from '../components/UserVisibilityDiagram';
@@ -20,6 +21,32 @@ export interface Group {
     type: string;
     bitpos: number;
     description: string;
+}
+
+// A group's raw membership is one row per (user, direction) -- IN and OUT
+// are separate technical grants. The Members list below collapses that back
+// to one row per person (added both ways by default), and leaves selective
+// one-way connections to the diagram, which is the only place that
+// distinction still needs to be exposed.
+interface MemberRow {
+    username: string;
+    directions: string[];
+}
+
+function initials(name: string): string {
+    return name.slice(0, 2).toUpperCase();
+}
+
+function groupMembersByUser(raw: { username: string; direction: string }[]): MemberRow[] {
+    const byUser = new Map<string, Set<string>>();
+    raw.forEach((row) => {
+        if (!byUser.has(row.username)) byUser.set(row.username, new Set());
+        byUser.get(row.username)!.add(row.direction);
+    });
+    return Array.from(byUser.entries()).map(([username, directions]) => ({
+        username,
+        directions: Array.from(directions),
+    }));
 }
 
 export default function Groups() {
@@ -35,17 +62,13 @@ export default function Groups() {
     const [deleteGroupOpen, setDeleteGroupOpen] = useState(false);
     const [showAddGroup, setShowAddGroup] = useState(false);
     const [showAddUserToGroup, setShowAddUserToGroup] = useState(false);
-    const [users, setUsers] = useState<string[]>([])
+    const [addMemberUsers, setAddMemberUsers] = useState<string[]>([]);
     const [allUsers, setAllUsers] = useState<ComboboxItem[]>([]);
-    const [inUsers, setInUsers] = useState<ComboboxItem[]>([]);
-    const [outUsers, setOutUsers] = useState<ComboboxItem[]>([]);
+    const [userFilters, setUserFilters] = useState<{ id: number; name: string; usernames: string[] }[]>([]);
+    const [addMemberFilterId, setAddMemberFilterId] = useState<string | null>(null);
     const [group, setGroup] = useState("");
     const [memberUsernames, setMemberUsernames] = useState<string[]>([]);
-    const [members, setMembers] = useState<TableData>({
-        caption: '',
-        head: [t('Username'), t('Direction'), t('Active')],
-        body: [],
-    });
+    const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [newGroupProperties, setNewGroupProperties] = useState(
         {   name: '',
@@ -96,7 +119,6 @@ export default function Groups() {
     }
 
     function addGroup() {
-        console.log(newGroupProperties)
         axios.post(apiRoutes.groups, newGroupProperties).then((r) => {
             if (r.status === 200) {
                 setShowAddGroup(false);
@@ -113,20 +135,33 @@ export default function Groups() {
         })
     }
 
-    function addUsersToGroup(direction: string) {
-        axios.put(apiRoutes.groups, {users, group_name: group, direction}).then((r) => {
-            if (r.status === 200) {
-                getGroupMembers(group);
-                setUsers([]);
-            }
-        }).catch(err => {
+    // Adds each selected user both ways (IN and OUT) -- full mutual exchange
+    // is what "add someone to a group" means for almost everyone; the
+    // diagram below is where a one-way exception gets dialed in afterward.
+    function addMemberToGroup() {
+        if (addMemberUsers.length === 0) return;
+        Promise.all([
+            axios.put(apiRoutes.groups, { users: addMemberUsers, group_name: group, direction: "IN" }),
+            axios.put(apiRoutes.groups, { users: addMemberUsers, group_name: group, direction: "OUT" }),
+        ]).then(() => {
+            getGroupMembers(group);
+            setAddMemberUsers([]);
+        }).catch((err) => {
             console.log(err);
             notifications.show({
-                title: t('Failed to add user to group'),
-                message: err.response.data.error,
+                title: t('Failed to add member'),
+                message: err.response?.data?.error,
                 icon: <IconX />,
                 color: 'red',
             })
+        });
+    }
+
+    function getUserFilters() {
+        axios.get(apiRoutes.userFilters).then((r) => {
+            setUserFilters(r.data);
+        }).catch((err) => {
+            console.log(err);
         });
     }
 
@@ -166,16 +201,20 @@ export default function Groups() {
         });
     }
 
-    function removeUserFromGroup(username: string, group_name: string, direction: string) {
-        axios.delete(apiRoutes.groupMembers, {params: {username, group_name, direction}}).then((r) => {
-            if (r.status === 200) {
-                getGroupMembers(group_name);
-            }
+    // Removes a member entirely -- both the IN and OUT grants they
+    // currently hold, whichever of those they actually have.
+    function removeMemberCompletely(row: MemberRow) {
+        Promise.all(
+            row.directions.map((direction) =>
+                axios.delete(apiRoutes.groupMembers, { params: { username: row.username, group_name: group, direction } })
+            )
+        ).then(() => {
+            getGroupMembers(group);
         }).catch(err => {
             console.log(err);
             notifications.show({
-                title: t('Failed remove user from group'),
-                message: err.response.data.error,
+                title: t('Failed to remove member'),
+                message: err.response?.data?.error,
                 icon: <IconX />,
                 color: 'red',
             })
@@ -185,53 +224,7 @@ export default function Groups() {
     function getGroupMembers(name: string) {
         axios.get(apiRoutes.groupMembers, {params: {name}}).then((r) => {
             if (r.status === 200) {
-                const tableData: TableData = {
-                    caption: '',
-                    head: [t('Username'), t('Access'), t('Active')],
-                    body: [],
-                }
-
-                let inMembers = allUsers;
-                let outMembers = allUsers;
-
-                r.data.map((row: any) => {
-                    if (tableData.body !== undefined) {
-                        const active_switch = <Tooltip refProp="rootRef" label={t("This membership can be activated or deactivated from the user's EUD")}>
-                            <Switch
-                                checked={row.active}
-                            />
-                        </Tooltip>
-
-                        const delete_button = <Button
-                            color="red"
-                            onClick={() => {
-                                removeUserFromGroup(row.username, name, row.direction);
-                            }}
-                            key={`${row.username}_remove`}
-                            rightSection={<IconUserMinus size={14} />}
-                        >Remove
-                        </Button>;
-
-                        const accessLabel = row.direction === "IN"
-                            ? t("Sends to {{group}}", { group: name })
-                            : t("Receives from {{group}}", { group: name });
-                        tableData.body.push([row.username, accessLabel, active_switch, delete_button]);
-                    }
-
-                    if (row.direction === "IN") {
-                        inMembers.filter((member) => member === row.username);
-                        console.log(inMembers);
-                    }
-
-                    if (row.direction === "OUT") {
-                        outMembers.filter((member) => member === row.username);
-                        console.log(outMembers);
-                    }
-                });
-
-                setInUsers(inMembers);
-                setOutUsers(outMembers);
-                setMembers(tableData);
+                setMemberRows(groupMembersByUser(r.data));
                 setMemberUsernames([...new Set<string>(r.data.map((row: any) => row.username))]);
             }
         }).catch(err => {
@@ -254,10 +247,18 @@ export default function Groups() {
         get_groups();
     }, [activePage, sortStatus]);
 
+    const activeAddMemberFilter = userFilters.find((f) => String(f.id) === addMemberFilterId);
+    const addableUsers = allUsers.filter((u) => {
+        const username = typeof u === 'string' ? u : u.value;
+        if (memberRows.some((m) => m.username === username)) return false;
+        if (activeAddMemberFilter && !activeAddMemberFilter.usernames.includes(username)) return false;
+        return true;
+    });
+
     return (
         <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <Button onClick={() => setShowAddGroup(true)}>{t("Add Group")}</Button>
+                <Button leftSection={<IconCirclePlus size={16} />} onClick={() => setShowAddGroup(true)}>{t("Add Group")}</Button>
             </div>
             <Modal opened={showAddGroup} onClose={() => setShowAddGroup(false)} title={t("Add Group")}>
                 <TextInput required label={t("Name")} onChange={e => { newGroupProperties.name = e.target.value; }} mb="md" />
@@ -270,52 +271,66 @@ export default function Groups() {
                 >Add Group
                 </Button>
             </Modal>
-            <Modal size={1014} opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={`Manage ${group} Members`}>
-                <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
-                    <Grid align="flex-end" justify="space-between">
-                        <Grid.Col span={10}>
-                            <Title order={6}>{t("Sends to {{group}}", { group })}</Title>
-                            <Text size="xs" c="dimmed" mb="md">{t("Their position, chat, and other TAK data is published into this group's channel.")}</Text>
-                            <MultiSelect
-                                placeholder="Search"
-                                searchable
+            <Modal size={1014} opened={showAddUserToGroup} onClose={() => setShowAddUserToGroup(false)} title={t("Manage {{group}} Members", { group })}>
+                <Paper p="md" mb="lg" radius="md" className="raven-surface raven-surface--tile">
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                        {userFilters.length > 0 && (
+                            <Select
+                                w={180}
+                                label={t("Narrow to filter")}
+                                placeholder={t("All users")}
                                 clearable
-                                nothingFoundMessage={t("Nothing found...")}
-                                label={t("Select Users")}
-                                onChange={(value) => {setUsers(value)}}
-                                data={allUsers} />
-                        </Grid.Col>
-                        <Grid.Col span={2}>
-                            <Button onClick={() => addUsersToGroup("IN")}>{t("Add")}</Button>
-                        </Grid.Col>
-                    </Grid>
+                                value={addMemberFilterId}
+                                onChange={setAddMemberFilterId}
+                                data={userFilters.map((f) => ({ value: String(f.id), label: f.name }))}
+                            />
+                        )}
+                        <MultiSelect
+                            style={{ flex: 1 }}
+                            placeholder={t("Search users")}
+                            searchable
+                            clearable
+                            nothingFoundMessage={t("Nothing found...")}
+                            label={t("Add member")}
+                            value={addMemberUsers}
+                            onChange={setAddMemberUsers}
+                            data={addableUsers}
+                        />
+                        <Button leftSection={<IconPlus size={16} />} onClick={addMemberToGroup} disabled={addMemberUsers.length === 0}>
+                            {t("Add")}
+                        </Button>
+                    </div>
+                    <Text size="xs" c="dimmed" mt={6}>
+                        {t("Added members exchange data both ways by default — use the diagram below for one-way or fine-grained connections.")}
+                    </Text>
                 </Paper>
-                <Paper mb="md" p="md" className="raven-surface raven-surface--tile">
-                    <Grid align="flex-end" justify="space-between">
-                        <Grid.Col span={10}>
-                            <Title order={6}>{t("Receives from {{group}}", { group })}</Title>
-                            <Text size="xs" c="dimmed" mb="md">{t("They can see and read this group's channel — everyone currently sending to it.")}</Text>
-                            <MultiSelect
-                                placeholder="Search"
-                                searchable
-                                nothingFoundMessage={t("Nothing found...")}
-                                label={t("Select Users")}
-                                onChange={(value) => {setUsers(value)}}
-                                data={allUsers} />
-                        </Grid.Col>
-                        <Grid.Col span={2}>
-                            <Button onClick={() => addUsersToGroup("OUT")}>{t("Add")}</Button>
-                        </Grid.Col>
-                    </Grid>
-                </Paper>
-                <Title order={4} mb="md">{t("Members")}</Title>
-                <Table.ScrollContainer minWidth="100%">
-                    <Table data={members} stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" highlightOnHover withTableBorder mt="md" mb="md" />
-                </Table.ScrollContainer>
 
-                <Title order={4} mt="lg" mb="md">{t("Visibility")}</Title>
+                <Title order={5} mb="xs">{t("Members")}</Title>
+                <Stack gap="xs" mb="xl">
+                    {memberRows.length === 0 ? (
+                        <Text size="sm" c="dimmed">{t("No members yet — add some above.")}</Text>
+                    ) : memberRows.map((row) => (
+                        <Paper
+                            key={row.username}
+                            p="sm"
+                            radius="md"
+                            className="raven-surface raven-surface--tile"
+                            style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+                        >
+                            <Avatar radius="xl" color="blue">{initials(row.username)}</Avatar>
+                            <Text fw={600} style={{ flex: 1 }}>{row.username}</Text>
+                            <Tooltip label={t("Remove from group")}>
+                                <ActionIcon color="red" variant="subtle" onClick={() => removeMemberCompletely(row)}>
+                                    <IconTrash size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Paper>
+                    ))}
+                </Stack>
+
+                <Title order={5} mb={4}>{t("Who Can See Whom")}</Title>
                 <Text size="sm" c="dimmed" mb="md">
-                    {t("Once members are added above, use this to set who can see and message whom within {{group}} — no need to think in terms of IN/OUT directly.", { group })}
+                    {t("Drag a member to rearrange them, then click one and another to connect or disconnect them.")}
                 </Text>
                 {showAddUserToGroup && <UserVisibilityDiagram scopeToUsernames={memberUsernames} onChange={() => getGroupMembers(group)} />}
             </Modal>
@@ -342,39 +357,49 @@ export default function Groups() {
                     records={groups}
                     columns={[
                         { accessor: 'name', title: t('Name'), sortable: true },
-                        { accessor: 'created', title: t('Created'), sortable: true },
-                        { accessor: 'type', title: t('Type'), sortable: true },
-                        { accessor: 'bitpos', title: t('Bit Position'), sortable: true },
                         { accessor: 'description', title: t('Description'), sortable: true },
                         {
-                            accessor: 'actions_manage',
-                            title: '',
-                            render: (row: Group) => (
-                                <Button
-                                    onClick={() => {
-                                        setMemberUsernames([]);
-                                        getGroupMembers(row.name);
-                                        getAllUsers();
-                                        setGroup(row.name);
-                                        setShowAddUserToGroup(true);
-                                    }}
-                                    rightSection={<IconUserCog size={14} />}
-                                >Manage Users</Button>
-                            ),
+                            accessor: 'created',
+                            title: t('Created'),
+                            sortable: true,
+                            render: (row: Group) => row.created ? new Date(row.created).toLocaleDateString() : '-',
                         },
                         {
-                            accessor: 'actions_delete',
+                            accessor: 'actions',
                             title: '',
+                            textAlign: 'right',
                             render: (row: Group) => (
-                                <Button
-                                    color="red"
-                                    onClick={() => {
-                                        setGroupToDelete(row.name);
-                                        setDeleteGroupOpen(true);
-                                    }}
-                                    disabled={row.name === "__ANON__"}
-                                    rightSection={<IconCircleMinus size={14} />}
-                                >Delete</Button>
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                    <Tooltip label={t("Manage members")}>
+                                        <ActionIcon
+                                            variant="light"
+                                            onClick={() => {
+                                                setMemberUsernames([]);
+                                                setAddMemberFilterId(null);
+                                                getGroupMembers(row.name);
+                                                getAllUsers();
+                                                getUserFilters();
+                                                setGroup(row.name);
+                                                setShowAddUserToGroup(true);
+                                            }}
+                                        >
+                                            <IconUserCog size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label={row.name === "__ANON__" ? t("The default group can't be deleted") : t("Delete group")}>
+                                        <ActionIcon
+                                            color="red"
+                                            variant="light"
+                                            disabled={row.name === "__ANON__"}
+                                            onClick={() => {
+                                                setGroupToDelete(row.name);
+                                                setDeleteGroupOpen(true);
+                                            }}
+                                        >
+                                            <IconTrash size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </div>
                             ),
                         },
                     ]}
