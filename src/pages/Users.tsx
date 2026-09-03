@@ -1,7 +1,7 @@
 import {
     ActionIcon,
     Button,
-    Center, Grid,
+    Grid,
     Group,
     Modal, MultiSelect,
     Paper,
@@ -9,6 +9,7 @@ import {
     Select,
     Stack,
     Switch,
+    Table,
     TableData,
     TagsInput,
     TextInput, Title, Tooltip,
@@ -85,7 +86,7 @@ export default function Users() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
-    const [role, setRole] = useState('');
+    const [role, setRole] = useState('user');
     const [allGroups, setAllGroups] = useState<ComboboxItem[]>([])
     const [groups, setGroups] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -544,6 +545,7 @@ export default function Users() {
                     ))}
                 </Stack>
             </Modal>
+            <Table.ScrollContainer minWidth="100%">
             <DataTable
                 withTableBorder
                 borderRadius="md"
@@ -634,17 +636,18 @@ export default function Users() {
                         render: (row) => <Text ff="monospace" size="sm">{row.current_login_ip ?? '—'}</Text>,
                     },
                     {
-                        accessor: 'password_actions',
-                        title: t('Password'),
+                        accessor: 'actions',
+                        title: '',
+                        textAlign: 'right',
                         render: (row) => (
-                            <Group gap="xs" wrap="nowrap">
+                            <Group gap={4} wrap="nowrap" justify="flex-end">
                                 <Tooltip label={t('Force this user to set a new password on next login')}>
                                     <ActionIcon
                                         variant="subtle"
                                         disabled={isProtectedUser(row.username)}
                                         onClick={() => forcePasswordReset(row.username)}
                                     >
-                                        <IconPassword size={18} />
+                                        <IconPassword size={16} />
                                     </ActionIcon>
                                 </Tooltip>
                                 <Tooltip label={t('Issue a temporary password (for a user who forgot theirs)')}>
@@ -653,58 +656,49 @@ export default function Users() {
                                         disabled={isProtectedUser(row.username)}
                                         onClick={() => issueTempPassword(row.username)}
                                     >
-                                        <IconKey size={18} />
+                                        <IconKey size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label={t('Manage groups')}>
+                                    <ActionIcon
+                                        variant="light"
+                                        disabled={isProtectedUser(row.username)}
+                                        onClick={() => {
+                                            setShowManageGroups(true);
+                                            getAllGroups();
+                                            getMemberships(row.username);
+                                            setUsername(row.username);
+                                        }}
+                                    >
+                                        <IconUserCog size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label={t('Send this user a file — it will be pushed to their TAK device(s)')}>
+                                    <ActionIcon
+                                        variant="light"
+                                        onClick={() => {
+                                            setSendFileUsername(row.username);
+                                            setSendFileFile(null);
+                                            setShowSendFile(true);
+                                        }}
+                                    >
+                                        <IconFileUpload size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label={row.username === localStorage.getItem('username') ? t("You can't delete your own account") : t('Delete user')}>
+                                    <ActionIcon
+                                        color="red"
+                                        variant="light"
+                                        disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
+                                        onClick={() => {
+                                            setUsername(row.username);
+                                            setShowDeleteUser(true);
+                                        }}
+                                    >
+                                        <IconUserMinus size={16} />
                                     </ActionIcon>
                                 </Tooltip>
                             </Group>
-                        ),
-                    },
-                    {
-                        accessor: 'manage_groups',
-                        title: '',
-                        render: (row) => (
-                            <Button
-                                rightSection={<IconUserCog />}
-                                disabled={isProtectedUser(row.username)}
-                                onClick={() => {
-                                    setShowManageGroups(true);
-                                    getAllGroups();
-                                    getMemberships(row.username);
-                                    setUsername(row.username);
-                                }}
-                            >Manage Groups</Button>
-                        ),
-                    },
-                    {
-                        accessor: 'send_file',
-                        title: '',
-                        render: (row) => (
-                            <Tooltip label={t('Send this user a file — it will be pushed to their TAK device(s)')}>
-                                <Button
-                                    variant="light"
-                                    rightSection={<IconFileUpload size={16} />}
-                                    onClick={() => {
-                                        setSendFileUsername(row.username);
-                                        setSendFileFile(null);
-                                        setShowSendFile(true);
-                                    }}
-                                >{t('Send File')}</Button>
-                            </Tooltip>
-                        ),
-                    },
-                    {
-                        accessor: 'delete_user',
-                        title: '',
-                        render: (row) => (
-                            <Button
-                                color='red'
-                                disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
-                                rightSection={<IconUserMinus />}
-                                onClick={() => {
-                                    setUsername(row.username);
-                                    setShowDeleteUser(true);
-                                }}
-                            >Delete User</Button>
                         ),
                     },
                 ]}
@@ -719,17 +713,18 @@ export default function Users() {
                 fetching={loading}
                 minHeight={180}
             />
+            </Table.ScrollContainer>
             <Modal size="lg" opened={showManageGroups} onClose={() => setShowManageGroups(false)} title={`Manage Groups for ${username}`}>
                 <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
-                            <Title order={6} mb="md">Direction: IN</Title>
+                            <Title order={6} mb="md">{t("Direction")}: IN</Title>
                             <MultiSelect
-                                placeholder="Search"
+                                placeholder={t("Search")}
                                 searchable
                                 clearable
-                                nothingFoundMessage="Nothing found..."
-                                label="Select Groups"
+                                nothingFoundMessage={t("Nothing found...")}
+                                label={t("Select Groups")}
                                 onChange={(value) => {setGroups(value)}}
                                 data={allGroups} />
                         </Grid.Col>
@@ -747,12 +742,12 @@ export default function Users() {
                                 searchable
                                 clearable
                                 nothingFoundMessage={t("Nothing found...")}
-                                label="Select Groups"
+                                label={t("Select Groups")}
                                 onChange={(value) => {setGroups(value)}}
                                 data={allGroups} />
                         </Grid.Col>
                         <Grid.Col span={2}>
-                            <Button onClick={() => addUserToGroups("OUT")}>Add</Button>
+                            <Button onClick={() => addUserToGroups("OUT")}>{t("Add")}</Button>
                         </Grid.Col>
                     </Grid>
                 </Paper>
@@ -779,46 +774,45 @@ export default function Users() {
                 />
             </Modal>
             <Modal opened={addUserOpen} onClose={() => setAddUserOpen(false)} title={t("Add User")}>
-                <TextInput required label="Username" placeholder="Username" onChange={e => { setUsername(e.target.value); }} />
-                <PasswordInput
-                  label="Password"
-                  placeholder="Password"
-                  required
-                  mt="md"
-                  mb="md"
-                  onChange={(e) => setPassword(e.target.value)}
-                  value={password}
-                />
-                <PasswordInput
-                  label="Confirm Password"
-                  placeholder="Confirm Password"
-                  required
-                  mt="md"
-                  mb="md"
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  value={confirm_password}
-                />
-                <Select
-                  label="Role"
-                  placeholder="Role"
-                  data={['user', 'administrator']}
-                  mb="md"
-                  onChange={(_value, option) => { setRole(option.value); }}
-                />
-                <Button onClick={(e) => { addUser(e); }}>Add User</Button>
+                <Stack gap="md">
+                    <TextInput required label={t("Username")} onChange={e => { setUsername(e.target.value); }} />
+                    <PasswordInput
+                      label={t("Password")}
+                      required
+                      onChange={(e) => setPassword(e.target.value)}
+                      value={password}
+                    />
+                    <PasswordInput
+                      label={t("Confirm Password")}
+                      required
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      value={confirm_password}
+                    />
+                    <Select
+                      label={t("Role")}
+                      data={['user', 'administrator']}
+                      defaultValue="user"
+                      allowDeselect={false}
+                      onChange={(_value, option) => { setRole(option.value); }}
+                    />
+                    <Group justify="flex-end" mt="xs">
+                        <Button variant="default" onClick={() => setAddUserOpen(false)}>{t('Cancel')}</Button>
+                        <Button leftSection={<IconUserPlus size={16} />} onClick={(e) => { addUser(e); }}>{t('Add User')}</Button>
+                    </Group>
+                </Stack>
             </Modal>
-            <Modal opened={showDeleteUser} onClose={() => setShowDeleteUser(false)} title={`Are you sure you want to delete ${username}?`}>
-                <Center>
+            <Modal opened={showDeleteUser} onClose={() => setShowDeleteUser(false)} title={t('Are you sure?')}>
+                <Text mb="md">{t('Delete {{username}}? This can\'t be undone.', { username })}</Text>
+                <Group justify="flex-end">
+                    <Button variant="default" onClick={() => setShowDeleteUser(false)}>{t('Cancel')}</Button>
                     <Button
-                      mr="md"
+                      color="red"
                       onClick={() => {
                         deleteUser();
                         setShowDeleteUser(false);
                     }}
-                    >Yes
-                    </Button>
-                    <Button onClick={() => setShowDeleteUser(false)}>No</Button>
-                </Center>
+                    >{t('Delete')}</Button>
+                </Group>
             </Modal>
             <Modal
               opened={tempPasswordInfo !== null}
