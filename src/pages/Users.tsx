@@ -7,6 +7,7 @@ import {
     Paper,
     PasswordInput,
     Select,
+    Stack,
     Switch,
     TableData,
     TagsInput,
@@ -21,9 +22,12 @@ import {
     IconCheck,
     IconCopy,
     IconFileUpload,
+    IconFilter,
     IconKey,
     IconPassword,
+    IconPlus,
     IconShare,
+    IconTrash,
     IconUserCog,
     IconUserMinus,
     IconUserPlus,
@@ -72,6 +76,8 @@ export default function Users() {
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
     const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
+    const [showManageFilters, setShowManageFilters] = useState(false);
+    const [newFilterName, setNewFilterName] = useState('');
     const [showSendFile, setShowSendFile] = useState(false);
     const [sendFileUsername, setSendFileUsername] = useState('');
     const [sendFileFile, setSendFileFile] = useState<File | null>(null);
@@ -121,6 +127,35 @@ export default function Users() {
         }).catch((err) => {
             notifications.show({
                 title: t('Failed to update filters for {{username}}', { username: targetUsername }),
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
+
+    function createFilter() {
+        if (!newFilterName.trim()) return;
+        axios.post(apiRoutes.userFilters, { name: newFilterName.trim() }).then(() => {
+            setNewFilterName('');
+            getUserFilters();
+        }).catch((err) => {
+            notifications.show({
+                title: t('Failed to create filter'),
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
+
+    function deleteFilter(filterId: number) {
+        axios.delete(`${apiRoutes.userFilters}/${filterId}`).then(() => {
+            if (activeFilterId === String(filterId)) setActiveFilterId(null);
+            getUserFilters();
+        }).catch((err) => {
+            notifications.show({
+                title: t('Failed to delete filter'),
                 message: err.response?.data?.error,
                 icon: <IconX />,
                 color: 'red',
@@ -467,6 +502,7 @@ export default function Users() {
                 <Group>
                     <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
                     <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('User Visibility Diagram')}</Button>
+                    <Button onClick={() => { setShowManageFilters(true); }} variant="light" leftSection={<IconFilter size={14} />}>{t('Manage Filters')}</Button>
                 </Group>
                 <Select
                     placeholder={t('All users')}
@@ -477,6 +513,37 @@ export default function Users() {
                     data={userFilters.map((f) => ({ value: String(f.id), label: f.name }))}
                 />
             </Group>
+            <Modal opened={showManageFilters} onClose={() => setShowManageFilters(false)} title={t('Manage Filters')}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
+                    <TextInput
+                        style={{ flex: 1 }}
+                        label={t('New filter name')}
+                        value={newFilterName}
+                        onChange={(e) => setNewFilterName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') createFilter(); }}
+                    />
+                    <Button leftSection={<IconPlus size={16} />} onClick={createFilter} disabled={!newFilterName.trim()}>{t('Create')}</Button>
+                </div>
+                <Stack gap="xs">
+                    {userFilters.length === 0 ? (
+                        <Text size="sm" c="dimmed">{t('No filters yet — create one above.')}</Text>
+                    ) : userFilters.map((f) => (
+                        <Paper key={f.id} p="sm" radius="md" className="raven-surface raven-surface--tile" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <Text fw={600} style={{ flex: 1 }}>
+                                {f.name}
+                                <Text component="span" size="xs" c="dimmed" ml={6}>
+                                    {t('({{count}} members)', { count: f.usernames.length })}
+                                </Text>
+                            </Text>
+                            <Tooltip label={t('Delete filter')}>
+                                <ActionIcon color="red" variant="subtle" onClick={() => deleteFilter(f.id)}>
+                                    <IconTrash size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Paper>
+                    ))}
+                </Stack>
+            </Modal>
             <DataTable
                 withTableBorder
                 borderRadius="md"
