@@ -27,7 +27,6 @@ import {
     IconKey,
     IconPassword,
     IconPlus,
-    IconShare,
     IconTrash,
     IconUserCog,
     IconUserMinus,
@@ -41,7 +40,6 @@ import { apiRoutes } from '../apiRoutes';
 import {t} from "i18next";
 import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
-import UserVisibilityDiagram from '../components/UserVisibilityDiagram';
 
 export interface User {
     username: string;
@@ -76,7 +74,6 @@ export default function Users() {
     const [showDeleteUser, setShowDeleteUser] = useState(false);
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
-    const [showVisibilityDiagram, setShowVisibilityDiagram] = useState(false);
     const [showManageFilters, setShowManageFilters] = useState(false);
     const [newFilterName, setNewFilterName] = useState('');
     const [showSendFile, setShowSendFile] = useState(false);
@@ -244,21 +241,38 @@ export default function Users() {
                     body: [],
                 };
 
-                r.data.results.map((row: any) => {
+                // Consolidate the IN and OUT rows the API returns for the same
+                // group into one row -- Tx/Rx when both are present (mutual),
+                // otherwise just whichever single direction this user has.
+                const byGroup = new Map<string, { directions: Set<string>; active: boolean }>();
+                r.data.results.forEach((row: any) => {
+                    const existing = byGroup.get(row.group_name);
+                    if (existing) {
+                        existing.directions.add(row.direction);
+                    } else {
+                        byGroup.set(row.group_name, { directions: new Set([row.direction]), active: row.active });
+                    }
+                });
+
+                byGroup.forEach(({ directions, active }, group_name) => {
+                    const label = directions.has('IN') && directions.has('OUT')
+                        ? t('Tx/Rx')
+                        : directions.has('IN') ? t('Tx (send)') : t('Rx (receive)');
+
                     const active_switch = <Tooltip refProp="rootRef" label={t("This membership can be activated or deactivated from the user's EUD")}>
                         <Switch
-                            checked={row.active}
+                            checked={active}
                         />
                     </Tooltip>
 
                     const delete_button = <Button
                         color="red"
-                        onClick={() => {removeUserFromGroup(user_name, row.group_name, row.direction);}}
-                        key={`${row.group_name}_remove`}
+                        onClick={() => { directions.forEach((direction) => removeUserFromGroup(user_name, group_name, direction)); }}
+                        key={`${group_name}_remove`}
                         rightSection={<IconUsersMinus size={14} />}
                     >Remove</Button>;
 
-                    tableData.body?.push([row.group_name, row.direction, active_switch, delete_button]);
+                    tableData.body?.push([group_name, label, active_switch, delete_button]);
                 })
 
                 setMemberships(tableData);
@@ -502,7 +516,6 @@ export default function Users() {
             <Group mb="md" justify="space-between">
                 <Group>
                     <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
-                    <Button onClick={() => { setShowVisibilityDiagram(true); }} variant="light" leftSection={<IconShare size={14} />}>{t('User Visibility Diagram')}</Button>
                     <Button onClick={() => { setShowManageFilters(true); }} variant="light" leftSection={<IconFilter size={14} />}>{t('Manage Filters')}</Button>
                 </Group>
                 <Select
@@ -718,7 +731,7 @@ export default function Users() {
                 <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
-                            <Title order={6} mb="md">{t("Direction")}: IN</Title>
+                            <Title order={6} mb="md">{t("Direction")}: {t("Tx (send)")}</Title>
                             <MultiSelect
                                 placeholder={t("Search")}
                                 searchable
@@ -736,7 +749,7 @@ export default function Users() {
                 <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">
                         <Grid.Col span={10}>
-                            <Title order={6} mb="md">{t("Direction")}: OUT</Title>
+                            <Title order={6} mb="md">{t("Direction")}: {t("Rx (receive)")}</Title>
                             <MultiSelect
                                 placeholder={t("Search")}
                                 searchable
@@ -854,14 +867,6 @@ export default function Users() {
                         onClick={() => { sendFileToUser(); }}
                     >{t('Send')}</Button>
                 </Group>
-            </Modal>
-            <Modal
-              size={1014}
-              opened={showVisibilityDiagram}
-              onClose={() => setShowVisibilityDiagram(false)}
-              title={t('User Visibility Diagram')}
-            >
-                {showVisibilityDiagram && <UserVisibilityDiagram />}
             </Modal>
         </>
     );
