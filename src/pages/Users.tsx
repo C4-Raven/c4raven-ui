@@ -18,6 +18,7 @@ import {
     Text,
     FileButton,
     Center,
+    SegmentedControl,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
@@ -84,7 +85,7 @@ export default function Users() {
     const [sendFileFile, setSendFileFile] = useState<File | null>(null);
     const [sendingFile, setSendingFile] = useState(false);
     const [showJoinQr, setShowJoinQr] = useState(false);
-    const [joinQrValue, setJoinQrValue] = useState('');
+    const [joinQrClient, setJoinQrClient] = useState<'atak' | 'itak'>('atak');
     const [joinQrUsername, setJoinQrUsername] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -502,21 +503,26 @@ export default function Users() {
 
     function generateJoinQr(targetUsername: string) {
         // Deliberately doesn't embed a certificate or password -- just the
-        // server address and username, matching ATAK/WinTAK's own "Quick
-        // Connect" QR format (tak://com.atakmap.app/enroll). The device
-        // still authenticates via /Marti/api/tls on port 8446 (see
-        // certificate_enrollment_api.py and the ots_certificate_enrollment
-        // nginx config) with the user's own password, and gets issued a
-        // real client cert as part of that -- this QR just saves them
-        // typing the host and username in by hand.
-        //
-        // Best-effort: this URI scheme is the widely-documented ATAK
-        // convention, not something verified against a live device from
-        // here -- worth a real scan-and-connect test.
-        const host = `${window.location.hostname}:8446`;
-        setJoinQrValue(`tak://com.atakmap.app/enroll?host=${encodeURIComponent(host)}&username=${encodeURIComponent(targetUsername)}`);
+        // server address and username. The device still authenticates via
+        // /Marti/api/tls on port 8446 (see certificate_enrollment_api.py and
+        // the ots_certificate_enrollment nginx config) with the user's own
+        // password, and gets issued a real client cert as part of that --
+        // this QR just saves them typing the host and username in by hand.
+        setJoinQrClient('atak');
         setJoinQrUsername(targetUsername);
         setShowJoinQr(true);
+    }
+
+    // ATAK/WinTAK's "Quick Connect" scheme is well-documented and confirmed
+    // working. iTAK is a completely separate app (not just a different
+    // build of ATAK), so ATAK's tak://com.atakmap.app/... URIs don't mean
+    // anything to it -- confirmed live, that's exactly why this needed
+    // splitting out. This iTAK variant is a best-effort guess at its bundle
+    // identifier convention, not verified against a live device.
+    function buildJoinQrValue(client: 'atak' | 'itak', targetUsername: string): string {
+        const host = `${window.location.hostname}:8446`;
+        const scheme = client === 'itak' ? 'tak://com.atakmap.app.civ.itak' : 'tak://com.atakmap.app';
+        return `${scheme}/enroll?host=${encodeURIComponent(host)}&username=${encodeURIComponent(targetUsername)}`;
     }
 
     function issueTempPassword(username: string) {
@@ -912,11 +918,21 @@ export default function Users() {
               title={`${t('Join QR Code for')} ${joinQrUsername}`}
             >
                 <Text size="sm" c="dimmed" mb="md">
-                    {t('Scan this in ATAK or WinTAK to pre-fill the server address and username — the user still enters their own password to complete enrollment.')}
+                    {t('Scan this to pre-fill the server address and username — the user still enters their own password to complete enrollment.')}
                 </Text>
+                <SegmentedControl
+                    fullWidth
+                    mb="md"
+                    value={joinQrClient}
+                    onChange={(value) => setJoinQrClient(value as 'atak' | 'itak')}
+                    data={[
+                        { label: t('ATAK / WinTAK'), value: 'atak' },
+                        { label: t('iTAK (unverified)'), value: 'itak' },
+                    ]}
+                />
                 <Center>
                     <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode value={joinQrValue} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
+                        <QRCode value={buildJoinQrValue(joinQrClient, joinQrUsername)} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
                     </Paper>
                 </Center>
             </Modal>
