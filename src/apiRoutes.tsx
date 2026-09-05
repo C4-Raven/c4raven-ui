@@ -13,6 +13,7 @@ export const apiRoutes = {
   assign_eud_to_user: '/api/user/assign_eud',
   status: '/api/status',
   casevac: '/api/casevac',
+  markers: '/api/markers',
   deleteDataPackage: '/api/data_packages',
   addVideoStream: '/api/mediamtx/stream/add',
   deleteVideoStream: '/api/mediamtx/stream/delete',

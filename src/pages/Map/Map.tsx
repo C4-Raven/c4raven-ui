@@ -6,10 +6,11 @@ import L from 'leaflet';
 import 'react-leaflet-fullscreen/styles.css';
 import 'leaflet.marker.slideto';
 import 'leaflet-rotatedmarker';
-import { Divider, Drawer, Image, Paper, Table, Text } from '@mantine/core';
+import { Button, Divider, Drawer, Group, Image, Paper, Table, Text } from '@mantine/core';
 import axios from 'axios';
+import apiClient from '@/axios_config';
 import { notifications } from '@mantine/notifications';
-import { IconX } from '@tabler/icons-react';
+import { IconTrash, IconX } from '@tabler/icons-react';
 import * as milsymbol from 'milsymbol';
 import { useDisclosure } from '@mantine/hooks';
 import GreatCircle from './GreatCircle';
@@ -32,6 +33,12 @@ export default function Map() {
     const [drawerTitle, setDrawerTitle] = useState('');
     const [detailRows, setDetailRows] = useState<ReactElement[]>([]);
     const [positionRows, setPositionRows] = useState<ReactElement[]>([]);
+    // Only a plain dropped marker/spot-map point (the /api/markers table) is
+    // deletable this way -- EUDs and CasEvacs have their own lifecycle and
+    // aren't "markers" an admin manually placed and can just remove. Cleared
+    // whenever the drawer opens for anything else, so the Delete button only
+    // ever shows for what it can actually delete.
+    const [selectedMarkerUid, setSelectedMarkerUid] = useState<string | null>(null);
 
     const eudsLayer = new L.LayerGroup();
     const rbLinesLayer = new L.LayerGroup();
@@ -186,6 +193,7 @@ export default function Map() {
             markers[uid].setIcon(icon);
             markers[uid].on('click', (e) => {
                 setDrawerTitle(eud.callsign);
+                setSelectedMarkerUid(null);
                 formatDrawer(eud, null);
                 open();
             });
@@ -199,6 +207,7 @@ export default function Map() {
 
             marker.on('click', (e) => {
                 setDrawerTitle(eud.callsign);
+                setSelectedMarkerUid(null);
                 formatDrawer(eud, null);
                 open();
             });
@@ -266,6 +275,7 @@ export default function Map() {
 
                 marker.on('click', (e) => {
                     setDrawerTitle(value.title);
+                    setSelectedMarkerUid(null);
                     formatDrawer(value, null);
                     open();
                 });
@@ -323,6 +333,7 @@ export default function Map() {
                         });
                         circle.on('click', (e) => {
                             setDrawerTitle(value.callsign);
+                            setSelectedMarkerUid(uid);
                             formatDrawer(value, null);
                             open();
                         });
@@ -344,6 +355,7 @@ export default function Map() {
 
                     marker.on('click', (e) => {
                         setDrawerTitle(value.callsign);
+                        setSelectedMarkerUid(uid);
                         formatDrawer(value, null);
                         open();
                     });
@@ -454,6 +466,35 @@ export default function Map() {
         return null;
     }
 
+    function deleteMarker() {
+        if (!selectedMarkerUid) return;
+        const uid = selectedMarkerUid;
+        apiClient.delete(apiRoutes.markers, { params: { uid } }).then((r) => {
+            if (r.status === 200) {
+                if (Object.hasOwn(markers, uid)) {
+                    markers[uid].remove();
+                    delete markers[uid];
+                    setMarkers({ ...markers });
+                }
+                if (Object.hasOwn(circles, uid)) {
+                    circles[uid].remove();
+                    delete circles[uid];
+                    setCircles({ ...circles });
+                }
+                setSelectedMarkerUid(null);
+                close();
+                notifications.show({ message: 'Marker deleted', color: 'green' });
+            }
+        }).catch((err) => {
+            notifications.show({
+                title: 'Failed to delete marker',
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
+
     return (
         <>
             <Drawer
@@ -465,6 +506,13 @@ export default function Map() {
               overlayProps={{ backgroundOpacity: 0 }}
               shadow="xl"
             >
+                {selectedMarkerUid && (
+                    <Group justify="flex-end" mb="sm">
+                        <Button color="red" variant="light" leftSection={<IconTrash size={16} />} onClick={deleteMarker}>
+                            Delete Marker
+                        </Button>
+                    </Group>
+                )}
                 <Divider label="Details" labelPosition="left" color="gray.4" />
                 <Table>
                     {detailRows}
