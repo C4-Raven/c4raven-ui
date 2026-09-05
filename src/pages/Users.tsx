@@ -18,11 +18,13 @@ import {
     Text,
     FileButton,
     Center,
+    Menu,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
     IconCheck,
     IconCopy,
+    IconDotsVertical,
     IconFileUpload,
     IconFilter,
     IconKey,
@@ -678,78 +680,82 @@ export default function Users() {
                     },
                     {
                         accessor: 'actions',
-                        title: '',
+                        title: t('Actions'),
                         textAlign: 'right',
-                        render: (row) => (
-                            <Group gap={4} wrap="nowrap" justify="flex-end">
-                                <Tooltip label={t('Force this user to set a new password on next login')}>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        disabled={isProtectedUser(row.username)}
-                                        onClick={() => forcePasswordReset(row.username)}
-                                    >
-                                        <IconPassword size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label={t('Issue a temporary password (for a user who forgot theirs)')}>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        disabled={isProtectedUser(row.username)}
-                                        onClick={() => issueTempPassword(row.username)}
-                                    >
-                                        <IconKey size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label={t('Manage groups')}>
-                                    <ActionIcon
-                                        variant="light"
-                                        disabled={isProtectedUser(row.username)}
-                                        onClick={() => {
-                                            setShowManageGroups(true);
-                                            getAllGroups();
-                                            getMemberships(row.username);
-                                            setUsername(row.username);
-                                        }}
-                                    >
-                                        <IconUserCog size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label={t('Generate a QR code this user can scan in ATAK/WinTAK to join the server')}>
-                                    <ActionIcon
-                                        variant="light"
-                                        disabled={isProtectedUser(row.username)}
-                                        onClick={() => generateJoinQr(row.username)}
-                                    >
-                                        <IconQrcode size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label={t('Send this user a file — it will be pushed to their TAK device(s)')}>
-                                    <ActionIcon
-                                        variant="light"
-                                        onClick={() => {
-                                            setSendFileUsername(row.username);
-                                            setSendFileFile(null);
-                                            setShowSendFile(true);
-                                        }}
-                                    >
-                                        <IconFileUpload size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label={row.username === localStorage.getItem('username') ? t("You can't delete your own account") : t('Delete user')}>
-                                    <ActionIcon
-                                        color="red"
-                                        variant="light"
-                                        disabled={row.username === localStorage.getItem('username') || isProtectedUser(row.username)}
-                                        onClick={() => {
-                                            setUsername(row.username);
-                                            setShowDeleteUser(true);
-                                        }}
-                                    >
-                                        <IconUserMinus size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Group>
-                        ),
+                        render: (row) => {
+                            const isSelf = row.username === localStorage.getItem('username');
+                            const protectedUser = isProtectedUser(row.username);
+                            return (
+                                <Group gap={4} wrap="nowrap" justify="flex-end">
+                                    <Tooltip label={protectedUser ? t("This account can't be modified") : t('Manage groups')}>
+                                        <ActionIcon
+                                            variant="light"
+                                            disabled={protectedUser}
+                                            onClick={() => {
+                                                setShowManageGroups(true);
+                                                getAllGroups();
+                                                getMemberships(row.username);
+                                                setUsername(row.username);
+                                            }}
+                                        >
+                                            <IconUserCog size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Menu shadow="md" width={230} position="bottom-end" withinPortal>
+                                        <Menu.Target>
+                                            <ActionIcon variant="subtle" disabled={protectedUser}>
+                                                <IconDotsVertical size={16} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Label>{t('Password')}</Menu.Label>
+                                            <Menu.Item
+                                                leftSection={<IconPassword size={15} />}
+                                                onClick={() => forcePasswordReset(row.username)}
+                                            >
+                                                {t('Force password reset')}
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={<IconKey size={15} />}
+                                                onClick={() => issueTempPassword(row.username)}
+                                            >
+                                                {t('Issue temporary password')}
+                                            </Menu.Item>
+                                            <Menu.Divider />
+                                            <Menu.Label>{t('Device')}</Menu.Label>
+                                            <Menu.Item
+                                                leftSection={<IconQrcode size={15} />}
+                                                onClick={() => generateJoinQr(row.username)}
+                                            >
+                                                {t('Join QR code')}
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={<IconFileUpload size={15} />}
+                                                onClick={() => {
+                                                    setSendFileUsername(row.username);
+                                                    setSendFileFile(null);
+                                                    setShowSendFile(true);
+                                                }}
+                                            >
+                                                {t('Send file')}
+                                            </Menu.Item>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                color="red"
+                                                leftSection={<IconUserMinus size={15} />}
+                                                disabled={isSelf}
+                                                onClick={() => {
+                                                    setUsername(row.username);
+                                                    setShowDeleteUser(true);
+                                                }}
+                                            >
+                                                {isSelf ? t("Delete user (can't delete yourself)") : t('Delete user')}
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Group>
+                            );
+                        },
                     },
                 ]}
                 page={activePage}
