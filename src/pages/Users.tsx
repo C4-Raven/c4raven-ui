@@ -567,6 +567,8 @@ export default function Users() {
                 highlightOnHover
                 horizontalSpacing="xs"
                 scrollAreaProps={{ type: 'auto', offsetScrollbars: true }}
+                storeColumnsKey="users-table-columns"
+                defaultColumnProps={{ resizable: true }}
                 records={users}
                 columns={[
                     {
@@ -770,6 +772,8 @@ export default function Users() {
                     borderRadius="md"
                     striped
                     highlightOnHover
+                    storeColumnsKey="users-memberships-table-columns"
+                    defaultColumnProps={{ resizable: true }}
                     records={memberships.body?.map((row: any[], idx: number) => ({
                         id: idx,
                         group_name: row[0],
