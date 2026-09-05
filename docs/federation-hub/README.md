@@ -24,11 +24,19 @@ download this hub's own CA to hand to a partner so they can trust us back.
 ## Federations
 
 Configure outgoing connections to remote hubs, then draw data-sharing rules
-between partners directly on a policy graph -- the same drag/click model as
-the native Federation Hub admin console's policy editor, rebuilt here so it
-doesn't need the client cert either.
+between partners directly on a policy graph -- the same click-to-connect
+model as the native Federation Hub admin console's policy editor, rebuilt
+here so it doesn't need the client cert either. Each node shows a live
+green/red status dot backed by a 10-second poll of `/api/fedhub/connections`
+and `/api/fedhub/metrics`, so a dropped federation link is visible on the
+diagram itself instead of only surfacing once a message doesn't arrive.
 
 ![Federations tab with a partner and the policy diagram](federations-diagram.jpg)
+
+For comparison, this is the same policy graph in Federation Hub's own native
+console -- the model this tab was built to match:
+
+![Federation Hub's native Policy Manager console](native-policy-editor.jpg)
 
 ## Native admin panel access
 

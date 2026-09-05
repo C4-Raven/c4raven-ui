@@ -39,26 +39,59 @@ setting a new one before they can do anything else.
 </p>
 
 The admin Users page reflects this: instead of an admin having to manually
-choose and communicate a new password, there are two one-click actions —
-force a user to set a new password on their next login, or issue a
-system-generated temporary password for someone who's completely locked out.
+choose and communicate a new password, each user's menu has one-click actions
+to force a new password on next login, or issue a system-generated temporary
+password for someone who's completely locked out. The same menu covers
+enrolling a device — a QR code that pre-fills the server address and username
+for ATAK/WinTAK's Quick Connect (the user still enters their own password) —
+and pushing a file straight to someone's TAK device.
 
 <p align="center">
-  <img src="docs/screenshots/users.png" alt="Admin users page with password actions" width="700">
+  <img src="docs/screenshots/users.png" alt="Admin users page with the per-user actions menu open" width="700">
+</p>
+
+Connected devices (EUDs) get their own live-updating table — platform,
+callsign, last event time, and a connect/disconnected status that reflects
+the actual state of each device's connection to the server, not just whether
+it's ever checked in.
+
+<p align="center">
+  <img src="docs/screenshots/euds.png" alt="EUDs page listing connected and disconnected devices" width="700">
+</p>
+
+Whether one user's position and messages reach another is controlled from
+the Groups page: a named group, or a quick pairwise connection drawn directly
+between two users, one-way or mutual. See [`c4raven-server`'s Groups and
+visibility docs](https://github.com/C4Raven/c4raven-server#groups-and-visibility)
+for how that actually routes under the hood.
+
+<p align="center">
+  <img src="docs/screenshots/groups.png" alt="Groups page listing named groups" width="700">
 </p>
 
 ## Federation Hub
 
 A dedicated tab for managing [TAK Server Federation
 Hub](https://github.com/C4Raven/federation-hub-setup) — status, trusted CA
-groups, and outgoing connections to partner hubs, plus a drag-and-click
-policy diagram for drawing data-sharing rules between them, all through a
-normal admin login. The backend holds Federation Hub's own admin client
-certificate and proxies every call, so nobody needs that certificate
-imported into their browser just to check on federation status day to day.
+groups, and outgoing connections to partner hubs, plus a policy diagram for
+drawing data-sharing rules between them by clicking one partner and then
+another, all through a normal admin login. Every node on the diagram carries
+a live green/red status dot (polled every 10 seconds) so a broken federation
+link is visible at a glance instead of only showing up when a message fails
+to arrive. The backend holds Federation Hub's own admin client certificate
+and proxies every call, so nobody needs that certificate imported into their
+browser just to check on federation status day to day.
 
 <p align="center">
-  <img src="docs/federation-hub/federations-diagram.jpg" alt="Federation Hub policy diagram" width="700">
+  <img src="docs/federation-hub/federations-diagram.jpg" alt="Federation Hub policy diagram with live connection status" width="700">
+</p>
+
+This mirrors the drag-and-drop policy editor built into Federation Hub's own
+native console (below) closely enough that the two stay interchangeable —
+rules drawn in one show up in the other.
+
+<p align="center">
+  <img src="docs/federation-hub/native-policy-editor.jpg" alt="Federation Hub's native Policy Manager console" width="700">
 </p>
 
 See [`docs/federation-hub`](docs/federation-hub) for the rest of the
