@@ -506,17 +506,21 @@ export default function Users() {
         axios.post(apiRoutes.generate_certificate, { username: targetUsername }).then((r) => {
             if (r.status !== 200) throw new Error('generate_certificate failed');
             // The endpoint doesn't return the new package's hash directly --
-            // find it the same way DataPackages.tsx's own QR button does,
-            // by looking at the most recently created packages. Client-side
-            // substring match since the API's own filter is exact-match
-            // only and the filename isn't just the bare username (it's
-            // "<username>.p12" from CertificateAuthority.issue_certificate).
+            // find it the same way DataPackages.tsx's own QR button does, by
+            // looking at the most recently created packages. It always
+            // creates two per call (CertificateAuthority.issue_certificate):
+            // "<username>_CONFIG.zip" (the real ATAK/WinTAK one this QR code
+            // needs) and "<username>_CONFIG_iTAK.zip" (a different, iTAK-only
+            // format) -- match the exact standard filename, not just
+            // anything containing the username, or this can just as easily
+            // grab the iTAK one instead depending on insert order.
             return axios.get(apiRoutes.data_packages, {
                 params: { page: 1, per_page: 10, sort_by: 'submission_time', sort_direction: 'desc' },
             });
         }).then((r) => {
+            const expectedFilename = `${targetUsername.toLowerCase()}_config.zip`;
             const pkg = r.data.results?.find((p: any) =>
-                p.filename?.toLowerCase().includes(targetUsername.toLowerCase()));
+                p.filename?.toLowerCase() === expectedFilename);
             if (!pkg) {
                 throw new Error('Could not find the generated configuration package');
             }
