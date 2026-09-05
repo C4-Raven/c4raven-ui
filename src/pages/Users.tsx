@@ -17,6 +17,7 @@ import {
     CopyButton,
     Text,
     FileButton,
+    Center,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
@@ -27,6 +28,7 @@ import {
     IconKey,
     IconPassword,
     IconPlus,
+    IconQrcode,
     IconTrash,
     IconUserCog,
     IconUserMinus,
@@ -35,6 +37,7 @@ import {
     IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { QRCode } from 'react-qrcode-logo';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import {t} from "i18next";
@@ -80,6 +83,10 @@ export default function Users() {
     const [sendFileUsername, setSendFileUsername] = useState('');
     const [sendFileFile, setSendFileFile] = useState<File | null>(null);
     const [sendingFile, setSendingFile] = useState(false);
+    const [showJoinQr, setShowJoinQr] = useState(false);
+    const [joinQrValue, setJoinQrValue] = useState('');
+    const [joinQrUsername, setJoinQrUsername] = useState('');
+    const [generatingJoinQr, setGeneratingJoinQr] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -494,6 +501,43 @@ export default function Users() {
             });
     }
 
+    function generateJoinQr(targetUsername: string) {
+        setGeneratingJoinQr(true);
+        axios.post(apiRoutes.generate_certificate, { username: targetUsername }).then((r) => {
+            if (r.status !== 200) throw new Error('generate_certificate failed');
+            // The endpoint doesn't return the new package's hash directly --
+            // find it the same way DataPackages.tsx's own QR button does,
+            // by looking at the most recently created packages. Client-side
+            // substring match since the API's own filter is exact-match
+            // only and the filename isn't just the bare username (it's
+            // "<username>.p12" from CertificateAuthority.issue_certificate).
+            return axios.get(apiRoutes.data_packages, {
+                params: { page: 1, per_page: 10, sort_by: 'submission_time', sort_direction: 'desc' },
+            });
+        }).then((r) => {
+            const pkg = r.data.results?.find((p: any) =>
+                p.filename?.toLowerCase().includes(targetUsername.toLowerCase()));
+            if (!pkg) {
+                throw new Error('Could not find the generated configuration package');
+            }
+            const dpLink = encodeURIComponent(
+                `${window.location.protocol}//${window.location.hostname}:8443/Marti/api/sync/metadata/${pkg.hash}/tool`
+            );
+            setJoinQrValue(`tak://com.atakmap.app/import?url=${dpLink}`);
+            setJoinQrUsername(targetUsername);
+            setShowJoinQr(true);
+            setGeneratingJoinQr(false);
+        }).catch((err) => {
+            setGeneratingJoinQr(false);
+            notifications.show({
+                title: t('Failed to generate join QR code'),
+                message: err.response?.data?.error ?? err.message,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
+
     function issueTempPassword(username: string) {
         axios.post(
             apiRoutes.issueTempPassword,
@@ -688,6 +732,16 @@ export default function Users() {
                                         <IconUserCog size={16} />
                                     </ActionIcon>
                                 </Tooltip>
+                                <Tooltip label={t('Generate a QR code this user can scan in ATAK/WinTAK to join the server')}>
+                                    <ActionIcon
+                                        variant="light"
+                                        disabled={isProtectedUser(row.username)}
+                                        loading={generatingJoinQr}
+                                        onClick={() => generateJoinQr(row.username)}
+                                    >
+                                        <IconQrcode size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
                                 <Tooltip label={t('Send this user a file — it will be pushed to their TAK device(s)')}>
                                     <ActionIcon
                                         variant="light"
@@ -871,6 +925,20 @@ export default function Users() {
                         onClick={() => { sendFileToUser(); }}
                     >{t('Send')}</Button>
                 </Group>
+            </Modal>
+            <Modal
+              opened={showJoinQr}
+              onClose={() => setShowJoinQr(false)}
+              title={`${t('Join QR Code for')} ${joinQrUsername}`}
+            >
+                <Text size="sm" c="dimmed" mb="md">
+                    {t('Scan this in ATAK or WinTAK to import a ready-to-use connection and enrollment package for this user — no manual server setup needed.')}
+                </Text>
+                <Center>
+                    <Paper p="md" shadow="xl" withBorder bg="white">
+                        <QRCode value={joinQrValue} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
+                    </Paper>
+                </Center>
             </Modal>
         </>
     );
