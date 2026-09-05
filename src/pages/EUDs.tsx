@@ -1,4 +1,4 @@
-import {Table} from '@mantine/core';
+import {Badge, Table} from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import {IconCheck, IconDownload, IconPlus, IconX} from '@tabler/icons-react';
@@ -86,6 +86,18 @@ export default function EUDs() {
         getEuds();
     }, [activePage, sortStatus]);
 
+    // last_status (Connected/Disconnected) and last_event_time change the
+    // moment a device connects or drops, but this table only ever
+    // refetched on page/sort changes -- it could sit showing a device as
+    // "Connected" long after it actually went offline until an admin
+    // happened to change page or re-sort. Poll it like the other
+    // live-status pages (e.g. FederationHub's connections/metrics).
+    useEffect(() => {
+        const interval = setInterval(getEuds, 10000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activePage, sortStatus, pageSize]);
+
     return (
         <>
             <Table.ScrollContainer minWidth="100%">
@@ -100,7 +112,17 @@ export default function EUDs() {
                         {accessor: "platform", title: t("Platform"), sortable: true}, {accessor: "os", title: t("OS"), sortable: true},
                         {accessor: "phone_number", title: t("Phone Number"), sortable: true}, {accessor: "username", title: t("Username")},
                         {accessor: "uid", title: t("UID")}, {accessor: "version", title: t("Version"), sortable: true},
-                        {accessor: "last_event_time", title: t("Last Event Time"), sortable: true}, {accessor: "last_status", title: t("Last Event"), sortable: true}]}
+                        {accessor: "last_event_time", title: t("Last Event Time"), sortable: true},
+                        {
+                            accessor: "last_status",
+                            title: t("Status"),
+                            sortable: true,
+                            render: (row) => (
+                                <Badge color={row.last_status === "Connected" ? "green" : "gray"} variant="light">
+                                    {row.last_status === "Connected" ? t("Connected") : t("Disconnected")}
+                                </Badge>
+                            ),
+                        }]}
                     page={activePage}
                     onPageChange={(p) => setPage(p)}
                     onRecordsPerPageChange={setPageSize}
