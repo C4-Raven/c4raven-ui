@@ -97,16 +97,42 @@ function viewNodesArray(nodes: unknown): { id: string; x: number; y: number }[] 
     return Array.isArray(nodes) ? nodes : [];
 }
 
+// Loosely typed on purpose -- this only needs whatever identifies which
+// entity a live connection belongs to, not the connection table's full shape.
+export interface DiagramConnection {
+    remoteServerId?: string;
+    groupIdentities?: string[];
+}
+
 interface Props {
     entities: DiagramEntity[];
     rules: DiagramRule[];
     views?: GraphView;
     knownGroups: string[];
+    connections?: DiagramConnection[];
     onRulesChange: (rules: DiagramRule[]) => void;
     onViewsChange: (views: GraphView) => void;
 }
 
-export default function FederationPolicyDiagram({ entities, rules, views, knownGroups, onRulesChange, onViewsChange }: Props) {
+export default function FederationPolicyDiagram({ entities, rules, views, knownGroups, connections = [], onRulesChange, onViewsChange }: Props) {
+    // An entity counts as live if any current connection names it -- either
+    // as the remote server itself (FederationOutgoing) or as one of the
+    // group identities it authenticated with (FederationGroup/CA). This is
+    // the same "is it actually connected right now" signal the Connections
+    // table above already lists; here it's just projected onto the nodes
+    // and edges that touch it instead of a separate table row.
+    const liveNames = React.useMemo(() => {
+        const names = new Set<string>();
+        connections.forEach((c) => {
+            if (c.remoteServerId) names.add(c.remoteServerId);
+            (c.groupIdentities ?? []).forEach((g) => names.add(g));
+        });
+        return names;
+    }, [connections]);
+    const isEntityLive = (id: string) => {
+        const entity = entities.find((e) => e.id === id);
+        return !!entity?.name && liveNames.has(entity.name);
+    };
     const [positions, setPositions] = useState<Record<string, XY>>(() => {
         const stored: Record<string, XY> = {};
         viewNodesArray(views?.nodes).forEach((n) => { stored[n.id] = { x: n.x, y: n.y }; });
@@ -366,6 +392,12 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                             <marker id="fpArrowEnd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
                                 <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-indigo-4)" />
                             </marker>
+                            <marker id="fpArrowEndGreen" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-green-5)" />
+                            </marker>
+                            <marker id="fpArrowEndRed" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse">
+                                <path d="M0,0 L9,4.5 L0,9 L2.5,4.5 z" fill="var(--mantine-color-red-6)" />
+                            </marker>
                         </defs>
                         {rules.map((rule) => {
                             if (!positions[rule.source] || !positions[rule.destination]) return null;
@@ -386,23 +418,35 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                             const cy = (a.y + b.y) / 2 + ny * bow;
                             const labelX = 0.25 * a.x + 0.5 * cx + 0.25 * b.x;
                             const labelY = 0.25 * a.y + 0.5 * cy + 0.25 * b.y;
+                            // Both ends currently connected -> green and animated
+                            // ("data is actually flowing here right now"); either
+                            // end down -> red and static, so a dead link reads as
+                            // dead at a glance instead of looking identical to a
+                            // live one.
+                            const bothLive = connections.length > 0 && isEntityLive(rule.source) && isEntityLive(rule.destination);
+                            const liveKnown = connections.length > 0;
+                            const edgeColor = !liveKnown
+                                ? 'var(--mantine-color-indigo-5)'
+                                : bothLive ? 'var(--mantine-color-green-5)' : 'var(--mantine-color-red-6)';
+                            const arrowMarker = !liveKnown ? 'fpArrowEnd' : bothLive ? 'fpArrowEndGreen' : 'fpArrowEndRed';
                             return (
                                 <g key={rule.id}>
                                     <path
                                         d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
                                         fill="none"
-                                        stroke="var(--mantine-color-indigo-5)"
+                                        stroke={edgeColor}
                                         strokeWidth={3}
                                         strokeLinecap="round"
-                                        markerEnd="url(#fpArrowEnd)"
+                                        markerEnd={`url(#${arrowMarker})`}
                                         pointerEvents="stroke"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     />
+                                    {(!liveKnown || bothLive) && (
                                     <path
                                         d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`}
                                         fill="none"
-                                        stroke="var(--mantine-color-indigo-2)"
+                                        stroke={!liveKnown ? 'var(--mantine-color-indigo-2)' : 'var(--mantine-color-green-2)'}
                                         strokeWidth={1.5}
                                         strokeDasharray="1 7"
                                         strokeLinecap="round"
@@ -411,6 +455,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     >
                                         <animate attributeName="stroke-dashoffset" from="16" to="0" dur="0.6s" repeatCount="indefinite" />
                                     </path>
+                                    )}
                                     <rect
                                         x={labelX - (rule.name.length * 3.4 + 10)} y={labelY - 11}
                                         width={rule.name.length * 6.8 + 20} height={20}
@@ -441,6 +486,8 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                         if (!pos) return null;
                         const isSelected = selectedNode === e.id;
                         const isOutgoing = e.type === 'FederationOutgoing';
+                        const liveKnown = connections.length > 0;
+                        const isLive = isEntityLive(e.id);
                         return (
                             <Paper
                                 key={e.id}
@@ -460,6 +507,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8,
+                                    position: 'relative',
                                     borderColor: isSelected
                                         ? 'var(--mantine-color-blue-4)'
                                         : isOutgoing
@@ -471,6 +519,22 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                 onPointerDown={(ev) => onNodePointerDown(ev, e.id)}
                                 onClick={(ev) => { ev.stopPropagation(); handleNodeClick(e.id); }}
                             >
+                                {liveKnown && (
+                                    <Tooltip label={isLive ? t('Connected') : t('Disconnected')}>
+                                        <Box
+                                            style={{
+                                                position: 'absolute',
+                                                top: -4,
+                                                right: -4,
+                                                width: 12,
+                                                height: 12,
+                                                borderRadius: '50%',
+                                                border: '2px solid var(--mantine-color-dark-7)',
+                                                background: isLive ? 'var(--mantine-color-green-5)' : 'var(--mantine-color-red-6)',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                )}
                                 <Box
                                     style={{
                                         flexShrink: 0,

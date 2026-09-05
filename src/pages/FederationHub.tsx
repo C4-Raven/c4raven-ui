@@ -180,6 +180,21 @@ export default function FederationHub() {
 
     useEffect(() => {
         loadAll();
+        // Connections and broker metrics (CPU/heap/messages dropped, the
+        // connection status table) reflect the hub's live state and go
+        // stale the moment anything changes on either end -- unlike CA
+        // groups/federations/plugins, which only change when an admin
+        // edits them here. Poll just those two, quietly (no loading
+        // spinner, no touching the rest of the page's state), so they
+        // don't require a manual page reload to stay current.
+        const interval = setInterval(() => {
+            axios.get(apiRoutes.fedhubConnections).then((r) => setConnections(r.data)).catch(() => {});
+            axios.get(apiRoutes.fedhubMetrics).then((r) => {
+                setBrokerMetrics(r.data.broker);
+                setGlobalMetrics(r.data.global);
+            }).catch(() => {});
+        }, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     function loadAll() {
@@ -864,6 +879,7 @@ export default function FederationHub() {
                                     rules={getRules()}
                                     views={selectedFederation.views?.graph}
                                     knownGroups={caGroups.map((ca) => ca.nickname || ca.alias)}
+                                    connections={connections}
                                     onRulesChange={setRules}
                                     onViewsChange={saveViews}
                                 />
