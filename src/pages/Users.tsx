@@ -86,7 +86,6 @@ export default function Users() {
     const [showJoinQr, setShowJoinQr] = useState(false);
     const [joinQrValue, setJoinQrValue] = useState('');
     const [joinQrUsername, setJoinQrUsername] = useState('');
-    const [generatingJoinQr, setGeneratingJoinQr] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -502,44 +501,22 @@ export default function Users() {
     }
 
     function generateJoinQr(targetUsername: string) {
-        setGeneratingJoinQr(true);
-        axios.post(apiRoutes.generate_certificate, { username: targetUsername }).then((r) => {
-            if (r.status !== 200) throw new Error('generate_certificate failed');
-            // The endpoint doesn't return the new package's hash directly --
-            // find it the same way DataPackages.tsx's own QR button does, by
-            // looking at the most recently created packages. It always
-            // creates two per call (CertificateAuthority.issue_certificate):
-            // "<username>_CONFIG.zip" (the real ATAK/WinTAK one this QR code
-            // needs) and "<username>_CONFIG_iTAK.zip" (a different, iTAK-only
-            // format) -- match the exact standard filename, not just
-            // anything containing the username, or this can just as easily
-            // grab the iTAK one instead depending on insert order.
-            return axios.get(apiRoutes.data_packages, {
-                params: { page: 1, per_page: 10, sort_by: 'submission_time', sort_direction: 'desc' },
-            });
-        }).then((r) => {
-            const expectedFilename = `${targetUsername.toLowerCase()}_config.zip`;
-            const pkg = r.data.results?.find((p: any) =>
-                p.filename?.toLowerCase() === expectedFilename);
-            if (!pkg) {
-                throw new Error('Could not find the generated configuration package');
-            }
-            const dpLink = encodeURIComponent(
-                `${window.location.protocol}//${window.location.hostname}:8443/Marti/api/sync/metadata/${pkg.hash}/tool`
-            );
-            setJoinQrValue(`tak://com.atakmap.app/import?url=${dpLink}`);
-            setJoinQrUsername(targetUsername);
-            setShowJoinQr(true);
-            setGeneratingJoinQr(false);
-        }).catch((err) => {
-            setGeneratingJoinQr(false);
-            notifications.show({
-                title: t('Failed to generate join QR code'),
-                message: err.response?.data?.error ?? err.message,
-                icon: <IconX />,
-                color: 'red',
-            });
-        });
+        // Deliberately doesn't embed a certificate or password -- just the
+        // server address and username, matching ATAK/WinTAK's own "Quick
+        // Connect" QR format (tak://com.atakmap.app/enroll). The device
+        // still authenticates via /Marti/api/tls on port 8446 (see
+        // certificate_enrollment_api.py and the ots_certificate_enrollment
+        // nginx config) with the user's own password, and gets issued a
+        // real client cert as part of that -- this QR just saves them
+        // typing the host and username in by hand.
+        //
+        // Best-effort: this URI scheme is the widely-documented ATAK
+        // convention, not something verified against a live device from
+        // here -- worth a real scan-and-connect test.
+        const host = `${window.location.hostname}:8446`;
+        setJoinQrValue(`tak://com.atakmap.app/enroll?host=${encodeURIComponent(host)}&username=${encodeURIComponent(targetUsername)}`);
+        setJoinQrUsername(targetUsername);
+        setShowJoinQr(true);
     }
 
     function issueTempPassword(username: string) {
@@ -740,7 +717,6 @@ export default function Users() {
                                     <ActionIcon
                                         variant="light"
                                         disabled={isProtectedUser(row.username)}
-                                        loading={generatingJoinQr}
                                         onClick={() => generateJoinQr(row.username)}
                                     >
                                         <IconQrcode size={16} />
@@ -936,7 +912,7 @@ export default function Users() {
               title={`${t('Join QR Code for')} ${joinQrUsername}`}
             >
                 <Text size="sm" c="dimmed" mb="md">
-                    {t('Scan this in ATAK or WinTAK to import a ready-to-use connection and enrollment package for this user — no manual server setup needed.')}
+                    {t('Scan this in ATAK or WinTAK to pre-fill the server address and username — the user still enters their own password to complete enrollment.')}
                 </Text>
                 <Center>
                     <Paper p="md" shadow="xl" withBorder bg="white">
