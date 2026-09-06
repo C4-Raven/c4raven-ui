@@ -215,6 +215,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:^7.29.7":
+  version: 7.29.7
+  resolution: "@babel/runtime@npm:7.29.7"
+  checksum: 10c0/ca11572f7146b21e0bde6a9ed4bb6a89eafbee5f0944c7eb54d0d8a2dac962c33638a1d611e14faa71dfbb92b4b5f9236232208568a6b7d5c6f3f39ddb91771e
+  languageName: node
+  linkType: hard
+
 "@babel/template@npm:^7.27.2":
   version: 7.27.2
   resolution: "@babel/template@npm:7.27.2"
@@ -6585,6 +6592,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"html-parse-stringify@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "html-parse-stringify@npm:4.0.1"
+  checksum: 10c0/8d7267acbc8b70a50096176e28ba491af89fb31613b6a062bce4b8201b2703fd652bedfbe0db6efe90145379c89524a3319b1b58b8c96a72779b0f49e4c2c180
+  languageName: node
+  linkType: hard
+
 "html-tags@npm:^5.1.0":
   version: 5.1.0
   resolution: "html-tags@npm:5.1.0"
@@ -8678,7 +8692,7 @@ __metadata:
     react-flags-select: "npm:^2.5.0"
     react-geolocated: "npm:^4.4.0"
     react-grid-layout: "npm:^2.2.3"
-    react-i18next: "npm:^17.0.8"
+    react-i18next: "npm:^17.0.13"
     react-leaflet: "npm:^5.0.0"
     react-leaflet-fullscreen: "https://github.com/eYdr1en/react-leaflet-fullscreen"
     react-markdown: "npm:^10.1.0"
@@ -9394,6 +9408,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-i18next@npm:^17.0.13":
+  version: 17.0.13
+  resolution: "react-i18next@npm:17.0.13"
+  dependencies:
+    "@babel/runtime": "npm:^7.29.7"
+    html-parse-stringify: "npm:^4.0.1"
+    use-sync-external-store: "npm:^1.6.0"
+  peerDependencies:
+    i18next: ">= 26.2.0"
+    react: ">= 16.8.0"
+    typescript: ^5 || ^6 || ^7
+  peerDependenciesMeta:
+    react-dom:
+      optional: true
+    react-native:
+      optional: true
+    typescript:
+      optional: true
+  checksum: 10c0/58369886b4b49dd1c3c950de8d89811a15f1728f0805356f5003ec77ea96f2ef007ef25fb039fb241676d9f48664448d8be9dbc569bebfa06ad1cad5a76517ec
+  languageName: node
+  linkType: hard
+
 "react-i18next@npm:^17.0.7":
   version: 17.0.7
   resolution: "react-i18next@npm:17.0.7"
@@ -9413,28 +9449,6 @@ __metadata:
     typescript:
       optional: true
   checksum: 10c0/4a1cee24696a3a27ca3642a12fc08ffe5d1ce21cab7ee908488805c90b4e15ab30f17452b39bec32a5b02375d4f6155cfd301d23f24506667b5bfc64fcb7e72f
-  languageName: node
-  linkType: hard
-
-"react-i18next@npm:^17.0.8":
-  version: 17.0.8
-  resolution: "react-i18next@npm:17.0.8"
-  dependencies:
-    "@babel/runtime": "npm:^7.29.2"
-    html-parse-stringify: "npm:^3.0.1"
-    use-sync-external-store: "npm:^1.6.0"
-  peerDependencies:
-    i18next: ">= 26.2.0"
-    react: ">= 16.8.0"
-    typescript: ^5 || ^6
-  peerDependenciesMeta:
-    react-dom:
-      optional: true
-    react-native:
-      optional: true
-    typescript:
-      optional: true
-  checksum: 10c0/4d13d396208927ed3c80eb62db011a98dae16d93fc951bb4cb220fc5a3a5dd2f0046244fdbd197f627f595230d6fa05cc5d1c6f52b6241acd63ff818dff63acb
   languageName: node
   linkType: hard
 
