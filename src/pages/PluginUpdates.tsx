@@ -1,0 +1,242 @@
+import {
+    Modal,
+    Select,
+    Table,
+    TableData,
+    TextInput,
+    FileInput,
+    Button,
+    Pagination, Center, Image, Switch,
+} from '@mantine/core';
+import React, { useEffect, useState } from 'react';
+import { IconCheck, IconCircleMinus, IconUpload, IconX } from '@tabler/icons-react';
+import axios from 'axios';
+import { notifications } from '@mantine/notifications';
+import { apiRoutes } from '@/apiRoutes.tsx';
+import {t} from "i18next";
+
+interface PluginInterface {
+    plugin: File,
+    package_name: string;
+    icon: string;
+    name: string;
+    description: string;
+    version: string;
+    platform: string;
+    os_requirement: string;
+    revision_code: string;
+    install_on_enrollment: boolean;
+    install_on_connection: boolean;
+}
+
+export default function PluginUpdates() {
+    const [uploadPluginOpen, setUploadPluginOpen] = useState(false);
+    const [activePage, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [plugin, setPlugin] = useState<any>(new File([''], ''));
+    const [icon, setIcon] = useState<any>(new File([''], ''));
+    const [description, setDescription] = useState('');
+    const [atakVersion, setAtakVersion] = useState("");
+    const [platform, setPlatform] = useState('Android');
+    const [pluginType, setPluginType] = useState('plugin');
+    const [uploading, setUploading] = useState<boolean>(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deletePackage, setDeletePackage] = useState<any>();
+    const [deleteName, setDeleteName] = useState<string | null>();
+    const [packages, setPackages] = useState<TableData>({
+        caption: '',
+        head: [t('Icon'), t('Name'), t('Description'), t('Version'), t('ATAK Version'), t('Platform'), t('OS Requirement'), t('Revision Code'), t('Install on Enrollment'), t('Install on Connection'), t('Delete')],
+        body: [],
+    });
+
+    function update_plugin(package_name: string, install_on_enrollment: boolean, install_on_connection: boolean, atak_version: string): void {
+        axios.patch(apiRoutes.pluginPackage,
+            { package_name, install_on_enrollment, install_on_connection, atak_version },
+            ).then(r => {
+                if (r.status === 200) {
+                    get_plugins();
+                }
+        }).catch(err => {
+            notifications.show({
+                icon: <IconX />,
+                title: t('Failed to update package'),
+                message: err.response.data.error,
+                color: 'red',
+            });
+        });
+    }
+
+    function get_plugins() {
+        axios.get(apiRoutes.pluginPackage,
+            { params: {
+                    page: activePage,
+                } })
+            .then(r => {
+                if (r.status === 200) {
+                    const tableData: TableData = {
+                        caption: '',
+                        head: [t('Icon'), t('Name'), t('Description'), t('Version'), t('ATAK Version'), t('Platform'), t('OS Requirement'), t('Revision Code'), t('Install on Enrollment'), t('Install on Connection'), t('Delete')],
+                        body: [],
+                    };
+
+                    r.data.results.map((row:any) => {
+                        if (tableData.body !== undefined) {
+                            const delete_button = <Button
+                              onClick={() => {
+                                    setDeleteModalOpen(true);
+                                    setDeletePackage(row.package_name);
+                                    setDeleteName(row.name);
+                                }}
+                              key={`${row.package_name}_delete`}
+                              color="red"
+                            ><IconCircleMinus />
+                                                  </Button>;
+                            const install_on_enrollment = <Switch
+                              checked={row.install_on_enrollment}
+                              onChange={(e) => {
+                                    update_plugin(row.package_name, e.target.checked, row.install_on_connection, row.atak_version);
+                                }}
+                            />;
+
+                            const install_on_connection = <Switch
+                              checked={row.install_on_connection}
+                              onChange={(e) => {
+                                    update_plugin(row.package_name, row.install_on_enrollment, e.target.checked, row.atak_version);
+                                }}
+                            />;
+
+                            tableData.body.push([<Image src={row.icon} h={50} fit="contain" w="auto" />, row.name, row.description,
+                                row.version, row.atak_version, row.platform, row.os_requirement, row.revision_code, install_on_enrollment,
+                                install_on_connection, delete_button]);
+                        }
+                    });
+
+                    setPage(r.data.current_page);
+                    setTotalPages(r.data.total_pages);
+                    setPackages(tableData);
+                }
+            }).catch(err => {
+            console.log(err);
+            notifications.show({
+                icon: <IconX />,
+                title: t('Failed to get data'),
+                message: err.response.data.error,
+                color: 'red',
+            });
+        });
+    }
+
+    useEffect(() => {
+        get_plugins();
+    }, [activePage]);
+
+    function upload_plugin(e:any) {
+        e.preventDefault();
+        setUploading(true);
+        const body = new FormData();
+        body.append('apk', plugin);
+        body.append('icon', icon);
+        body.append('description', description);
+        body.append('platform', "Android");
+        body.append('plugin_type', pluginType);
+        body.append('atak_version', atakVersion);
+
+        axios.post(apiRoutes.pluginPackage,
+            body
+            ).then(r => {
+                if (r.status === 200) {
+                    notifications.show({
+                        icon: <IconCheck />,
+                        color: 'green',
+                        message: t('Successfully uploaded plugin'),
+                    });
+                    get_plugins();
+                    setUploading(false);
+                    setUploadPluginOpen(false);
+                }
+        }).catch(err => {
+            console.log(err);
+            // The backend's form-validation failure returns errors as a
+            // {field: [message, ...]} dict, not a flat array -- flatten it
+            // into something readable instead of indexing into it as if it
+            // were one.
+            const errors = err.response?.data?.errors;
+            const message = errors && typeof errors === 'object'
+                ? Object.values(errors).flat().join(', ')
+                : err.response?.data?.error;
+            notifications.show({
+                icon: <IconX />,
+                color: 'red',
+                title: t('Failed to upload plugin'),
+                message,
+            });
+            setUploading(false);
+        });
+    }
+
+    function delete_plugin() {
+        axios.delete(apiRoutes.pluginPackage,
+            { params: { package_name: deletePackage } }).then(r => {
+            if (r.status === 200) {
+                notifications.show({
+                    icon: <IconCheck />,
+                    message: t('Successfully deleted plugin'),
+                    color: 'green',
+                });
+                get_plugins();
+                setDeleteModalOpen(false);
+            }
+        }).catch(err => {
+            console.log(err);
+            notifications.show({
+                icon: <IconX />,
+                title: t('Failed to delete plugin'),
+                message: err.response.data.error,
+                color: 'red',
+            });
+            setDeleteModalOpen(false);
+        });
+    }
+
+    const plugin_type = <Select
+        value={pluginType}
+        label="Plugin Type"
+        data={[{ value: 'plugin', label: t('Plugin') }, { value: 'app', label: t('App') }]}
+        onChange={(value, option) => setPluginType(option.value)}
+    />;
+
+    return (
+        <>
+            <Button onClick={() => setUploadPluginOpen(true)} variant="filled" leftSection={<IconUpload size={14} />} mb="md">Upload Plugin</Button>
+            <Table.ScrollContainer minWidth="100%">
+                <Table stripedColor="dark.8" highlightOnHoverColor="dark.6" striped="odd" data={packages} highlightOnHover withTableBorder mb="md" />
+            </Table.ScrollContainer>
+            <Center><Pagination total={totalPages} value={activePage} onChange={setPage} withEdges /></Center>
+            <Modal opened={uploadPluginOpen} onClose={() => setUploadPluginOpen(false)} title={t("Upload Plugin")}>
+                {plugin_type}
+                <FileInput label={t("Plugin File")} value={plugin} onChange={setPlugin} required accept="application/vnd.android.package-archive" />
+                <TextInput label={t("Description")} onChange={(e) => setDescription(e.currentTarget.value)} />
+                <FileInput label={t("Icon")} value={icon} onChange={setIcon} mb="md" />
+                <Select
+                    pb="md"
+                    value={atakVersion}
+                    label="ATAK Version"
+                    clearable
+                    data={[{value: "", label: t("5.4 or lower")}, "5.5.0", "5.5.1", "5.6.0", "5.7.0", "5.8.0"]}
+                    onChange={(value) => {
+                        if (value && value !== "Any")
+                            setAtakVersion(value);
+                        else
+                            setAtakVersion("");
+                    }
+                }
+                />
+                <Button loading={uploading} onClick={(e) => { upload_plugin(e); }}>Upload Plugin</Button>
+            </Modal>
+            <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title={t("Are you sure you want to delete {{deleteName}}?", {"deleteName": deleteName})}>
+                <Button onClick={() => delete_plugin()} mr="md">Yes</Button>
+                <Button onClick={() => setDeleteModalOpen(false)}>No</Button>
+            </Modal>
+        </>
+    );
+}

@@ -1,0 +1,248 @@
+import React, {useEffect, useState} from "react";
+import CodeMirror from '@uiw/react-codemirror';
+import { yaml } from '@codemirror/lang-yaml';
+import Markdown from 'react-markdown'
+import {useSearchParams} from "react-router";
+import {Tabs, Text, Button, ScrollArea, Divider, Switch, Flex} from "@mantine/core";
+import {
+    IconAlignLeft,
+    IconSettings,
+    IconDeviceFloppy,
+    IconRestore,
+    IconX,
+    IconCheck,
+    IconInfoCircle
+} from "@tabler/icons-react";
+import { parse, stringify } from 'yaml'
+import axios from "axios";
+import {notifications} from "@mantine/notifications";
+import {apiRoutes} from "@/apiRoutes.tsx";
+import {t} from "i18next";
+
+interface About {
+    author: string;
+    author_email: string;
+    classifier: Array<string>;
+    description: string;
+    description_content_type: string;
+    license: string;
+    metadata_version: string
+    name: string;
+    project_url: Array<string>;
+    requires_dist: Array<string>;
+    requires_python: string;
+    summary: string;
+    version: string;
+    distro: string;
+}
+
+export default function Plugin() {
+    const [params, setParams] = useSearchParams();
+    const [originalConfig, setOriginalConfig] = useState("");
+    const [editedConfig, setEditedConfig] = useState("");
+    const [about, setAbout] = useState<About>();
+    const [docUrl, setDocUrl] = useState("");
+    const [repoUrl, setRepoUrl] = useState("");
+    const [showUITab, setShowUITab] = useState(true);
+    const [enabled, setEnabled] = useState(true)
+    const [pluginName, setPluginName] = useState<string|null>(null);
+
+    useEffect(() => {
+        setPluginName(params.get('name'))
+        getAbout();
+    }, [params]);
+
+    useEffect(() => {
+        getConfig();
+        checkUi();
+    }, [about]);
+
+    useEffect(() => {
+        about?.project_url.forEach((value) => {
+            if (value.startsWith("Documentation")) {
+                setDocUrl(value.split(", ")[1])
+            }
+            else if (value.startsWith("Repository")) {
+                setRepoUrl(value.split(", ")[1])
+            }
+        })
+    }, [about]);
+
+    function checkUi() {
+        if (pluginName !== null) {
+            axios.get(`/api/plugins/${pluginName}/ui`).then((r) => {
+                if (r.status === 200) {
+                    if (!r.data) {
+                        setShowUITab(false);
+                    } else {
+                        setShowUITab(true);
+                    }
+                }
+            })
+        }
+    }
+
+    function getConfig() {
+        axios.get(`/api/plugins/${params.get('name')}/config`).then((r) => {
+            if (r.status === 200) {
+                setOriginalConfig(r.data);
+                setEditedConfig(stringify(r.data));
+            }
+        }).catch((err) => {
+            console.log(err);
+            notifications.show({
+                title: t("Failed to get plugin config"),
+                message: t("Please restart C4 RAVEN"),
+                icon: <IconX />,
+                color: 'red'
+            })
+        })
+    }
+
+    function getAbout() {
+        axios.get(`/api/plugins/${params.get("name")}`).then((r) => {
+            if (r.status === 200) {
+                setAbout(r.data);
+                setEnabled(r.data.enabled);
+            }
+        }).catch((err) => {
+            console.log(err);
+            notifications.show({
+                title: t("Error getting plugin data"),
+                message: err.response.data.error,
+                icon: <IconX />,
+                color: 'red'
+            })
+        })
+    }
+
+    // Undoes any unsaved changes the user has made to the config
+    function undoChanges() {
+        setEditedConfig(stringify(originalConfig));
+    }
+
+    // Updates the plugin's config
+    function submit() {
+        // parse yaml to make sure it's valid
+        // post to backend
+        // backend plugin validates
+        // display success or failure message
+        try {
+            const config = parse(editedConfig);
+            axios.post(`/api/plugins/${params.get('name')}/config`, config).then((r) => {
+                if (r.status === 200) {
+                    notifications.show({
+                        title: t('Success'),
+                        message: t('Successfully Updated Plugin Config'),
+                        icon: <IconCheck />,
+                        color: 'green'
+                    })
+                }
+                else {
+                    notifications.show({
+                        title: t('Failed to update plugin config'),
+                        message: r.data.error,
+                        icon: <IconX />,
+                        color: 'red'
+                    })
+                }
+            }).catch((err) => {
+                console.log(err);
+                notifications.show({
+                    title: t('Failed to update plugin config'),
+                    message: err.response.data.error,
+                    icon: <IconX />,
+                    color: 'red'
+                })
+            })
+        }
+        catch (error: unknown) {
+            let message = "";
+            if (typeof error === "string") {
+                message = error
+            } else if (error instanceof Error) {
+                message = error.message
+            }
+
+            console.error(error);
+            notifications.show({
+                title: t('Error'),
+                message,
+                icon: <IconX />,
+                color: 'red',
+            });
+        }
+    }
+
+    function togglePlugin() {
+        axios.post((enabled) ? `${apiRoutes.plugins}/${params.get('name')}/disable` : `${apiRoutes.plugins}/${params.get('name')}/enable`)
+            .then((r) => {
+                if (r.status === 200) {
+                    setEnabled(!enabled);
+                    notifications.show({
+                        title: t('Success'),
+                        message: '',
+                        icon: <IconCheck />,
+                        color: 'green'
+                    })
+                }
+        }).catch((err) => {
+            console.log(err);
+            notifications.show({
+                title: t('Failed'),
+                message: '',
+                icon: <IconX />,
+                color: 'red'
+            })
+        })
+    }
+
+    return (
+        <div>
+            <Tabs defaultValue="about">
+                <Tabs.List>
+                    <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} /> }>
+                        {t("About")}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="ui" leftSection={<IconAlignLeft size={16} />} display={showUITab ? 'inherit' : 'none'}>
+                        {t("UI")}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="settings" leftSection={<IconSettings size={16} />}>
+                        {t("Settings")}
+                    </Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel value="about">
+                    <ScrollArea style={{width:'100%'}}>
+                        <Text size="md"><Text span inherit fw={700}>{t("Name:")}</Text> {about?.name}</Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Author:")}</Text> {about?.author}</Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Author Email:")}</Text> {about?.author_email}</Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("License:")}</Text> {about?.license}</Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Version:")}</Text> {about?.version}</Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Documentation:")}</Text> <a href={docUrl} target="_blank" rel="noopener noreferrer">{docUrl}</a></Text>
+                        <Text size="md"><Text span inherit fw={700}>{t("Repository:")}</Text> <a href={repoUrl} target="_blank" rel="noopener noreferrer">{repoUrl}</a></Text>
+                        <Switch styles={{ label: {fontWeight: 700}}} label={t("Enabled:")} labelPosition="left" size="md" checked={enabled} onChange={() => togglePlugin()} />
+                        <Divider mt="md" />
+                        <Markdown>{about?.description}</Markdown>
+                    </ScrollArea>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="ui">
+
+                    <ScrollArea type="never" scrollbars={false} style={{height:"90vh"}}>
+                        {pluginName && <iframe title="PluginUI" style={{overflow:"hidden", position: "relative", flex: 1, width: "100%", height: "90vh", border: 0, scrollbarColor: "transparent"}} src={`/api/plugins/${pluginName}/ui`} />}
+                    </ScrollArea>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="settings">
+                    <CodeMirror value={editedConfig} height="100%" extensions={[yaml()]} theme="dark" onChange={(e) => setEditedConfig(e)} />
+
+                    <Button mt="md" mr="md" leftSection={<IconDeviceFloppy size={14} />} onClick={() => submit()}>{t("Save")}</Button>
+                    <Button mt="md" leftSection={<IconRestore size={14} />} onClick={() => undoChanges()}>{t("Undo Changes")}</Button>
+
+                </Tabs.Panel>
+
+            </Tabs>
+        </div>
+    )
+}
