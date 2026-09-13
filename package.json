@@ -48,7 +48,7 @@
     "lodash": "^4.18.1",
     "lodash.sortby": "^4.7.0",
     "lru-cache": "^11.3.6",
-    "mantine-datatable": "^9.2.0",
+    "mantine-datatable": "^9.4.0",
     "milsymbol": "^3.0.4",
     "minimatch": "^10.2.5",
     "react": "^19.2.6",
