@@ -274,6 +274,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cacheable/memory@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@cacheable/memory@npm:2.2.0"
+  dependencies:
+    "@cacheable/utils": "npm:^2.5.0"
+    "@keyv/bigmap": "npm:^1.3.1"
+    hookified: "npm:^1.15.1"
+    keyv: "npm:^5.6.0"
+  checksum: 10c0/c74889eb09871be0696065778fff013a498ddc73b538d113c2cb6ece361746f2959fbddfa4ce03ce53c9259998be05949e393212e72413dbd07616744eabd261
+  languageName: node
+  linkType: hard
+
 "@cacheable/utils@npm:^2.4.0, @cacheable/utils@npm:^2.4.1":
   version: 2.4.1
   resolution: "@cacheable/utils@npm:2.4.1"
@@ -281,6 +293,16 @@ __metadata:
     hashery: "npm:^1.5.1"
     keyv: "npm:^5.6.0"
   checksum: 10c0/ca2af47636ed27ab26dfedf12add639f42b90c289ecd5d816fb7a299074d9df463751745a83abfb81f6236a70c8ea40f0902e984869638a5ca3a7274e203f987
+  languageName: node
+  linkType: hard
+
+"@cacheable/utils@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "@cacheable/utils@npm:2.5.0"
+  dependencies:
+    hashery: "npm:^1.5.1"
+    keyv: "npm:^5.6.0"
+  checksum: 10c0/99e901accd71eeb0bce91484d6c66d7ef2c731b541561eb5dc9ea7fed78bdc0b65e5dd2a80edde50191143bcfc5f238fc4742475b32e82d43b43eea224038e35
   languageName: node
   linkType: hard
 
@@ -4279,6 +4301,110 @@ __metadata:
   languageName: node
   linkType: hard
 
+"c4raven-ui@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "c4raven-ui@workspace:."
+  dependencies:
+    "@codemirror/lang-yaml": "npm:^6.1.3"
+    "@codemirror/view": "npm:^6.43.0"
+    "@eslint/js": "npm:^9.12.0"
+    "@mantine/charts": "npm:^9.2.1"
+    "@mantine/core": "npm:^9.2.1"
+    "@mantine/dates": "npm:^9.2.1"
+    "@mantine/form": "npm:^9.2.1"
+    "@mantine/hooks": "npm:^9.2.1"
+    "@mantine/notifications": "npm:^9.2.1"
+    "@saithodev/ts-appversion": "npm:^2.2.0"
+    "@storybook/addon-links": "npm:^10.4.0"
+    "@storybook/react": "npm:^10.4.0"
+    "@storybook/react-vite": "npm:10.4.0"
+    "@tabler/icons-react": "npm:^3.44.0"
+    "@testing-library/dom": "npm:^10.4.1"
+    "@testing-library/jest-dom": "npm:^6.9.1"
+    "@testing-library/react": "npm:^16.3.2"
+    "@testing-library/user-event": "npm:^14.6.1"
+    "@types/leaflet": "npm:^1.9.21"
+    "@types/leaflet-rotatedmarker": "npm:^0.2.6"
+    "@types/leaflet.fullscreen": "npm:^5.2.0"
+    "@types/lodash.sortby": "npm:^4.7.9"
+    "@types/node": "npm:^25.8.0"
+    "@types/react": "npm:^19.2.14"
+    "@types/react-dom": "npm:^19.2.3"
+    "@types/react-grid-layout": "npm:^2.1.0"
+    "@types/react-resizable": "npm:^4.0.0"
+    "@types/video-react": "npm:^0.15.8"
+    "@typescript-eslint/eslint-plugin": "npm:^8.59.3"
+    "@typescript-eslint/parser": "npm:^8.59.3"
+    "@uiw/codemirror-extensions-color": "npm:^4.25.9"
+    "@uiw/codemirror-extensions-langs": "npm:^4.25.9"
+    "@uiw/codemirror-theme-basic": "npm:^4.25.9"
+    "@uiw/react-codemirror": "npm:^4.25.9"
+    "@vitejs/plugin-react": "npm:^6.0.2"
+    axios: "npm:1.16.1"
+    clsx: "npm:^2.1.1"
+    date-fns: "npm:^4.1.0"
+    dayjs: "npm:^1.11.20"
+    dompurify: "npm:^3.4.3"
+    eslint: "npm:^9.12.0"
+    eslint-config-mantine: "npm:^4.0.3"
+    eslint-plugin-import: "npm:^2.32.0"
+    eslint-plugin-jsx-a11y: "npm:^6.10.2"
+    eslint-plugin-react: "npm:^7.37.5"
+    file-entry-cache: "npm:^11.1.5"
+    globals: "npm:^17.6.0"
+    i18next: "npm:^26.2.0"
+    i18next-browser-languagedetector: "npm:^8.2.1"
+    i18next-cli: "npm:^1.56.12"
+    i18next-http-backend: "npm:^4.0.0"
+    identity-obj-proxy: "npm:^3.0.0"
+    jsdom: "npm:^29.1.1"
+    keyv: "npm:^5.6.0"
+    leaflet: "npm:^1.9.4"
+    leaflet-rotatedmarker: "npm:^0.2.0"
+    leaflet.fullscreen: "npm:^5.3.1"
+    leaflet.marker.slideto: "npm:^0.3.0"
+    lodash: "npm:^4.18.1"
+    lodash.sortby: "npm:^4.7.0"
+    lru-cache: "npm:^11.3.6"
+    mantine-datatable: "npm:^9.2.0"
+    milsymbol: "npm:^3.0.4"
+    minimatch: "npm:^10.2.5"
+    postcss: "npm:^8.5.14"
+    postcss-preset-mantine: "npm:1.18.0"
+    postcss-simple-vars: "npm:^7.0.1"
+    prettier: "npm:^3.8.3"
+    prop-types: "npm:^15.8.1"
+    react: "npm:^19.2.6"
+    react-dom: "npm:^19.2.6"
+    react-flags-select: "npm:^2.5.0"
+    react-geolocated: "npm:^4.4.0"
+    react-grid-layout: "npm:^2.2.3"
+    react-i18next: "npm:^17.0.8"
+    react-leaflet: "npm:^5.0.0"
+    react-leaflet-fullscreen: "https://github.com/eYdr1en/react-leaflet-fullscreen"
+    react-markdown: "npm:^10.1.0"
+    react-player: "npm:^3.4.0"
+    react-qr-code: "npm:^2.0.21"
+    react-qrcode-logo: "npm:^4.1.0"
+    react-resizable: "npm:^4.0.1"
+    react-router: "npm:^7.15.1"
+    recharts: "npm:3.8.1"
+    screenfull: "npm:^6.0.2"
+    semver: "npm:^7.8.0"
+    semver-parser: "npm:^4.1.8"
+    socket.io-client: "npm:^4.8.3"
+    storybook: "npm:^10.4.0"
+    storybook-dark-mode: "npm:^5.0.0"
+    styled-components: "npm:^6.4.1"
+    stylelint: "npm:^17.11.1"
+    typescript: "npm:^6.0.3"
+    typescript-eslint: "npm:^8.59.3"
+    vite: "npm:^8.0.13"
+    vitest: "npm:4.1.6"
+    yaml: "npm:^2.9.0"
+  languageName: unknown
+  linkType: soft
+
 "cacheable@npm:^2.3.4":
   version: 2.3.5
   resolution: "cacheable@npm:2.3.5"
@@ -4289,6 +4415,19 @@ __metadata:
     keyv: "npm:^5.6.0"
     qified: "npm:^0.10.1"
   checksum: 10c0/a52f06df2c97cf2757c3c608adfcdee6a7bde2bb7ee7772205c2dd72d5ed7b149bd482538cf9c4fd0871b124cd0772a5eaba2e56d5f87e339cf2082795c6c9cf
+  languageName: node
+  linkType: hard
+
+"cacheable@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "cacheable@npm:2.5.0"
+  dependencies:
+    "@cacheable/memory": "npm:^2.2.0"
+    "@cacheable/utils": "npm:^2.5.0"
+    hookified: "npm:^1.15.0"
+    keyv: "npm:^5.6.0"
+    qified: "npm:^0.10.1"
+  checksum: 10c0/ad4086a60ed327196901c16360312705e35bfde5118457449cfabaf4ece0fecad046985ea8b66b3ece46dd469cb33798d87e1dac3ed2c00746578054bccbf74d
   languageName: node
   linkType: hard
 
@@ -6025,12 +6164,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"file-entry-cache@npm:^11.1.2, file-entry-cache@npm:^11.1.3":
+"file-entry-cache@npm:^11.1.2":
   version: 11.1.3
   resolution: "file-entry-cache@npm:11.1.3"
   dependencies:
     flat-cache: "npm:^6.1.22"
   checksum: 10c0/a0b478e576f055fdf548665677660eec876a1b25b0b5509e9d0ea9bd4a7fb59270d9c7084f28d914717c5f1c29cd502116fcba24f6de2cea7634bb57c267d347
+  languageName: node
+  linkType: hard
+
+"file-entry-cache@npm:^11.1.5":
+  version: 11.1.5
+  resolution: "file-entry-cache@npm:11.1.5"
+  dependencies:
+    flat-cache: "npm:^6.1.23"
+  checksum: 10c0/d05eca8794b27824d79a0f1a0bc76b81ca7232b6c9634bc086f365a6d9ddac749c4826b2b2d36bb7ef9ed84fdf0097f34979527daeb9255b4f17673a4ae50fc5
   languageName: node
   linkType: hard
 
@@ -6080,6 +6228,17 @@ __metadata:
     flatted: "npm:^3.4.2"
     hookified: "npm:^1.15.0"
   checksum: 10c0/ec94fba4ecb10b43567bb815f19e178d4351a66a58117b06a06c81bda6b579c2ed75d8cbd9ea90a2ab9408493b564ffef55386f263f20d1d73bb991fa97de67f
+  languageName: node
+  linkType: hard
+
+"flat-cache@npm:^6.1.23":
+  version: 6.1.23
+  resolution: "flat-cache@npm:6.1.23"
+  dependencies:
+    cacheable: "npm:^2.5.0"
+    flatted: "npm:^3.4.2"
+    hookified: "npm:^1.15.0"
+  checksum: 10c0/c757c24f51334e1917958cd9d62d4ed3d520a3815d5a1ec50d993ac3a93fa81b6de7e28264231914bb0d990babd426e4d713d3e2f3d782dae65c42a2ded1e651
   languageName: node
   linkType: hard
 
@@ -8599,110 +8758,6 @@ __metadata:
   checksum: 10c0/5a36d0c1fd2f74ce553beb427ca8b8494b623fc22c6132d0c1688f246a375e24584ea0b44c67133d9ab774fa69be8e12fbe1ff12504b1142bd960fb09671948f
   languageName: node
   linkType: hard
-
-"opentakserver-ui@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "opentakserver-ui@workspace:."
-  dependencies:
-    "@codemirror/lang-yaml": "npm:^6.1.3"
-    "@codemirror/view": "npm:^6.43.0"
-    "@eslint/js": "npm:^9.12.0"
-    "@mantine/charts": "npm:^9.2.1"
-    "@mantine/core": "npm:^9.2.1"
-    "@mantine/dates": "npm:^9.2.1"
-    "@mantine/form": "npm:^9.2.1"
-    "@mantine/hooks": "npm:^9.2.1"
-    "@mantine/notifications": "npm:^9.2.1"
-    "@saithodev/ts-appversion": "npm:^2.2.0"
-    "@storybook/addon-links": "npm:^10.4.0"
-    "@storybook/react": "npm:^10.4.0"
-    "@storybook/react-vite": "npm:10.4.0"
-    "@tabler/icons-react": "npm:^3.44.0"
-    "@testing-library/dom": "npm:^10.4.1"
-    "@testing-library/jest-dom": "npm:^6.9.1"
-    "@testing-library/react": "npm:^16.3.2"
-    "@testing-library/user-event": "npm:^14.6.1"
-    "@types/leaflet": "npm:^1.9.21"
-    "@types/leaflet-rotatedmarker": "npm:^0.2.6"
-    "@types/leaflet.fullscreen": "npm:^5.2.0"
-    "@types/lodash.sortby": "npm:^4.7.9"
-    "@types/node": "npm:^25.8.0"
-    "@types/react": "npm:^19.2.14"
-    "@types/react-dom": "npm:^19.2.3"
-    "@types/react-grid-layout": "npm:^2.1.0"
-    "@types/react-resizable": "npm:^4.0.0"
-    "@types/video-react": "npm:^0.15.8"
-    "@typescript-eslint/eslint-plugin": "npm:^8.59.3"
-    "@typescript-eslint/parser": "npm:^8.59.3"
-    "@uiw/codemirror-extensions-color": "npm:^4.25.9"
-    "@uiw/codemirror-extensions-langs": "npm:^4.25.9"
-    "@uiw/codemirror-theme-basic": "npm:^4.25.9"
-    "@uiw/react-codemirror": "npm:^4.25.9"
-    "@vitejs/plugin-react": "npm:^6.0.2"
-    axios: "npm:1.16.1"
-    clsx: "npm:^2.1.1"
-    date-fns: "npm:^4.1.0"
-    dayjs: "npm:^1.11.20"
-    dompurify: "npm:^3.4.3"
-    eslint: "npm:^9.12.0"
-    eslint-config-mantine: "npm:^4.0.3"
-    eslint-plugin-import: "npm:^2.32.0"
-    eslint-plugin-jsx-a11y: "npm:^6.10.2"
-    eslint-plugin-react: "npm:^7.37.5"
-    file-entry-cache: "npm:^11.1.3"
-    globals: "npm:^17.6.0"
-    i18next: "npm:^26.2.0"
-    i18next-browser-languagedetector: "npm:^8.2.1"
-    i18next-cli: "npm:^1.56.12"
-    i18next-http-backend: "npm:^4.0.0"
-    identity-obj-proxy: "npm:^3.0.0"
-    jsdom: "npm:^29.1.1"
-    keyv: "npm:^5.6.0"
-    leaflet: "npm:^1.9.4"
-    leaflet-rotatedmarker: "npm:^0.2.0"
-    leaflet.fullscreen: "npm:^5.3.1"
-    leaflet.marker.slideto: "npm:^0.3.0"
-    lodash: "npm:^4.18.1"
-    lodash.sortby: "npm:^4.7.0"
-    lru-cache: "npm:^11.3.6"
-    mantine-datatable: "npm:^9.2.0"
-    milsymbol: "npm:^3.0.4"
-    minimatch: "npm:^10.2.5"
-    postcss: "npm:^8.5.14"
-    postcss-preset-mantine: "npm:1.18.0"
-    postcss-simple-vars: "npm:^7.0.1"
-    prettier: "npm:^3.8.3"
-    prop-types: "npm:^15.8.1"
-    react: "npm:^19.2.6"
-    react-dom: "npm:^19.2.6"
-    react-flags-select: "npm:^2.5.0"
-    react-geolocated: "npm:^4.4.0"
-    react-grid-layout: "npm:^2.2.3"
-    react-i18next: "npm:^17.0.8"
-    react-leaflet: "npm:^5.0.0"
-    react-leaflet-fullscreen: "https://github.com/eYdr1en/react-leaflet-fullscreen"
-    react-markdown: "npm:^10.1.0"
-    react-player: "npm:^3.4.0"
-    react-qr-code: "npm:^2.0.21"
-    react-qrcode-logo: "npm:^4.1.0"
-    react-resizable: "npm:^4.0.1"
-    react-router: "npm:^7.15.1"
-    recharts: "npm:3.8.1"
-    screenfull: "npm:^6.0.2"
-    semver: "npm:^7.8.0"
-    semver-parser: "npm:^4.1.8"
-    socket.io-client: "npm:^4.8.3"
-    storybook: "npm:^10.4.0"
-    storybook-dark-mode: "npm:^5.0.0"
-    styled-components: "npm:^6.4.1"
-    stylelint: "npm:^17.11.1"
-    typescript: "npm:^6.0.3"
-    typescript-eslint: "npm:^8.59.3"
-    vite: "npm:^8.0.13"
-    vitest: "npm:4.1.6"
-    yaml: "npm:^2.9.0"
-  languageName: unknown
-  linkType: soft
 
 "optionator@npm:^0.9.3":
   version: 0.9.4
