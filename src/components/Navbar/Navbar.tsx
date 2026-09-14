@@ -18,6 +18,7 @@ import {
     IconChevronDown,
     IconFlag,
     IconAffiliate,
+    IconFileText,
 } from '@tabler/icons-react';
 import {
     NavLink,
@@ -51,6 +52,7 @@ const adminLinks = [
     { link: '/server_plugin_manager', label: t('Server Plugin Manager'), icon: IconPlugConnected },
     { link: '/link_account', 'label': t('Link TAK.gov Account'), icon: IconLink},
     { link: '/federation_hub', label: t('Federation Hub'), icon: IconAffiliate },
+    { link: '/supporting_documents', label: t('Supporting Documents'), icon: IconFileText },
 ];
 
 export default function Navbar() {

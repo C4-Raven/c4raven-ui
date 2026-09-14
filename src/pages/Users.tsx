@@ -62,15 +62,20 @@ export interface User {
 // System/service accounts (e.g. "Server", used to send files) that admins
 // can't modify from this page — keep in sync with RAVEN_PROTECTED_USERNAMES
 // on the backend, which is the actual enforcement point.
-const PROTECTED_USERNAMES = ['Server'];
+const PROTECTED_USERNAMES = ['Server', 'Admin'];
 const isProtectedUser = (username: string) => PROTECTED_USERNAMES.includes(username);
+
+// How many users to fetch per scroll-triggered request. Not user-configurable
+// since there's no page control anymore -- the table just keeps growing as
+// the admin scrolls down.
+const USERS_BATCH_SIZE = 25;
 
 export default function Users() {
     const [users, setUsers] = useState<User[]>([]);
     const [userCount, setUserCount] = useState<number>(0);
-    const [activePage, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [sortStatus, setSortStatus] = useState<DataTableSortStatus<User>>({
         columnAccessor: 'username',
         direction: 'asc',
@@ -169,26 +174,31 @@ export default function Users() {
         });
     }
 
-    function getUsers() {
-        setLoading(true);
+    // pageToLoad/replace let this double as both "start over from page 1"
+    // (filter or sort changed, or the list needs refreshing after an action)
+    // and "append the next page" (the DataTable scrolled to the bottom).
+    function getUsers(pageToLoad: number, replace: boolean) {
+        if (replace) { setLoading(true); } else { setLoadingMore(true); }
         axios.get(apiRoutes.users, {
             params: {
-                page: activePage,
-                per_page: pageSize,
+                page: pageToLoad,
+                per_page: USERS_BATCH_SIZE,
                 sort_by: sortStatus.columnAccessor,
                 sort_direction: sortStatus.direction,
                 filter_id: activeFilterId,
             }
         }).then(r => {
             setLoading(false);
+            setLoadingMore(false);
             if (r.status === 200) {
-                setUsers(r.data.results);
+                setUsers(prev => replace ? r.data.results : [...prev, ...r.data.results]);
                 setPage(r.data.current_page);
-                setTotalPages(r.data.total_pages);
                 setUserCount(r.data.total);
+                setHasMore(r.data.current_page < r.data.total_pages);
             }
         }).catch((err) => {
             setLoading(false);
+            setLoadingMore(false);
             console.log(err);
             notifications.show({
                 title: t('Failed to get users'),
@@ -199,10 +209,13 @@ export default function Users() {
         });
     }
 
+    function loadMoreUsers() {
+        if (loading || loadingMore || !hasMore) return;
+        getUsers(page + 1, false);
+    }
+
     useEffect(() => { getUserFilters(); }, []);
-    useEffect(() => { setPage(1); getUsers(); }, [pageSize]);
-    useEffect(() => { setPage(1); getUsers(); }, [activeFilterId]);
-    useEffect(() => { getUsers(); }, [activePage, sortStatus]);
+    useEffect(() => { getUsers(1, true); }, [activeFilterId, sortStatus]);
 
     function getAllGroups() {
         axios.get(apiRoutes.allGroups).then(r => {
@@ -314,7 +327,7 @@ export default function Users() {
                         icon: <IconCheck />,
                         color: 'green',
                     });
-                    getUsers();
+                    getUsers(1, true);
                 }
             }).catch(err => {
             console.log(err);
@@ -337,7 +350,7 @@ export default function Users() {
                 setPassword('');
                 setConfirmPassword('');
                 setAddUserOpen(false);
-                getUsers();
+                getUsers(1, true);
             }
         }).catch(err => {
             notifications.show({
@@ -354,7 +367,7 @@ export default function Users() {
             { username, roles: [role] }
         ).then(r => {
             if (r.status === 200) {
-                getUsers();
+                getUsers(1, true);
                 notifications.show({
                     message: `Changed ${username}'s role to ${role}`,
                     color: 'green',
@@ -375,7 +388,7 @@ export default function Users() {
             { username }
         ).then(r => {
             if (r.status === 200) {
-                getUsers();
+                getUsers(1, true);
                 notifications.show({
                     message: `${username} has been deactivated`,
                     color: 'green',
@@ -396,7 +409,7 @@ export default function Users() {
             { username }
         ).then(r => {
             if (r.status === 200) {
-                getUsers();
+                getUsers(1, true);
                 notifications.show({
                     message: `${username} has been activated`,
                     color: 'green',
@@ -417,7 +430,7 @@ export default function Users() {
             { username }
         ).then(r => {
             if (r.status === 200) {
-                getUsers();
+                getUsers(1, true);
                 notifications.show({
                     message: `${username} has been granted website access`,
                     color: 'green',
@@ -438,7 +451,7 @@ export default function Users() {
             { username }
         ).then(r => {
             if (r.status === 200) {
-                getUsers();
+                getUsers(1, true);
                 notifications.show({
                     message: `${username}'s website access has been revoked`,
                     color: 'green',
@@ -692,12 +705,15 @@ export default function Users() {
                         render: (row) => {
                             const isSelf = row.username === localStorage.getItem('username');
                             const protectedUser = isProtectedUser(row.username);
+                            // A protected account (e.g. "Admin") can still manage itself --
+                            // it's only other admins who are locked out of it.
+                            const lockedForCaller = protectedUser && !isSelf;
                             return (
                                 <Group gap={4} wrap="nowrap" justify="flex-end">
-                                    <Tooltip label={protectedUser ? t("This account can't be modified") : t('Manage groups')}>
+                                    <Tooltip label={lockedForCaller ? t("This account can't be modified") : t('Manage groups')}>
                                         <ActionIcon
                                             variant="light"
-                                            disabled={protectedUser}
+                                            disabled={lockedForCaller}
                                             onClick={() => {
                                                 setShowManageGroups(true);
                                                 getAllGroups();
@@ -710,7 +726,7 @@ export default function Users() {
                                     </Tooltip>
                                     <Menu shadow="md" width={230} position="bottom-end" withinPortal>
                                         <Menu.Target>
-                                            <ActionIcon variant="subtle" disabled={protectedUser}>
+                                            <ActionIcon variant="subtle" disabled={lockedForCaller}>
                                                 <IconDotsVertical size={16} />
                                             </ActionIcon>
                                         </Menu.Target>
@@ -765,18 +781,21 @@ export default function Users() {
                         },
                     },
                 ]}
-                page={activePage}
-                onPageChange={(p) => setPage(p)}
-                onRecordsPerPageChange={setPageSize}
-                totalRecords={userCount}
-                recordsPerPage={pageSize}
-                recordsPerPageOptions={[10, 15, 20, 25, 30, 35, 40, 45, 50]}
                 sortStatus={sortStatus}
                 onSortStatusChange={setSortStatus}
                 fetching={loading}
                 minHeight={180}
+                height="65vh"
+                onScrollToBottom={loadMoreUsers}
             />
             </Table.ScrollContainer>
+            <Text size="xs" c="dimmed" ta="center" mt="xs">
+                {loadingMore
+                    ? t('Loading more users…')
+                    : hasMore
+                        ? t('Showing {{shown}} of {{total}} users — scroll for more', { shown: users.length, total: userCount })
+                        : t('{{count}} users', { count: userCount })}
+            </Text>
             <Modal size="lg" opened={showManageGroups} onClose={() => setShowManageGroups(false)} title={`Manage Groups for ${username}`}>
                 <Paper p="md" mb="md" className="raven-surface raven-surface--tile">
                     <Grid align="flex-end" justify="space-between">

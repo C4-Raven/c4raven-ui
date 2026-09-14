@@ -88,4 +88,5 @@ export const apiRoutes = {
   fedhubFederations: '/api/fedhub/federations',
   fedhubPolicy: '/api/fedhub/policy',
   turnstile: '/api/turnstile',
+  supportingDocuments: '/api/supporting_documents',
 };
