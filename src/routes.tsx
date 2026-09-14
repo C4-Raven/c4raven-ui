@@ -25,6 +25,7 @@ const ServerPluginManager = React.lazy(() => import('./pages/ServerPluginManager
 const LinkTAKGovAccount = React.lazy(() => import('./pages/LinkTakGov.tsx').then());
 const UserProfile = React.lazy(() => import('./pages/UserProfile.tsx').then());
 const FederationHub = React.lazy(() => import('./pages/FederationHub.tsx').then());
+const SupportingDocuments = React.lazy(() => import('./pages/SupportingDocuments.tsx').then());
 
 const routes = [
   { path: '/', exact: true, name: 'Home', element: Dashboard },
@@ -54,6 +55,7 @@ const routes = [
   { path: '/profile/', name: 'User Profile', element: UserProfile },
   { path: '/profile/:username', name: 'User Profile', element: UserProfile },
   { path: '/federation_hub', name: 'Federation Hub', element: FederationHub },
+  { path: '/supporting_documents', name: 'Supporting Documents', element: SupportingDocuments },
 ];
 
 export default routes;
