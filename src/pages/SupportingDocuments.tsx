@@ -46,6 +46,7 @@ export default function SupportingDocuments() {
     const [deleteTarget, setDeleteTarget] = useState<SupportingDocument | null>(null);
     const [downloadTarget, setDownloadTarget] = useState<SupportingDocument | null>(null);
     const [acceptedDraft, setAcceptedDraft] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
     function getDocuments() {
         setLoading(true);
@@ -124,11 +125,52 @@ export default function SupportingDocuments() {
         });
     }
 
-    function confirmDownload() {
-        if (!downloadTarget || !acceptedDraft) return;
-        window.location.href = `${apiRoutes.supportingDocuments}/download?id=${downloadTarget.id}`;
-        setDownloadTarget(null);
-        setAcceptedDraft(false);
+    // Fetch through the shared axios instance rather than navigating the
+    // window to the API URL: a 401 (expired session) or 404 would otherwise
+    // replace the SPA with a raw JSON error page and skip the axios
+    // 401 -> /login interceptor. The blob is handed to a temporary <a download>.
+    async function confirmDownload() {
+        if (!downloadTarget || !acceptedDraft || downloading) return;
+        const { id, filename } = downloadTarget;
+        setDownloading(true);
+        try {
+            const r = await axios.get(`${apiRoutes.supportingDocuments}/download`, {
+                params: { id },
+                responseType: 'blob',
+            });
+            const url = URL.createObjectURL(r.data as Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            setDownloadTarget(null);
+            setAcceptedDraft(false);
+        } catch (err: any) {
+            // With responseType 'blob' the JSON error body arrives as a Blob;
+            // try to read it, fall back to a generic message.
+            let message: string | undefined;
+            try {
+                const data = err?.response?.data;
+                if (data instanceof Blob) {
+                    message = JSON.parse(await data.text())?.error;
+                } else {
+                    message = data?.error;
+                }
+            } catch {
+                message = undefined;
+            }
+            notifications.show({
+                title: t('Failed to download document'),
+                message: message ?? t('The document could not be downloaded'),
+                icon: <IconX />,
+                color: 'red',
+            });
+        } finally {
+            setDownloading(false);
+        }
     }
 
     return (
@@ -217,6 +259,7 @@ export default function SupportingDocuments() {
                     <Button variant="default" onClick={() => { setDownloadTarget(null); setAcceptedDraft(false); }}>{t('Cancel')}</Button>
                     <Button
                         disabled={!acceptedDraft}
+                        loading={downloading}
                         leftSection={<IconDownload size={16} />}
                         onClick={confirmDownload}
                     >{t('Download')}</Button>

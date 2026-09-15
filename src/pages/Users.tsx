@@ -20,7 +20,7 @@ import {
     Center,
     Menu,
 } from '@mantine/core';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     IconCheck,
     IconCopy,
@@ -76,6 +76,16 @@ export default function Users() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    // Monotonic id of the most recent getUsers() call. Responses whose id is
+    // no longer current (e.g. a page-2 append that was in flight when the sort
+    // changed and page 1 was re-requested) are dropped so stale rows from the
+    // old ordering can't be appended onto the new list.
+    const requestIdRef = useRef(0);
+    // Mirror of the in-flight state that updates synchronously, so two
+    // onScrollToBottom events in the same tick can't both fire a request
+    // before React has re-rendered with loading/loadingMore set.
+    const inFlightRef = useRef(false);
+    const scrollViewportRef = useRef<HTMLDivElement | null>(null);
     const [sortStatus, setSortStatus] = useState<DataTableSortStatus<User>>({
         columnAccessor: 'username',
         direction: 'asc',
@@ -178,6 +188,8 @@ export default function Users() {
     // (filter or sort changed, or the list needs refreshing after an action)
     // and "append the next page" (the DataTable scrolled to the bottom).
     function getUsers(pageToLoad: number, replace: boolean) {
+        const requestId = ++requestIdRef.current;
+        inFlightRef.current = true;
         if (replace) { setLoading(true); } else { setLoadingMore(true); }
         axios.get(apiRoutes.users, {
             params: {
@@ -188,6 +200,9 @@ export default function Users() {
                 filter_id: activeFilterId,
             }
         }).then(r => {
+            // A newer request superseded this one -- it owns the flags now.
+            if (requestId !== requestIdRef.current) return;
+            inFlightRef.current = false;
             setLoading(false);
             setLoadingMore(false);
             if (r.status === 200) {
@@ -197,12 +212,14 @@ export default function Users() {
                 setHasMore(r.data.current_page < r.data.total_pages);
             }
         }).catch((err) => {
+            if (requestId !== requestIdRef.current) return;
+            inFlightRef.current = false;
             setLoading(false);
             setLoadingMore(false);
             console.log(err);
             notifications.show({
                 title: t('Failed to get users'),
-                message: err.response.data.error,
+                message: err.response?.data?.error,
                 icon: <IconX />,
                 color: 'red',
             });
@@ -210,12 +227,25 @@ export default function Users() {
     }
 
     function loadMoreUsers() {
-        if (loading || loadingMore || !hasMore) return;
+        if (inFlightRef.current || loading || loadingMore || !hasMore) return;
         getUsers(page + 1, false);
     }
 
     useEffect(() => { getUserFilters(); }, []);
     useEffect(() => { getUsers(1, true); }, [activeFilterId, sortStatus]);
+
+    // onScrollToBottom is edge-triggered (fires when the viewport *becomes*
+    // scrolled to the bottom), so if the rows loaded so far don't overflow the
+    // table's fixed height there's nothing to scroll and it never fires. After
+    // each load, keep pulling pages until the viewport actually overflows.
+    useEffect(() => {
+        const viewport = scrollViewportRef.current;
+        if (!viewport || !hasMore || loading || loadingMore || inFlightRef.current) return;
+        if (users.length === 0) return;
+        if (viewport.scrollHeight <= viewport.clientHeight) {
+            loadMoreUsers();
+        }
+    }, [users, hasMore, loading, loadingMore]);
 
     function getAllGroups() {
         axios.get(apiRoutes.allGroups).then(r => {
@@ -786,6 +816,7 @@ export default function Users() {
                 fetching={loading}
                 minHeight={180}
                 height="65vh"
+                scrollViewportRef={scrollViewportRef}
                 onScrollToBottom={loadMoreUsers}
             />
             </Table.ScrollContainer>
