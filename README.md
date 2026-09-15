@@ -62,7 +62,7 @@ it's ever checked in.
 Whether one user's position and messages reach another is controlled from
 the Groups page: a named group, or a quick pairwise connection drawn directly
 between two users, one-way or mutual. See [`c4raven-server`'s Groups and
-visibility docs](https://github.com/C4Raven/c4raven-server#groups-and-visibility)
+visibility docs](https://github.com/C4-Raven/c4raven-server#groups-and-visibility)
 for how that actually routes under the hood.
 
 <p align="center">
@@ -72,7 +72,7 @@ for how that actually routes under the hood.
 ## Federation Hub
 
 A dedicated tab for managing [TAK Server Federation
-Hub](https://github.com/C4Raven/federation-hub-setup) — status, trusted CA
+Hub](https://github.com/C4-Raven/federation-hub-setup) — status, trusted CA
 groups, and outgoing connections to partner hubs, plus a policy diagram for
 drawing data-sharing rules between them by clicking one partner and then
 another, all through a normal admin login. Every node on the diagram carries
@@ -112,7 +112,7 @@ publish that won't connect.
 ## Stack
 
 React + TypeScript, [Mantine](https://mantine.dev/) for UI components, Vite
-for the build. Talks to the [c4raven-server](https://github.com/C4Raven/c4raven-server)
+for the build. Talks to the [c4raven-server](https://github.com/C4-Raven/c4raven-server)
 backend over its REST API.
 
 ## Development
