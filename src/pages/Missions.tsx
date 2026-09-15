@@ -440,7 +440,7 @@ export default function Missions() {
                     name: "",
                     description: "",
                     creator_uid: "",
-                    tool: "",
+                    tool: "public",
                     default_role: "MISSION_SUBSCRIBER",
                     password: "",
                     hash_tags: "",
