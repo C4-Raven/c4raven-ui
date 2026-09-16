@@ -1,4 +1,5 @@
 import {
+    Badge,
     Button,
     Center,
     FileButton, Modal,
@@ -31,11 +32,12 @@ interface DataPackage {
     tool: string;
     install_on_enrollment: boolean;
     install_on_connection: boolean;
+    private: boolean;
     callsign: string;
     eud: {
         callsign: string;
     }
-    download_button: React.ReactNode;
+    visibility: React.ReactNode;
     delete_button: React.ReactNode;
     qr_button: React.ReactNode;
     install_on_enrollment_switch: React.ReactNode;
@@ -57,6 +59,7 @@ export default function DataPackages() {
     const [qrHash, setQrHash] = useState('')
     const [qrTitle, setQrTitle] = useState('');
     const [pageSize, setPageSize] = useState(10);
+    const [downloadingHash, setDownloadingHash] = useState<string | null>(null);
     const [sortStatus, setSortStatus] = useState<DataTableSortStatus<DataPackage>>({
         columnAccessor: 'filename',
         direction: 'asc',
@@ -161,6 +164,51 @@ export default function DataPackages() {
         });
     }
 
+    // Fetch through the shared axios instance rather than navigating the
+    // window to the API URL: a 403 (private package) or 401 would otherwise
+    // replace the SPA with a raw JSON error page. The blob is handed to a
+    // temporary <a download>.
+    async function downloadDataPackage(hash: string, filename: string) {
+        if (downloadingHash) return;
+        setDownloadingHash(hash);
+        try {
+            const r = await axios.get(apiRoutes.download_data_packages, {
+                params: { hash },
+                responseType: 'blob',
+            });
+            const url = URL.createObjectURL(r.data as Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            // With responseType 'blob' the JSON error body arrives as a Blob;
+            // try to read it, fall back to a generic message.
+            let message: string | undefined;
+            try {
+                const data = err?.response?.data;
+                if (data instanceof Blob) {
+                    message = JSON.parse(await data.text())?.error;
+                } else {
+                    message = data?.error;
+                }
+            } catch {
+                message = undefined;
+            }
+            notifications.show({
+                title: t('Failed to download data package'),
+                message: message ?? t('The data package could not be downloaded'),
+                icon: <IconX />,
+                color: 'red',
+            });
+        } finally {
+            setDownloadingHash(null);
+        }
+    }
+
     function getDatapackages() {
         setLoading(true);
         axios.get(apiRoutes.data_packages,{ params: {page: activePage, per_page: pageSize, sort_by: sortStatus.columnAccessor, sort_direction: sortStatus.direction} }
@@ -171,8 +219,9 @@ export default function DataPackages() {
                 let rows: DataPackage[] = [];
 
                 r.data.results.map((row: DataPackage) => {
-                    const link = `${apiRoutes.download_data_packages}?hash=${row.hash}`;
-                    row.download_button = <Button component="a" href={link} key={row.hash}><IconDownload size={14} /></Button>;
+                    row.visibility = row.private
+                        ? <Badge color="orange" variant="light">{t('Private')}</Badge>
+                        : <Badge color="gray" variant="light">{t('Public')}</Badge>;
                     row.qr_button = <Button
                       onClick={() => {
                         setShowQrCode(true);
@@ -193,7 +242,7 @@ export default function DataPackages() {
                     ><IconCircleMinus size={14} /></Button>;
 
                     row.install_on_enrollment_switch = <Switch
-                      disabled={localStorage.getItem('administrator') !== 'true' || row.filename.endsWith('_CONFIG.zip')}
+                      disabled={localStorage.getItem('administrator') !== 'true' || row.filename.endsWith('_CONFIG.zip') || row.private}
                       checked={row.install_on_enrollment}
                       onChange={(e) => {
                         updateDataPackage(row.hash, e.target.checked, row.install_on_connection);
@@ -201,7 +250,7 @@ export default function DataPackages() {
                     />;
 
                     row.install_on_connection_switch = <Switch
-                      disabled={localStorage.getItem('administrator') !== 'true' || row.filename.endsWith('_CONFIG.zip')}
+                      disabled={localStorage.getItem('administrator') !== 'true' || row.filename.endsWith('_CONFIG.zip') || row.private}
                       checked={row.install_on_connection}
                       onChange={(e) => {
                             updateDataPackage(row.hash, row.install_on_enrollment, e.target.checked);
@@ -280,10 +329,17 @@ export default function DataPackages() {
                     striped
                     highlightOnHover
                     records={dataPackages}
-                    columns={[{accessor: "filename", title: t("File Name"), sortable: true}, {accessor: "formatted_size", title: t("Size"), sortable: true},
+                    columns={[{accessor: "filename", title: t("File Name"), sortable: true}, {accessor: "visibility", title: t("Visibility")},
+                        {accessor: "formatted_size", title: t("Size"), sortable: true},
                         {accessor: "submission_user", title: t("Uploader Username"), sortable: true}, {accessor: "callsign", title: t("Uploader Callsign")},
                         {accessor: "submission_time", title: t("Upload Time"), sortable: true}, {accessor: "install_on_enrollment_switch", title: t("Install on Enrollment")},
-                        {accessor: "install_on_connection_switch", title: t("Install on Connection")}, {accessor: "download_button", title: t("Download")},
+                        {accessor: "install_on_connection_switch", title: t("Install on Connection")},
+                        // Rendered per render pass (not pre-built in getDatapackages) so
+                        // the loading state reflects the current downloadingHash.
+                        {accessor: "download_button", title: t("Download"), render: (row) => <Button
+                          loading={downloadingHash === row.hash}
+                          onClick={() => downloadDataPackage(row.hash, row.filename)}
+                        ><IconDownload size={14} /></Button>},
                         {accessor: "delete_button", title: t("Delete")}, {accessor: "qr_button", title: t("QR Code")}]}
                     page={activePage}
                     onPageChange={(p) => setPage(p)}
