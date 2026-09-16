@@ -1,6 +1,7 @@
 import {
     ActionIcon,
     Button,
+    Checkbox,
     Grid,
     Group,
     Modal, MultiSelect,
@@ -36,7 +37,9 @@ import {
     IconUserMinus,
     IconUserPlus,
     IconUsersMinus,
-    IconX
+    IconX,
+    IconEraser,
+    IconDownload
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { QRCode } from 'react-qrcode-logo';
@@ -92,6 +95,15 @@ export default function Users() {
     });
     const [addUserOpen, setAddUserOpen] = useState(false);
     const [showDeleteUser, setShowDeleteUser] = useState(false);
+    const [showClearContent, setShowClearContent] = useState(false);
+    const [clearContentUsername, setClearContentUsername] = useState('');
+    // The target's device callsigns; the admin must retype one of these to arm
+    // the wipe, so a mis-click can't clear the wrong person's device.
+    const [clearContentCallsigns, setClearContentCallsigns] = useState<string[]>([]);
+    const [clearAck, setClearAck] = useState(false);
+    const [clearConfirm, setClearConfirm] = useState('');
+    const [clearMaps, setClearMaps] = useState(false);
+    const [clearing, setClearing] = useState(false);
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
     const [showManageFilters, setShowManageFilters] = useState(false);
@@ -412,6 +424,64 @@ export default function Users() {
         });
     }
 
+    function downloadPlugin() {
+        axios.get(apiRoutes.ravenClearPlugin, { responseType: 'blob' })
+            .then(r => {
+                const url = URL.createObjectURL(r.data as Blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'C4Raven-RemoteClear.apk';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            })
+            .catch(async (err) => {
+                let message: string | undefined;
+                try {
+                    const data = err?.response?.data;
+                    message = data instanceof Blob ? JSON.parse(await data.text())?.error : data?.error;
+                } catch { message = undefined; }
+                notifications.show({
+                    title: t('Remote Clear plugin not available'),
+                    message: message ?? t('The plugin APK has not been uploaded to the server yet.'),
+                    icon: <IconX />,
+                    color: 'red',
+                });
+            });
+    }
+
+    // Whether the retyped callsign matches one of the target's device callsigns
+    // (or, if none of the devices have a callsign, the username as a fallback).
+    function clearConfirmValid() {
+        const expected = clearContentCallsigns.length ? clearContentCallsigns : [clearContentUsername];
+        return clearAck && expected.includes(clearConfirm.trim());
+    }
+
+    function clearContent() {
+        if (!clearConfirmValid()) return;
+        setClearing(true);
+        axios.post(apiRoutes.clearUserContent, { username: clearContentUsername, clearmaps: clearMaps })
+            .then(r => {
+                if (r.status === 200) {
+                    notifications.show({
+                        message: t('Clear command sent to {{count}} device(s)', { count: r.data.devices }),
+                        color: 'green',
+                    });
+                    setShowClearContent(false);
+                }
+            })
+            .catch(err => {
+                notifications.show({
+                    title: t('Failed to send clear command'),
+                    message: err.response?.data?.error ?? t('The clear command could not be sent'),
+                    icon: <IconX />,
+                    color: 'red',
+                });
+            })
+            .finally(() => setClearing(false));
+    }
+
     function deactivateUser(username:string) {
         axios.post(
             apiRoutes.deactivateUser,
@@ -594,6 +664,7 @@ export default function Users() {
             <Group mb="md" justify="space-between">
                 <Group>
                     <Button onClick={() => { setAddUserOpen(true); }} leftSection={<IconUserPlus size={14} />}>{t('Add User')}</Button>
+                    <Button variant="default" onClick={() => downloadPlugin()} leftSection={<IconDownload size={14} />}>{t('Remote Clear plugin')}</Button>
                     <Button onClick={() => { setShowManageFilters(true); }} variant="light" leftSection={<IconFilter size={14} />}>{t('Manage Filters')}</Button>
                 </Group>
                 <Select
@@ -804,6 +875,23 @@ export default function Users() {
                                             >
                                                 {isSelf ? t("Delete user (can't delete yourself)") : t('Delete user')}
                                             </Menu.Item>
+                                            <Menu.Item
+                                                color="red"
+                                                leftSection={<IconEraser size={15} />}
+                                                disabled={lockedForCaller}
+                                                onClick={() => {
+                                                    setClearContentUsername(row.username);
+                                                    setClearContentCallsigns((row.euds ?? [])
+                                                        .map((eud) => eud.callsign)
+                                                        .filter((c): c is string => !!c));
+                                                    setClearAck(false);
+                                                    setClearConfirm('');
+                                                    setClearMaps(false);
+                                                    setShowClearContent(true);
+                                                }}
+                                            >
+                                                {t('Remote clear content')}
+                                            </Menu.Item>
                                         </Menu.Dropdown>
                                     </Menu>
                                 </Group>
@@ -927,6 +1015,42 @@ export default function Users() {
                         setShowDeleteUser(false);
                     }}
                     >{t('Delete')}</Button>
+                </Group>
+            </Modal>
+
+            <Modal opened={showClearContent} onClose={() => setShowClearContent(false)} title={t('Remote clear content')}>
+                <Text mb="md" fw={600} c="red">{t('This permanently wipes ATAK content on {{username}}\'s devices.', { username: clearContentUsername })}</Text>
+                <Text mb="md" size="sm">{t('A signed command is sent to this user\'s online devices that have the C4 Raven Remote Clear plugin installed (ATAK Android only). Each device clears its local ATAK data and the app exits. This cannot be undone. Devices that are offline or without the plugin are unaffected. Server-side data is not deleted.')}</Text>
+                <Checkbox
+                    mb="md"
+                    checked={clearMaps}
+                    onChange={(e) => setClearMaps(e.currentTarget.checked)}
+                    label={t('Also clear downloaded maps & imagery')}
+                />
+                <Checkbox
+                    mb="md"
+                    checked={clearAck}
+                    onChange={(e) => setClearAck(e.currentTarget.checked)}
+                    label={t('I understand this is irreversible and wipes the device.')}
+                />
+                <TextInput
+                    mb="md"
+                    label={clearContentCallsigns.length
+                        ? t('Type a device callsign to confirm: {{callsigns}}', { callsigns: clearContentCallsigns.join(', ') })
+                        : t('This user has no device callsign; type the username "{{username}}" to confirm', { username: clearContentUsername })}
+                    placeholder={clearContentCallsigns[0] ?? clearContentUsername}
+                    value={clearConfirm}
+                    onChange={(e) => setClearConfirm(e.currentTarget.value)}
+                />
+                <Group justify="flex-end">
+                    <Button variant="default" onClick={() => setShowClearContent(false)}>{t('Cancel')}</Button>
+                    <Button
+                      color="red"
+                      loading={clearing}
+                      disabled={!clearConfirmValid()}
+                      leftSection={<IconEraser size={16} />}
+                      onClick={() => clearContent()}
+                    >{t('Wipe device')}</Button>
                 </Group>
             </Modal>
             <Modal
