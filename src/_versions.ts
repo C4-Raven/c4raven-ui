@@ -11,8 +11,8 @@ export interface TsAppVersion {
 export const versions: TsAppVersion = {
     version: '0.0.0',
     name: 'c4raven-ui',
-    versionDate: '2026-09-09T09:22:21.184Z',
-    gitCommitHash: '8f034de',
-    versionLong: '0.0.0-8f034de',
+    versionDate: '2026-09-18T05:23:03.169Z',
+    gitCommitHash: '7da9eda',
+    versionLong: '0.0.0-7da9eda',
 };
 export default versions;

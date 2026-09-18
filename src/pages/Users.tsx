@@ -103,6 +103,7 @@ export default function Users() {
     const [clearAck, setClearAck] = useState(false);
     const [clearConfirm, setClearConfirm] = useState('');
     const [clearMaps, setClearMaps] = useState(false);
+    const [queueOffline, setQueueOffline] = useState(false);
     const [clearing, setClearing] = useState(false);
     const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; password: string } | null>(null);
     const [showManageGroups, setShowManageGroups] = useState(false);
@@ -461,11 +462,15 @@ export default function Users() {
     function clearContent() {
         if (!clearConfirmValid()) return;
         setClearing(true);
-        axios.post(apiRoutes.clearUserContent, { username: clearContentUsername, clearmaps: clearMaps })
+        axios.post(apiRoutes.clearUserContent, { username: clearContentUsername, clearmaps: clearMaps, queue_if_offline: queueOffline })
             .then(r => {
                 if (r.status === 200) {
+                    const sentNow = r.data.sent_now ?? r.data.devices;
+                    const queued = r.data.queued ?? 0;
                     notifications.show({
-                        message: t('Clear command sent to {{count}} device(s)', { count: r.data.devices }),
+                        message: queued
+                            ? t('Clear command sent to {{count}} online device(s); {{queued}} queued for reconnect', { count: sentNow, queued })
+                            : t('Clear command sent to {{count}} device(s)', { count: sentNow }),
                         color: 'green',
                     });
                     setShowClearContent(false);
@@ -887,6 +892,7 @@ export default function Users() {
                                                     setClearAck(false);
                                                     setClearConfirm('');
                                                     setClearMaps(false);
+                                                    setQueueOffline(false);
                                                     setShowClearContent(true);
                                                 }}
                                             >
@@ -1027,6 +1033,17 @@ export default function Users() {
                     onChange={(e) => setClearMaps(e.currentTarget.checked)}
                     label={t('Also clear downloaded maps & imagery')}
                 />
+                <Checkbox
+                    mb="xs"
+                    checked={queueOffline}
+                    onChange={(e) => setQueueOffline(e.currentTarget.checked)}
+                    label={t('Queue for offline devices (deliver on next connection)')}
+                />
+                <Text mb="md" size="xs" c="dimmed">
+                    {queueOffline
+                        ? t('Devices that are offline now will be wiped the next time they connect to the server.')
+                        : t('Only devices online right now will be wiped; offline devices are unaffected.')}
+                </Text>
                 <Checkbox
                     mb="md"
                     checked={clearAck}
