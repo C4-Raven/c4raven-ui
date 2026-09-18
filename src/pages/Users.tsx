@@ -467,9 +467,10 @@ export default function Users() {
                 if (r.status === 200) {
                     const sentNow = r.data.sent_now ?? r.data.devices;
                     const queued = r.data.queued ?? 0;
+                    const reconnects = r.data.reconnect_requested ?? 0;
                     notifications.show({
                         message: queued
-                            ? t('Clear command sent to {{count}} online device(s); {{queued}} queued for reconnect', { count: sentNow, queued })
+                            ? t('Clear command queued for {{queued}} device(s); {{reconnects}} online device(s) asked to reconnect and receive it now', { queued, reconnects })
                             : t('Clear command sent to {{count}} device(s)', { count: sentNow }),
                         color: 'green',
                     });
@@ -1037,11 +1038,11 @@ export default function Users() {
                     mb="xs"
                     checked={queueOffline}
                     onChange={(e) => setQueueOffline(e.currentTarget.checked)}
-                    label={t('Queue for offline devices (deliver on next connection)')}
+                    label={t('Queue: deliver on each device\'s next connection')}
                 />
                 <Text mb="md" size="xs" c="dimmed">
                     {queueOffline
-                        ? t('Devices that are offline now will be wiped the next time they connect to the server.')
+                        ? t('The command is stored for every device and delivered the next time each one connects. Devices that are online now are reconnected so they receive it immediately.')
                         : t('Only devices online right now will be wiped; offline devices are unaffected.')}
                 </Text>
                 <Checkbox
