@@ -28,7 +28,6 @@ import {
     IconQrcode,
     Icon2fa,
     IconHelp,
-    IconMail,
     IconRefresh,
     IconCircleMinus,
     IconChevronDown,
@@ -232,7 +231,7 @@ export function DefaultLayout() {
                         <Group h="100%" w={300} gap="xs">
                             <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" pl={5} color="white" />
                             <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" color="white" />
-                            <Anchor href="https://c4raven.net" target="_blank" rel="noopener noreferrer" display="flex">
+                            <Anchor href="https://github.com/C4-Raven/c4raven-updater" target="_blank" rel="noopener noreferrer" display="flex">
                                 <Image src={Logo} h={39} w="auto" />
                             </Anchor>
                         </Group>
@@ -268,11 +267,6 @@ export function DefaultLayout() {
                                     </Menu.Item>
                                     <Menu.Item leftSection={<IconQrcode size={14} />} onClick={() => itak_qr_string()}>
                                         {t("iTAK QR Code")}
-                                    </Menu.Item>
-                                    <Menu.Divider />
-                                    <Menu.Label>{t("Support")}</Menu.Label>
-                                    <Menu.Item leftSection={<IconMail size={14} />} component="a" href="mailto:support@c4raven.net">
-                                        support@c4raven.net
                                     </Menu.Item>
                                     <Menu.Divider />
                                     <Menu.Item

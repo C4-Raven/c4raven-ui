@@ -441,11 +441,7 @@ export default function Login(props: PaperProps) {
                         <Stack align="center" mt="md" gap={4}>
                             {type === 'login' &&
                                 <Text size="xs" c="dimmed" ta="center">
-                                    Forgot your password? Email{' '}
-                                    <Anchor href="mailto:support@c4raven.net" size="xs">
-                                        support@c4raven.net
-                                    </Anchor>{' '}
-                                    for help.
+                                    Forgot your password? Contact your administrator.
                                 </Text>
                             }
                             {type === 'login' && emailEnabled &&
