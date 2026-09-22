@@ -3610,9 +3610,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@uiw/codemirror-extensions-color@npm:^4.25.9":
-  version: 4.25.9
-  resolution: "@uiw/codemirror-extensions-color@npm:4.25.9"
+"@uiw/codemirror-extensions-color@npm:^4.25.11":
+  version: 4.25.11
+  resolution: "@uiw/codemirror-extensions-color@npm:4.25.11"
   dependencies:
     colors-named: "npm:^1.0.0"
     colors-named-hex: "npm:^1.0.0"
@@ -3621,7 +3621,7 @@ __metadata:
     "@codemirror/language": ">=6.0.0"
     "@codemirror/state": ">=6.0.0"
     "@codemirror/view": ">=6.0.0"
-  checksum: 10c0/a301e683a67425db95248057ebe28bee9d5b6210cad0a47f9299e8625bbde2e7f86b31e3e8b0ba8c1163386a6e3e67b4fad27a32e849c401a0537462ffba46df
+  checksum: 10c0/4f22b510e37cdf762fd694497d6ea7ca79e35ddf6ad525f1ee43f1a2e39db39a49316129c44cf8eb48863168d5592d399bdeb572e91dfe585f83a7045597fdde
   languageName: node
   linkType: hard
 
@@ -4313,7 +4313,7 @@ __metadata:
     "@types/video-react": "npm:^0.15.8"
     "@typescript-eslint/eslint-plugin": "npm:^8.59.3"
     "@typescript-eslint/parser": "npm:^8.59.3"
-    "@uiw/codemirror-extensions-color": "npm:^4.25.9"
+    "@uiw/codemirror-extensions-color": "npm:^4.25.11"
     "@uiw/codemirror-extensions-langs": "npm:^4.25.9"
     "@uiw/codemirror-theme-basic": "npm:^4.25.9"
     "@uiw/react-codemirror": "npm:^4.25.9"
