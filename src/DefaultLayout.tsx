@@ -16,6 +16,7 @@ import {
     Text,
     Tooltip,
     Center,
+    Tabs,
     UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -32,6 +33,8 @@ import {
     IconCircleMinus,
     IconChevronDown,
     IconX,
+    IconWorld,
+    IconNetwork,
 } from '@tabler/icons-react';
 import { Navigate, useNavigate, Link } from 'react-router';
 import { notifications } from '@mantine/notifications';
@@ -43,6 +46,7 @@ import { AppContent } from './components/AppContent';
 import axios from './axios_config';
 import { apiRoutes } from './apiRoutes';
 import Navbar from './components/Navbar/Navbar';
+import { VpnQrPanel } from './components/VpnQrPanel';
 import { socket } from './socketio';
 import {t} from "i18next";
 
@@ -296,50 +300,65 @@ export function DefaultLayout() {
                     </Paper>
                 </Center>
             </Modal>
-            <Modal opened={showAtakQr} onClose={() => setShowAtakQr(false)} title={t("ATAK QR Code")}>
-                <DateTimePicker onChange={(date) => {
-                    if (date !== "Invalid Date" && date !== null) {
-                        setAtakQR({...atakQR, exp: Math.floor(parseISO(date).getTime() / 1000)});
-                    }}}
-                    minDate={new Date()}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={atakQR.exp !== null ? formatISO(new Date(atakQR.exp * 1000)) : null}
-                    disabled={atakQR?.qr_string !== ""}
-                    label={t("Expiration Date")}
-                    clearable
-                    firstDayOfWeek={0}
-                    clearButtonProps={{
-                        onClick: () => {
-                            setAtakQR({...atakQR, exp: null})
-                        }
-                    }} timePickerProps={{
-                        withDropdown: true,
-                        popoverProps: { withinPortal: false },
-                        format: '24h',
-                    }} />
-                <NumberInput hideControls min={1} value={atakQR.max} disabled={atakQR.qr_string !== ''} label={t("Max Uses")} onChange={(value) => {
-                    const max = `${value}`
-                    setAtakQR({...atakQR, max: parseInt(max, 10)})
-                }} />
+            <Modal opened={showAtakQr} onClose={() => setShowAtakQr(false)} title={t("ATAK QR Code")} size="lg">
+                <Tabs defaultValue="domain">
+                    <Tabs.List mb="md" grow>
+                        <Tabs.Tab value="domain" leftSection={<IconWorld size={14} />}>
+                            {t("Connect by domain")}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="vpn" leftSection={<IconNetwork size={14} />}>
+                            {t("Connect over VPN / IP")}
+                        </Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="domain">
+                        <DateTimePicker onChange={(date) => {
+                            if (date !== "Invalid Date" && date !== null) {
+                                setAtakQR({...atakQR, exp: Math.floor(parseISO(date).getTime() / 1000)});
+                            }}}
+                            minDate={new Date()}
+                            valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                            value={atakQR.exp !== null ? formatISO(new Date(atakQR.exp * 1000)) : null}
+                            disabled={atakQR?.qr_string !== ""}
+                            label={t("Expiration Date")}
+                            clearable
+                            firstDayOfWeek={0}
+                            clearButtonProps={{
+                                onClick: () => {
+                                    setAtakQR({...atakQR, exp: null})
+                                }
+                            }} timePickerProps={{
+                                withDropdown: true,
+                                popoverProps: { withinPortal: false },
+                                format: '24h',
+                            }} />
+                        <NumberInput hideControls min={1} value={atakQR.max} disabled={atakQR.qr_string !== ''} label={t("Max Uses")} onChange={(value) => {
+                            const max = `${value}`
+                            setAtakQR({...atakQR, max: parseInt(max, 10)})
+                        }} />
 
-                <NumberInput display={Number(atakQR.max) > 0 && atakQR.qr_string !== '' ? "block" : "none"} min={0} value={atakQR.total_uses} disabled label={t("Total Uses")} onChange={(value) => {
-                    const max = `${value}`
-                    setAtakQR({...atakQR, max: parseInt(max, 10)})
-                }} />
+                        <NumberInput display={Number(atakQR.max) > 0 && atakQR.qr_string !== '' ? "block" : "none"} min={0} value={atakQR.total_uses} disabled label={t("Total Uses")} onChange={(value) => {
+                            const max = `${value}`
+                            setAtakQR({...atakQR, max: parseInt(max, 10)})
+                        }} />
 
-                <Center>
-                    <Button mt="md" mr="md" mb="md" onClick={() => generateAtakQr()} disabled={atakQR.qr_string !== ''} leftSection={<IconRefresh size={14} />}>{t("Generate")}</Button>
-                    <Button mt="md" mr="md" mb="md" onClick={() => deleteAtakQr()} disabled={atakQR.qr_string === ''} leftSection={<IconCircleMinus size={14} />}>{t("Delete")}</Button>
-                </Center>
-                <Flex direction="column" gap="md" align="center" display={atakQR.qr_string === '' ? "none" : "flex"}>
-                    <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={atakQR.qr_string} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
-                    </Paper>
-                    <Tooltip label={t("Tap here if you're reading this on the EUD you want to connect to C4 RAVEN")}>
-                        <Button component="a" href={atakQR.qr_string}>{t("Open ATAK")}</Button>
-                    </Tooltip>
-                    <Text ta="center" fw={700}>{t("Remember to treat this QR code like a password and don't share it with anyone.")}</Text>
-                </Flex>
+                        <Center>
+                            <Button mt="md" mr="md" mb="md" onClick={() => generateAtakQr()} disabled={atakQR.qr_string !== ''} leftSection={<IconRefresh size={14} />}>{t("Generate")}</Button>
+                            <Button mt="md" mr="md" mb="md" onClick={() => deleteAtakQr()} disabled={atakQR.qr_string === ''} leftSection={<IconCircleMinus size={14} />}>{t("Delete")}</Button>
+                        </Center>
+                        <Flex direction="column" gap="md" align="center" display={atakQR.qr_string === '' ? "none" : "flex"}>
+                            <Paper p="md" shadow="xl" withBorder bg="white">
+                                <QRCode size={350} value={atakQR.qr_string} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
+                            </Paper>
+                            <Tooltip label={t("Tap here if you're reading this on the EUD you want to connect to C4 RAVEN")}>
+                                <Button component="a" href={atakQR.qr_string}>{t("Open ATAK")}</Button>
+                            </Tooltip>
+                            <Text ta="center" fw={700}>{t("Remember to treat this QR code like a password and don't share it with anyone.")}</Text>
+                        </Flex>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="vpn">
+                        <VpnQrPanel />
+                    </Tabs.Panel>
+                </Tabs>
             </Modal>
         </>
     );

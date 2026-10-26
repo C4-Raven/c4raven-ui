@@ -20,6 +20,7 @@ import {
     FileButton,
     Center,
     Menu,
+    Tabs,
 } from '@mantine/core';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -39,7 +40,10 @@ import {
     IconUsersMinus,
     IconX,
     IconEraser,
-    IconDownload
+    IconDownload,
+    IconNetwork,
+    IconRefresh,
+    IconWorld,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { QRCode } from 'react-qrcode-logo';
@@ -48,6 +52,7 @@ import { apiRoutes } from '../apiRoutes';
 import {t} from "i18next";
 import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
+import { VpnQrPanel } from '../components/VpnQrPanel';
 
 export interface User {
     username: string;
@@ -116,6 +121,7 @@ export default function Users() {
     const [showJoinQr, setShowJoinQr] = useState(false);
     const [joinQrUsername, setJoinQrUsername] = useState('');
     const [joinQrString, setJoinQrString] = useState('');
+    const [joinQrTab, setJoinQrTab] = useState<string | null>('domain');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -636,6 +642,7 @@ export default function Users() {
             if (r.status === 200 && r.data.qr_string) {
                 setJoinQrUsername(targetUsername);
                 setJoinQrString(r.data.qr_string);
+                setJoinQrTab('domain');
                 setShowJoinQr(true);
             }
         }).catch(err => {
@@ -646,6 +653,16 @@ export default function Users() {
                 color: 'red',
             });
         });
+    }
+
+    // Opens the join QR modal on the VPN / IP tab without generating a
+    // domain QR first; the domain tab offers a Generate button if the admin
+    // switches to it. The two QR codes are independent.
+    function openVpnJoinQr(targetUsername: string) {
+        setJoinQrUsername(targetUsername);
+        setJoinQrString('');
+        setJoinQrTab('vpn');
+        setShowJoinQr(true);
     }
 
     function issueTempPassword(username: string) {
@@ -858,6 +875,12 @@ export default function Users() {
                                                 onClick={() => generateJoinQr(row.username)}
                                             >
                                                 {t('Join QR code')}
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={<IconNetwork size={15} />}
+                                                onClick={() => openVpnJoinQr(row.username)}
+                                            >
+                                                {t('Join QR code (VPN / IP)')}
                                             </Menu.Item>
                                             <Menu.Item
                                                 leftSection={<IconFileUpload size={15} />}
@@ -1116,15 +1139,41 @@ export default function Users() {
               opened={showJoinQr}
               onClose={() => setShowJoinQr(false)}
               title={`${t('Join QR Code for')} ${joinQrUsername}`}
+              size="lg"
             >
-                <Text size="sm" c="dimmed" mb="md">
-                    {t('Scan this in ATAK or WinTAK to add the server and enroll this user automatically. Treat it like a password and don\'t share it with anyone.')}
-                </Text>
-                <Center>
-                    <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode value={joinQrString} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
-                    </Paper>
-                </Center>
+                <Tabs value={joinQrTab} onChange={setJoinQrTab}>
+                    <Tabs.List mb="md" grow>
+                        <Tabs.Tab value="domain" leftSection={<IconWorld size={14} />}>
+                            {t('Connect by domain')}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="vpn" leftSection={<IconNetwork size={14} />}>
+                            {t('Connect over VPN / IP')}
+                        </Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="domain">
+                        <Text size="sm" c="dimmed" mb="md">
+                            {t('Scan this in ATAK or WinTAK to add the server and enroll this user automatically. Treat it like a password and don\'t share it with anyone.')}
+                        </Text>
+                        {joinQrString !== '' ? (
+                            <Center>
+                                <Paper p="md" shadow="xl" withBorder bg="white">
+                                    <QRCode value={joinQrString} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
+                                </Paper>
+                            </Center>
+                        ) : (
+                            <Stack align="center" gap="xs">
+                                <Button leftSection={<IconRefresh size={14} />} onClick={() => generateJoinQr(joinQrUsername)}>
+                                    {t('Generate')}
+                                </Button>
+                            </Stack>
+                        )}
+                    </Tabs.Panel>
+                    <Tabs.Panel value="vpn">
+                        {showJoinQr && joinQrUsername !== '' && (
+                            <VpnQrPanel username={joinQrUsername} />
+                        )}
+                    </Tabs.Panel>
+                </Tabs>
             </Modal>
         </>
     );

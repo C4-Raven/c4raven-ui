@@ -62,6 +62,8 @@ export const apiRoutes = {
   eud_stats: '/api/eud_stats',
   plugins: '/api/plugins',
   atakQrString: '/api/atak_qr_string',
+  vpnQrString: '/api/vpn_qr_string',
+  serverAddresses: '/api/server_addresses',
   pluginRepo: '/api/plugins/repo',
   ldapLogin: '/api/ldap_login',
   allGroups: '/api/groups/all',
