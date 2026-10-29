@@ -18,9 +18,10 @@ import {
     CopyButton,
     Text,
     FileButton,
-    Center,
     Menu,
     Tabs,
+    NumberInput,
+    SegmentedControl,
 } from '@mantine/core';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -41,6 +42,7 @@ import {
     IconX,
     IconEraser,
     IconDownload,
+    IconFileZip,
     IconNetwork,
     IconRefresh,
     IconWorld,
@@ -122,6 +124,15 @@ export default function Users() {
     const [joinQrUsername, setJoinQrUsername] = useState('');
     const [joinQrString, setJoinQrString] = useState('');
     const [joinQrTab, setJoinQrTab] = useState<string | null>('domain');
+    const [enrollMode, setEnrollMode] = useState<string>('qr');
+    // '' = no per-user override, i.e. the server default (RAVEN_CA_EXPIRATION_TIME)
+    const [certDays, setCertDays] = useState<string | number>('');
+    const [savedCertDays, setSavedCertDays] = useState<number | null>(null);
+    const [certDaysLimits, setCertDaysLimits] = useState<{ default_days: number; max_days: number } | null>(null);
+    const [generatingCertPackage, setGeneratingCertPackage] = useState(false);
+    // Ignores a validity lookup that resolves after the admin has opened the
+    // modal for a different user.
+    const enrollUsernameRef = useRef('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm_password, setConfirmPassword] = useState('');
@@ -637,13 +648,13 @@ export default function Users() {
     // token_api.py) or ATAK just opens without adding the server/user --
     // host+username alone isn't enough to authenticate the CSR request
     // handled by certificate_enrollment_api.py.
-    function generateJoinQr(targetUsername: string) {
+    async function generateJoinQr(targetUsername: string) {
+        if (!(await saveCertDays())) {
+            return;
+        }
         axios.post(apiRoutes.atakQrString, { username: targetUsername }).then(r => {
             if (r.status === 200 && r.data.qr_string) {
-                setJoinQrUsername(targetUsername);
                 setJoinQrString(r.data.qr_string);
-                setJoinQrTab('domain');
-                setShowJoinQr(true);
             }
         }).catch(err => {
             notifications.show({
@@ -655,14 +666,99 @@ export default function Users() {
         });
     }
 
-    // Opens the join QR modal on the VPN / IP tab without generating a
-    // domain QR first; the domain tab offers a Generate button if the admin
-    // switches to it. The two QR codes are independent.
-    function openVpnJoinQr(targetUsername: string) {
+    // One modal for both ways of getting a device onto the server: the QR
+    // codes (ATAK enrolls itself) or a certificate data package the admin
+    // hands over. Both issue certs valid for the user's stored number of days,
+    // which the server reads at signing time, so it's saved before either.
+    function openEnroll(targetUsername: string) {
+        enrollUsernameRef.current = targetUsername;
         setJoinQrUsername(targetUsername);
         setJoinQrString('');
-        setJoinQrTab('vpn');
+        setJoinQrTab('domain');
+        setEnrollMode('qr');
+        setCertDays('');
+        setSavedCertDays(null);
+        setCertDaysLimits(null);
         setShowJoinQr(true);
+        axios.get(apiRoutes.certificateValidity, { params: { username: targetUsername } }).then(r => {
+            if (r.status === 200 && enrollUsernameRef.current === targetUsername) {
+                setSavedCertDays(r.data.cert_validity_days ?? null);
+                setCertDays(r.data.cert_validity_days ?? '');
+                setCertDaysLimits({ default_days: r.data.default_days, max_days: r.data.max_days });
+            }
+        }).catch(err => {
+            notifications.show({
+                title: t('Failed to load certificate validity'),
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+        });
+    }
+
+    // Resolves false (after notifying) if the days couldn't be saved, so the
+    // caller doesn't issue a cert with a validity the admin didn't ask for.
+    async function saveCertDays(): Promise<boolean> {
+        const days = certDays === '' ? null : Number(certDays);
+        if (days === savedCertDays) {
+            return true;
+        }
+        try {
+            await axios.put(apiRoutes.certificateValidity, { username: joinQrUsername, cert_validity_days: days });
+            setSavedCertDays(days);
+            return true;
+        } catch (err: any) {
+            notifications.show({
+                title: t('Failed to save certificate validity'),
+                message: err.response?.data?.error,
+                icon: <IconX />,
+                color: 'red',
+            });
+            return false;
+        }
+    }
+
+    async function downloadCertPackage() {
+        const targetUsername = joinQrUsername;
+        setGeneratingCertPackage(true);
+        try {
+            if (!(await saveCertDays())) {
+                return;
+            }
+            // download: true returns the zip itself -- admins can't fetch another
+            // user's private package through /api/data_packages/download.
+            const r = await axios.post(
+                apiRoutes.generate_certificate,
+                { username: targetUsername, download: true },
+                { responseType: 'blob' },
+            );
+            const disposition: string = r.headers['content-disposition'] ?? '';
+            // Prefer filename* -- for non-ASCII usernames werkzeug's plain
+            // filename= is an ASCII-only fallback with those letters dropped.
+            const match = /filename\*=UTF-8''([^;]+)/i.exec(disposition) ?? /filename="?([^";]+)"?/i.exec(disposition);
+            const url = URL.createObjectURL(r.data as Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = match ? decodeURIComponent(match[1]) : `${targetUsername}_CONFIG.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            let message: string | undefined;
+            try {
+                const data = err?.response?.data;
+                message = data instanceof Blob ? JSON.parse(await data.text())?.error : data?.error;
+            } catch { message = undefined; }
+            notifications.show({
+                title: `${t('Failed to generate certificate package for')} ${targetUsername}`,
+                message,
+                icon: <IconX />,
+                color: 'red',
+            });
+        } finally {
+            setGeneratingCertPackage(false);
+        }
     }
 
     function issueTempPassword(username: string) {
@@ -872,15 +968,9 @@ export default function Users() {
                                             <Menu.Label>{t('Device')}</Menu.Label>
                                             <Menu.Item
                                                 leftSection={<IconQrcode size={15} />}
-                                                onClick={() => generateJoinQr(row.username)}
+                                                onClick={() => openEnroll(row.username)}
                                             >
-                                                {t('Join QR code')}
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={<IconNetwork size={15} />}
-                                                onClick={() => openVpnJoinQr(row.username)}
-                                            >
-                                                {t('Join QR code (VPN / IP)')}
+                                                {t('Enroll device')}
                                             </Menu.Item>
                                             <Menu.Item
                                                 leftSection={<IconFileUpload size={15} />}
@@ -1138,42 +1228,87 @@ export default function Users() {
             <Modal
               opened={showJoinQr}
               onClose={() => setShowJoinQr(false)}
-              title={`${t('Join QR Code for')} ${joinQrUsername}`}
+              title={`${t('Enroll')} ${joinQrUsername}`}
               size="lg"
             >
-                <Tabs value={joinQrTab} onChange={setJoinQrTab}>
-                    <Tabs.List mb="md" grow>
-                        <Tabs.Tab value="domain" leftSection={<IconWorld size={14} />}>
-                            {t('Connect by domain')}
-                        </Tabs.Tab>
-                        <Tabs.Tab value="vpn" leftSection={<IconNetwork size={14} />}>
-                            {t('Connect over VPN / IP')}
-                        </Tabs.Tab>
-                    </Tabs.List>
-                    <Tabs.Panel value="domain">
-                        <Text size="sm" c="dimmed" mb="md">
-                            {t('Scan this in ATAK or WinTAK to add the server and enroll this user automatically. Treat it like a password and don\'t share it with anyone.')}
-                        </Text>
-                        {joinQrString !== '' ? (
-                            <Center>
-                                <Paper p="md" shadow="xl" withBorder bg="white">
-                                    <QRCode value={joinQrString} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
-                                </Paper>
-                            </Center>
-                        ) : (
-                            <Stack align="center" gap="xs">
-                                <Button leftSection={<IconRefresh size={14} />} onClick={() => generateJoinQr(joinQrUsername)}>
-                                    {t('Generate')}
+                <Stack gap="md">
+                    <SegmentedControl
+                        fullWidth
+                        value={enrollMode}
+                        onChange={setEnrollMode}
+                        data={[
+                            { value: 'qr', label: t('Auto-enroll (QR code)') },
+                            { value: 'zip', label: t('Certificate package (.zip)') },
+                        ]}
+                    />
+                    <NumberInput
+                        label={t('Certificate valid for (days)')}
+                        description={certDaysLimits ? `${t('Leave empty for the server default')} (${certDaysLimits.default_days} ${t('days')})` : undefined}
+                        placeholder={certDaysLimits ? `${certDaysLimits.default_days}` : undefined}
+                        min={1}
+                        max={certDaysLimits?.max_days}
+                        allowDecimal={false}
+                        allowNegative={false}
+                        clampBehavior="strict"
+                        // Until the stored value loads, an edit would be overwritten by it
+                        disabled={!certDaysLimits}
+                        value={certDays}
+                        onChange={setCertDays}
+                    />
+                    {enrollMode === 'qr' ? (
+                        <Tabs value={joinQrTab} onChange={setJoinQrTab}>
+                            <Tabs.List mb="md" grow>
+                                <Tabs.Tab value="domain" leftSection={<IconWorld size={14} />}>
+                                    {t('Connect by domain')}
+                                </Tabs.Tab>
+                                <Tabs.Tab value="vpn" leftSection={<IconNetwork size={14} />}>
+                                    {t('Connect over VPN / IP')}
+                                </Tabs.Tab>
+                            </Tabs.List>
+                            <Tabs.Panel value="domain">
+                                <Text size="sm" c="dimmed" mb="md">
+                                    {t('Scan this in ATAK or WinTAK to add the server and enroll this user automatically. Treat it like a password and don\'t share it with anyone.')}
+                                </Text>
+                                {joinQrString !== '' ? (
+                                    <Stack align="center" gap="xs">
+                                        <Paper p="md" shadow="xl" withBorder bg="white">
+                                            <QRCode value={joinQrString} size={280} quietZone={10} eyeRadius={50} ecLevel="L" qrStyle="dots" />
+                                        </Paper>
+                                        <Button variant="subtle" size="xs" leftSection={<IconRefresh size={14} />} onClick={() => generateJoinQr(joinQrUsername)}>
+                                            {t('Regenerate')}
+                                        </Button>
+                                    </Stack>
+                                ) : (
+                                    <Stack align="center" gap="xs">
+                                        <Button leftSection={<IconRefresh size={14} />} onClick={() => generateJoinQr(joinQrUsername)}>
+                                            {t('Generate')}
+                                        </Button>
+                                    </Stack>
+                                )}
+                            </Tabs.Panel>
+                            <Tabs.Panel value="vpn">
+                                {showJoinQr && joinQrUsername !== '' && (
+                                    <VpnQrPanel username={joinQrUsername} beforeGenerate={saveCertDays} />
+                                )}
+                            </Tabs.Panel>
+                        </Tabs>
+                    ) : (
+                        <Stack gap="sm">
+                            <Text size="sm" c="dimmed">
+                                {t('Contains the server truststore, the user\'s certificate and a manifest. Import it in ATAK or WinTAK. It holds the user\'s private key, so treat it like a password.')}
+                            </Text>
+                            <Group justify="flex-end">
+                                <Button
+                                    leftSection={<IconFileZip size={14} />}
+                                    loading={generatingCertPackage}
+                                    onClick={() => downloadCertPackage()}
+                                >
+                                    {t('Generate & download')}
                                 </Button>
-                            </Stack>
-                        )}
-                    </Tabs.Panel>
-                    <Tabs.Panel value="vpn">
-                        {showJoinQr && joinQrUsername !== '' && (
-                            <VpnQrPanel username={joinQrUsername} />
-                        )}
-                    </Tabs.Panel>
-                </Tabs>
+                            </Group>
+                        </Stack>
+                    )}
+                </Stack>
             </Modal>
         </>
     );

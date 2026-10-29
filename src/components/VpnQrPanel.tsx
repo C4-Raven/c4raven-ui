@@ -56,6 +56,9 @@ interface VpnQrPanelProps {
     // Admins generating for another user pass that user's name; omitted for
     // self-service, where the backend uses the logged-in user.
     username?: string;
+    // Runs before each generate (e.g. the Users page saving the certificate
+    // validity the enrollment will be signed with); resolving false aborts.
+    beforeGenerate?: () => Promise<boolean>;
 }
 
 const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
@@ -98,7 +101,7 @@ const KIND_COLORS: Record<ServerAddress['kind'], string> = {
     public: 'orange',
 };
 
-export function VpnQrPanel({ username }: VpnQrPanelProps) {
+export function VpnQrPanel({ username, beforeGenerate }: VpnQrPanelProps) {
     const [addresses, setAddresses] = useState<ServerAddress[]>([]);
     const [host, setHost] = useState('');
     const [expiration, setExpiration] = useState<number | null>(null);
@@ -136,8 +139,11 @@ export function VpnQrPanel({ username }: VpnQrPanelProps) {
     const trimmedHost = host.trim();
     const hostValid = isIpv4(trimmedHost);
 
-    function generate() {
+    async function generate() {
         if (!hostValid) {
+            return;
+        }
+        if (beforeGenerate && !(await beforeGenerate())) {
             return;
         }
         const body: { host: string; expiration?: number; username?: string } = {
