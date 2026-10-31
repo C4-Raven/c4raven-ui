@@ -19,7 +19,7 @@ const JobsRedirect = () => React.createElement(Navigate, { to: '/server-requests
 const VideoRecordings = React.lazy(() => import('./pages/VideoRecordings.tsx').then());
 const Meshtastic = React.lazy(() => import('./pages/Meshtastic.tsx').then());
 const PluginUpdates = React.lazy(() => import('./pages/PluginUpdates.tsx').then());
-const DeviceProfiles = React.lazy(() => import('./pages/DeviceProfiles.tsx').then());
+const DeviceProfiles = React.lazy(() => import('./pages/DeviceProfiles/index.tsx').then());
 const Missions = React.lazy(() => import('./pages/Missions.tsx').then())
 const Groups = React.lazy(() => import('./pages/Groups.tsx').then())
 const EUDStats = React.lazy(() => import('./pages/EUDStats.tsx').then());
