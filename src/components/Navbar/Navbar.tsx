@@ -8,7 +8,7 @@ import {
     IconPuzzle,
     IconUsers,
     IconMap,
-    IconCalendarDue,
+    IconServerCog,
     IconMovie,
     IconSettings,
     IconPlugConnected,
@@ -46,7 +46,7 @@ const navbarLinks = [
 const adminLinks = [
     { link: '/users', label: t('Users'), icon: IconUsers },
     { link: '/groups', label: t('Groups'), icon: IconUsersGroup },
-    { link: '/jobs', label: t('Scheduled Jobs'), icon: IconCalendarDue },
+    { link: '/server-requests', label: t('Server Requests'), icon: IconServerCog },
     { link: '/plugin_updates', label: t('Plugin Updates'), icon: IconPuzzle },
     { link: '/device_profiles', label: t('Device Profiles'), icon: IconDeviceMobile },
     { link: '/server_plugin_manager', label: t('Server Plugin Manager'), icon: IconPlugConnected },

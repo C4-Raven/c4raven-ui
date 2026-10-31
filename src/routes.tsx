@@ -1,4 +1,5 @@
 import React from 'react';
+import { Navigate } from 'react-router';
 
 const Login = React.lazy(() => import('./pages/Login/Login.tsx').then());
 const Error404 = React.lazy(() => import('./pages/Errors/Error404.tsx').then());
@@ -12,7 +13,9 @@ const Users = React.lazy(() => import('./pages/Users.tsx').then());
 const TFASetup = React.lazy(() => import('./pages/TFASetup.tsx').then());
 const Alerts = React.lazy(() => import('./pages/Alerts.tsx').then());
 const PasswordReset = React.lazy(() => import('./pages/PasswordReset.tsx').then());
-const ScheduledJobs = React.lazy(() => import('./pages/ScheduledJobs.tsx').then());
+const ServerRequests = React.lazy(() => import('./pages/ServerRequests/index.tsx').then());
+// Old bookmarks to /jobs land on the Scheduled Jobs tab of Server Requests.
+const JobsRedirect = () => React.createElement(Navigate, { to: '/server-requests', replace: true });
 const VideoRecordings = React.lazy(() => import('./pages/VideoRecordings.tsx').then());
 const Meshtastic = React.lazy(() => import('./pages/Meshtastic.tsx').then());
 const PluginUpdates = React.lazy(() => import('./pages/PluginUpdates.tsx').then());
@@ -41,7 +44,8 @@ const routes = [
   { path: '/users', name: 'Users', element: Users },
   { path: '/tfa_setup', name: '2FA Setup', element: TFASetup },
   { path: '/reset', name: 'Password Reset', element: PasswordReset },
-  { path: '/jobs', name: 'Scheduled Jobs', element: ScheduledJobs },
+  { path: '/server-requests', name: 'Server Requests', element: ServerRequests },
+  { path: '/jobs', name: 'Server Requests', element: JobsRedirect },
   { path: '/video_recordings', name: 'Video Recordings', element: VideoRecordings },
   { path: '/meshtastic', name: 'Meshtastic', element: Meshtastic },
   { path: '/plugin_updates', name: 'PluginUpdates', element: PluginUpdates },
