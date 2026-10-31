@@ -95,7 +95,8 @@ export default function Users() {
     // onScrollToBottom events in the same tick can't both fire a request
     // before React has re-rendered with loading/loadingMore set.
     const inFlightRef = useRef(false);
-    const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+    const [sentinelVisible, setSentinelVisible] = useState(false);
     const [sortStatus, setSortStatus] = useState<DataTableSortStatus<User>>({
         columnAccessor: 'username',
         direction: 'asc',
@@ -138,7 +139,10 @@ export default function Users() {
     const [confirm_password, setConfirmPassword] = useState('');
     const [role, setRole] = useState('user');
     const [allGroups, setAllGroups] = useState<ComboboxItem[]>([])
-    const [groups, setGroups] = useState<string[]>([]);
+    // Separate picks for the send (IN) and receive (OUT) boxes so one Add
+    // can't grant groups chosen in the other box.
+    const [sendGroups, setSendGroups] = useState<string[]>([]);
+    const [receiveGroups, setReceiveGroups] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [memberships, setMemberships] = useState<TableData>({
         caption: '',
@@ -264,18 +268,26 @@ export default function Users() {
     useEffect(() => { getUserFilters(); }, []);
     useEffect(() => { getUsers(1, true); }, [activeFilterId, sortStatus]);
 
-    // onScrollToBottom is edge-triggered (fires when the viewport *becomes*
-    // scrolled to the bottom), so if the rows loaded so far don't overflow the
-    // table's fixed height there's nothing to scroll and it never fires. After
-    // each load, keep pulling pages until the viewport actually overflows.
+    // The table grows with the page instead of scrolling in its own box, so
+    // load the next page when a sentinel just below it nears the viewport.
+    // The observer only reports changes, so the effect below also keeps
+    // pulling pages while the sentinel stays visible (short first page).
     useEffect(() => {
-        const viewport = scrollViewportRef.current;
-        if (!viewport || !hasMore || loading || loadingMore || inFlightRef.current) return;
-        if (users.length === 0) return;
-        if (viewport.scrollHeight <= viewport.clientHeight) {
+        const sentinel = loadMoreSentinelRef.current;
+        if (!sentinel) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setSentinelVisible(entry.isIntersecting),
+            { rootMargin: '400px' },
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (sentinelVisible && users.length > 0) {
             loadMoreUsers();
         }
-    }, [users, hasMore, loading, loadingMore]);
+    }, [sentinelVisible, users, hasMore, loading, loadingMore]);
 
     function getAllGroups() {
         axios.get(apiRoutes.allGroups).then(r => {
@@ -361,11 +373,12 @@ export default function Users() {
         })
     }
 
-    function addUserToGroups(direction: string) {
+    function addUserToGroups(direction: 'IN' | 'OUT') {
+        const groups = direction === 'IN' ? sendGroups : receiveGroups;
         axios.put(apiRoutes.userGroups, {username, direction, groups}).then(r => {
             if (r.status === 200) {
                 getMemberships(username);
-                setGroups([]);
+                if (direction === 'IN') { setSendGroups([]); } else { setReceiveGroups([]); }
             }
         }).catch(err => {
             console.log(err);
@@ -1023,11 +1036,9 @@ export default function Users() {
                 onSortStatusChange={setSortStatus}
                 fetching={loading}
                 minHeight={180}
-                height="65vh"
-                scrollViewportRef={scrollViewportRef}
-                onScrollToBottom={loadMoreUsers}
             />
             </Table.ScrollContainer>
+            <div ref={loadMoreSentinelRef} />
             <Text size="xs" c="dimmed" ta="center" mt="xs">
                 {loadingMore
                     ? t('Loading more users…')
@@ -1046,11 +1057,12 @@ export default function Users() {
                                 clearable
                                 nothingFoundMessage={t("Nothing found...")}
                                 label={t("Select Groups")}
-                                onChange={(value) => {setGroups(value)}}
+                                value={sendGroups}
+                                onChange={setSendGroups}
                                 data={allGroups} />
                         </Grid.Col>
                         <Grid.Col span={2}>
-                            <Button onClick={() => addUserToGroups("IN")}>{t("Add")}</Button>
+                            <Button onClick={() => addUserToGroups("IN")} disabled={sendGroups.length === 0}>{t("Add")}</Button>
                         </Grid.Col>
                     </Grid>
                 </Paper>
@@ -1064,11 +1076,12 @@ export default function Users() {
                                 clearable
                                 nothingFoundMessage={t("Nothing found...")}
                                 label={t("Select Groups")}
-                                onChange={(value) => {setGroups(value)}}
+                                value={receiveGroups}
+                                onChange={setReceiveGroups}
                                 data={allGroups} />
                         </Grid.Col>
                         <Grid.Col span={2}>
-                            <Button onClick={() => addUserToGroups("OUT")}>{t("Add")}</Button>
+                            <Button onClick={() => addUserToGroups("OUT")} disabled={receiveGroups.length === 0}>{t("Add")}</Button>
                         </Grid.Col>
                     </Grid>
                 </Paper>
