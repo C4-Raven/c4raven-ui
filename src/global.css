@@ -208,3 +208,23 @@ body {
 .raven-detail-row + .raven-detail-row {
     border-top: 0.5px solid var(--mantine-color-dark-5);
 }
+
+/* UserVisibilityDiagram connectors: keyboard-focusable edge hit areas
+   (highlight is drawn by the component, so no box outline) and the
+   direction "flow" on a hovered one-way edge. */
+.uvd-edge-hit:focus {
+    outline: none;
+}
+.uvd-flow {
+    animation: uvd-flow 0.7s linear infinite;
+}
+@keyframes uvd-flow {
+    to {
+        stroke-dashoffset: var(--uvd-dash-cycle, -10px);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .uvd-flow {
+        animation: none;
+    }
+}
