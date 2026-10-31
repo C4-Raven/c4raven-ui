@@ -31,6 +31,41 @@ export function refreshCsrfToken(): Promise<string> {
         });
 }
 
+// The token is fetched once at app load. If that fetch failed (e.g. the page
+// loaded while the server was restarting and /api/login returned 502), every
+// CSRF-protected request fails with "The CSRF token is missing." until a full
+// reload -- so fetch it before the first write that needs it, and fetch a fresh
+// one and retry once if the server rejects the token anyway.
+const SAFE_METHODS = ['get', 'head', 'options'];
+instance.interceptors.request.use(async (config) => {
+    const method = (config.method ?? 'get').toLowerCase();
+    if (!SAFE_METHODS.includes(method) && !instance.defaults.headers.common['X-XSRF-Token']
+        && config.url !== apiRoutes.login) {
+        try {
+            const token = await refreshCsrfToken();
+            if (token) {
+                config.headers.set('X-XSRF-Token', token);
+            }
+        } catch {
+            // Let the request go ahead and fail with the server's error.
+        }
+    }
+    return config;
+});
+instance.interceptors.response.use((r) => r, async (error) => {
+    const config = error?.config;
+    const errors: unknown = error?.response?.data?.response?.errors;
+    const csrfRejected = error?.response?.status === 400 && Array.isArray(errors)
+        && errors.some((e) => typeof e === 'string' && e.includes('CSRF'));
+    if (!csrfRejected || !config || config._csrfRetried) {
+        return Promise.reject(error);
+    }
+    config._csrfRetried = true;
+    const token = await refreshCsrfToken();
+    config.headers.set('X-XSRF-Token', token);
+    return instance.request(config);
+});
+
 // PrivateRoute only ever checks localStorage's "loggedIn" flag, set once at
 // login and never re-verified -- if the server session later expires or is
 // otherwise invalidated (cookie cleared, server restart, plain timeout)
