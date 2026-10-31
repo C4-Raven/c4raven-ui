@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { notifications } from '@mantine/notifications';
-import {Text, Title, Divider, Paper, Flex, Space, ScrollArea, SimpleGrid, Grid, Group, Stack} from '@mantine/core';
-import {
-    IconCheck,
-    IconX,
-} from '@tabler/icons-react';
+import { Text, Title, Paper, SimpleGrid, Group, Stack, Progress, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconClock, IconCpu, IconDatabase, IconDeviceMobile, IconServer } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import { PulseDot } from '../ServerRequests/shared';
 import { AreaChart } from '@mantine/charts';
 import { parseISO, intervalToDuration, formatDuration, format } from 'date-fns';
 import { versions } from '../../_versions';
@@ -91,15 +89,62 @@ function NetworkHistoryChart({ label, value, data }: {
     );
 }
 
-function StatTile({ value, label }: { value: React.ReactNode; label: string }) {
+function usageColor(percent: number): string {
+    if (percent >= 90) {return 'red';}
+    if (percent >= 75) {return 'orange';}
+    return 'teal';
+}
+
+function StatTile({ icon, label, value, detail, percent }: {
+    icon: React.ReactNode;
+    label: string;
+    value: React.ReactNode;
+    detail?: React.ReactNode;
+    percent?: number;
+}) {
     return (
-        <Paper radius="lg" p="lg" className="raven-surface raven-surface--tile">
-            <Stack gap={0}>
-                <Text size="xl" fw={700}>{value}</Text>
-                <Text size="sm" c="dimmed">{label}</Text>
-            </Stack>
+        <Paper radius="lg" p="md" className="raven-surface raven-surface--tile">
+            <Group justify="space-between" align="flex-start" wrap="nowrap" mb={6}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5}>{label}</Text>
+                <ThemeIcon variant="light" color="gray" size="md" radius="md">{icon}</ThemeIcon>
+            </Group>
+            <Text size="1.6rem" fw={700} lh={1.1}>{value}</Text>
+            {percent !== undefined && (
+                <Progress value={percent} color={usageColor(percent)} size="sm" radius="xl" mt="sm" />
+            )}
+            {detail && <Text size="xs" c="dimmed" mt={6} truncate>{detail}</Text>}
         </Paper>
     );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+    return (
+        <Group justify="space-between" wrap="nowrap" gap="md" py={6} className="raven-detail-row">
+            <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>{label}</Text>
+            <Tooltip label={value} disabled={!value} multiline maw={360} openDelay={400}>
+                <Text size="sm" ff={mono ? 'monospace' : undefined} truncate ta="right">{value || '—'}</Text>
+            </Tooltip>
+        </Group>
+    );
+}
+
+function compactDuration(seconds: number): string {
+    if (!seconds) {
+        return '—';
+    }
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (days > 0) {
+        return `${days}d ${hours}h`;
+    }
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function humanDuration(seconds: number, units?: Array<'days' | 'hours' | 'minutes'>): string {
+    if (!seconds) {return '—';}
+    const text = formatDuration(intervalToDuration({ start: 0, end: seconds * 1000 }), units ? { format: units } : undefined);
+    return text || '< 1 minute';
 }
 
 const POLL_INTERVAL_MS = 1000;
@@ -108,6 +153,8 @@ const HISTORY_LIMIT = 300; // 5 minutes of history at the poll interval above
 type UsagePoint = { time: number; cpu: number; memory: number; disk: number; netRecv: number; netSent: number };
 
 export default function Dashboard() {
+    const { t } = useTranslation();
+    const [live, setLive] = useState(true);
     const [uname, setUname] = useState({
         machine: '',
         node: '',
@@ -160,6 +207,7 @@ export default function Dashboard() {
                 apiRoutes.status
             ).then(r => {
                 if (r.status === 200) {
+                    setLive(true);
                     setAlerts({
                         online_euds: r.data.online_euds,
                     });
@@ -220,105 +268,120 @@ export default function Dashboard() {
                 }
             }).catch(err => {
                 console.log(err);
+                setLive(false);
             });
         };
 
         fetchStatus();
-        const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
+        // Skip polls while the browser tab is hidden; the charts just resume.
+        const interval = setInterval(() => {
+            if (!document.hidden) {fetchStatus();}
+        }, POLL_INTERVAL_MS);
         return () => clearInterval(interval);
     }, []);
 
+    const historyMinutes = Math.round(HISTORY_LIMIT * POLL_INTERVAL_MS / 6000) / 10;
+
     return (
-        <ScrollArea>
-            <Flex justify="space-between" align="center" wrap="wrap" gap="sm" mb="lg">
-                <Title order={2}>Server Status</Title>
-            </Flex>
+        <Stack gap="lg">
+            <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
+                <div>
+                    <Title order={2}>{t('Server Status')}</Title>
+                    <Text size="sm" c="dimmed">
+                        {[uname.node, osRelease.PRETTY_NAME, ots.version && `C4 RAVEN ${ots.version}`].filter(Boolean).join(' · ')}
+                    </Text>
+                </div>
+                <Group gap={6}>
+                    <PulseDot active color={live ? 'var(--mantine-color-green-5)' : 'var(--mantine-color-red-5)'} />
+                    <Text size="xs" c="dimmed">{live ? t('Live') : t('Server not responding')}</Text>
+                </Group>
+            </Group>
 
-            <SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} mb="xl">
-                <StatTile value={alerts.online_euds} label="Online EUDs" />
-                <StatTile value={`${serverStatus.cpu_percent}%`} label="CPU Usage" />
-                <StatTile value={`${memory.percent}%`} label={`Memory · ${bytes_formatter(memory.used)} used`} />
-                <StatTile value={`${disk.percent}%`} label={`Disk · ${bytes_formatter(disk.used)} used`} />
-                <StatTile value={formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }), { format: ['days', 'hours'] })} label="Uptime" />
+            <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }} spacing="md">
+                <StatTile icon={<IconDeviceMobile size={16} />} label={t('Online EUDs')} value={alerts.online_euds} />
+                <StatTile icon={<IconCpu size={16} />} label={t('CPU')} value={`${serverStatus.cpu_percent}%`} percent={serverStatus.cpu_percent} />
+                <StatTile
+                    icon={<IconServer size={16} />}
+                    label={t('Memory')}
+                    value={`${memory.percent}%`}
+                    percent={memory.percent}
+                    detail={`${bytes_formatter(memory.used)} / ${bytes_formatter(memory.total)}`}
+                />
+                <StatTile
+                    icon={<IconDatabase size={16} />}
+                    label={t('Disk')}
+                    value={`${disk.percent}%`}
+                    percent={disk.percent}
+                    detail={`${bytes_formatter(disk.free)} ${t('free')}`}
+                />
+                <StatTile
+                    icon={<IconClock size={16} />}
+                    label={t('Uptime')}
+                    value={compactDuration(uptime.uptime)}
+                    detail={`${t('C4 RAVEN')} ${humanDuration(ots.uptime, ['days', 'hours', 'minutes'])}`}
+                />
             </SimpleGrid>
 
-            <Grid mb="xl">
-                <Grid.Col span={{ base: 12, md: 8 }}>
-                    <Paper radius="lg" p="xl" className="raven-surface" h="100%">
-                        <Group justify="space-between" mb="lg">
-                            <Title order={4}>Resource Usage</Title>
-                            <Text size="xs" c="dimmed">Live · last {Math.round(HISTORY_LIMIT * POLL_INTERVAL_MS / 6000) / 10} min</Text>
-                        </Group>
-                        <Stack gap="xl">
-                            <UsageHistoryChart
-                                label="CPU"
-                                value={`${serverStatus.cpu_percent}%`}
-                                data={history}
-                                dataKey="cpu"
-                                color="orange"
-                            />
-                            <UsageHistoryChart
-                                label="Memory"
-                                value={`${memory.percent}%`}
-                                detail={`${bytes_formatter(memory.used)} / ${bytes_formatter(memory.total)}`}
-                                data={history}
-                                dataKey="memory"
-                                color="teal"
-                            />
-                            <UsageHistoryChart
-                                label="Disk"
-                                value={`${disk.percent}%`}
-                                detail={`${bytes_formatter(disk.used)} / ${bytes_formatter(disk.total)}`}
-                                data={history}
-                                dataKey="disk"
-                                color="grape"
-                            />
-                            <NetworkHistoryChart
-                                label="Network"
-                                value={`↓ ${bytes_formatter(network.recvRate, 1, true)}  ↑ ${bytes_formatter(network.sentRate, 1, true)}`}
-                                data={history}
-                            />
-                        </Stack>
-                    </Paper>
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Paper radius="lg" p="xl" className="raven-surface" h="100%">
-                        <Title order={4} mb="md">Uptime</Title>
-                        <Flex mb="xs"><Text fw={700}>System:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }))}</Text></Flex>
-                        <Flex mb="lg"><Text fw={700}>Boot Time:</Text><Space w="md" /><Text>{uptime.boot_time && parseISO(uptime.boot_time).toLocaleString()}</Text></Flex>
-                        <Flex mb="xs"><Text fw={700}>C4 RAVEN:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: ots.uptime * 1000 }))}</Text></Flex>
-                        <Flex><Text fw={700}>Since:</Text><Space w="md" /><Text>{ots.start_time}</Text></Flex>
-                    </Paper>
-                </Grid.Col>
-            </Grid>
+            <Paper radius="lg" p="lg" className="raven-surface">
+                <Group justify="space-between" mb="md">
+                    <Title order={4}>{t('Resource usage')}</Title>
+                    <Text size="xs" c="dimmed">{t('Live · last {{minutes}} min', { minutes: historyMinutes })}</Text>
+                </Group>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" verticalSpacing="lg">
+                    <UsageHistoryChart label={t('CPU')} value={`${serverStatus.cpu_percent}%`} data={history} dataKey="cpu" color="orange" />
+                    <UsageHistoryChart
+                        label={t('Memory')}
+                        value={`${memory.percent}%`}
+                        detail={`${bytes_formatter(memory.used)} / ${bytes_formatter(memory.total)}`}
+                        data={history}
+                        dataKey="memory"
+                        color="teal"
+                    />
+                    <UsageHistoryChart
+                        label={t('Disk')}
+                        value={`${disk.percent}%`}
+                        detail={`${bytes_formatter(disk.used)} / ${bytes_formatter(disk.total)}`}
+                        data={history}
+                        dataKey="disk"
+                        color="grape"
+                    />
+                    <NetworkHistoryChart
+                        label={t('Network')}
+                        value={`↓ ${bytes_formatter(network.recvRate, 1, true)}  ↑ ${bytes_formatter(network.sentRate, 1, true)}`}
+                        data={history}
+                    />
+                </SimpleGrid>
+            </Paper>
 
-            <Divider my="lg" />
-            <Title mb="lg" order={2}>Server Details</Title>
-            <SimpleGrid cols={{ base: 1, lg: 3 }} mb="xl">
-                <Paper radius="lg" p="xl" className="raven-surface">
-                    <Title order={4} mb="md">uname</Title>
-                    <Flex><Text fw={700}>System:</Text><Space w="md" /><Text>{uname.system}</Text></Flex>
-                    <Flex><Text fw={700}>Release:</Text><Space w="md" />{uname.release}</Flex>
-                    <Flex><Text fw={700}>Version:</Text><Space w="md" />{uname.version}</Flex>
-                    <Flex><Text fw={700}>Architecture:</Text><Space w="md" />{uname.machine}</Flex>
-                    <Flex><Text fw={700}>Hostname:</Text><Space w="md" />{uname.node}</Flex>
-                </Paper>
-                <Paper radius="lg" p="xl" className="raven-surface">
-                    <Title order={4} mb="md">OS Release</Title>
-                    <Flex><Text fw={700}>Name:</Text><Space w="md" /><Text>{osRelease.NAME}</Text></Flex>
-                    <Flex><Text fw={700}>Pretty Name:</Text><Space w="md" /><Text>{osRelease.PRETTY_NAME}</Text></Flex>
-                    <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{osRelease.VERSION}</Text></Flex>
-                    <Flex><Text fw={700}>Code Name:</Text><Space w="md" /><Text>{osRelease.VERSION_CODENAME}</Text></Flex>
-                </Paper>
-                <Paper radius="lg" p="xl" className="raven-surface">
-                    <Title order={4} mb="md">C4 RAVEN</Title>
-                    <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{ots.version}</Text></Flex>
-                    <Flex><Text fw={700}>UI Version:</Text><Space w="md" /><Text>{versions.gitTag}</Text></Flex>
-                    <Flex><Text fw={700}>UI Commit Hash:</Text><Space w="md" /><Text>{versions.gitCommitHash}</Text></Flex>
-                    <Flex><Text fw={700}>UI Commit Date:</Text><Space w="md" /><Text>{parseISO(versions.versionDate).toLocaleString()}</Text></Flex>
-                    <Flex><Text fw={700}>Python Version:</Text><Space w="md" /><Text>{ots.python_version}</Text></Flex>
-                </Paper>
-            </SimpleGrid>
-        </ScrollArea>
+            <Paper radius="lg" p="lg" className="raven-surface">
+                <Title order={4} mb="md">{t('Server details')}</Title>
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl">
+                    <div>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5} mb={4}>{t('C4 RAVEN')}</Text>
+                        <DetailRow label={t('Server version')} value={ots.version} mono />
+                        <DetailRow label={t('UI version')} value={versions.gitTag} mono />
+                        <DetailRow label={t('UI commit')} value={versions.gitCommitHash?.slice(0, 10)} mono />
+                        <DetailRow label={t('UI built')} value={versions.versionDate && parseISO(versions.versionDate).toLocaleString()} />
+                        <DetailRow label={t('Python')} value={ots.python_version} mono />
+                        <DetailRow label={t('Running since')} value={ots.start_time} />
+                    </div>
+                    <div>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5} mb={4}>{t('Operating system')}</Text>
+                        <DetailRow label={t('Name')} value={osRelease.PRETTY_NAME || osRelease.NAME} />
+                        <DetailRow label={t('Version')} value={osRelease.VERSION} />
+                        <DetailRow label={t('Code name')} value={osRelease.VERSION_CODENAME} />
+                        <DetailRow label={t('Booted')} value={uptime.boot_time && parseISO(uptime.boot_time).toLocaleString()} />
+                    </div>
+                    <div>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5} mb={4}>{t('Kernel')}</Text>
+                        <DetailRow label={t('Hostname')} value={uname.node} mono />
+                        <DetailRow label={t('System')} value={uname.system} />
+                        <DetailRow label={t('Release')} value={uname.release} mono />
+                        <DetailRow label={t('Architecture')} value={uname.machine} mono />
+                        <DetailRow label={t('Build')} value={uname.version} mono />
+                    </div>
+                </SimpleGrid>
+            </Paper>
+        </Stack>
     );
 }

@@ -203,3 +203,8 @@ body {
         0 20px 40px -20px rgba(0, 0, 0, 0.6),
         0 8px 16px -10px rgba(0, 0, 0, 0.4);
 }
+
+/* Dashboard server-details label/value rows */
+.raven-detail-row + .raven-detail-row {
+    border-top: 0.5px solid var(--mantine-color-dark-5);
+}
