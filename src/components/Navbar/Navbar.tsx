@@ -49,7 +49,6 @@ const adminLinks = [
     { link: '/server-requests', label: t('Server Requests'), icon: IconServerCog },
     { link: '/plugin_updates', label: t('Plugin Updates'), icon: IconPuzzle },
     { link: '/device_profiles', label: t('Device Profiles'), icon: IconDeviceMobile },
-    { link: '/server_plugin_manager', label: t('Server Plugin Manager'), icon: IconPlugConnected },
     { link: '/link_account', 'label': t('Link TAK.gov Account'), icon: IconLink},
     { link: '/federation_hub', label: t('Federation Hub'), icon: IconAffiliate },
     { link: '/supporting_documents', label: t('Supporting Documents'), icon: IconFileText },

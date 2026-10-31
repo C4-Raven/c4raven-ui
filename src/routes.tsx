@@ -24,7 +24,6 @@ const Missions = React.lazy(() => import('./pages/Missions.tsx').then())
 const Groups = React.lazy(() => import('./pages/Groups.tsx').then())
 const EUDStats = React.lazy(() => import('./pages/EUDStats.tsx').then());
 const Plugin = React.lazy(() => import('./pages/Plugin.tsx').then());
-const ServerPluginManager = React.lazy(() => import('./pages/ServerPluginManager.tsx').then());
 const LinkTAKGovAccount = React.lazy(() => import('./pages/LinkTakGov.tsx').then());
 const UserProfile = React.lazy(() => import('./pages/UserProfile.tsx').then());
 const FederationHub = React.lazy(() => import('./pages/FederationHub.tsx').then());
@@ -54,7 +53,6 @@ const routes = [
   { path: '/groups', name: 'Groups', element: Groups },
   { path: '/eud_stats', name: 'EUDStats', element: EUDStats },
   { path: '/plugin', name: 'Plugins', element: Plugin },
-  { path: '/server_plugin_manager', name:'Server Plugin Manager', element: ServerPluginManager },
   { path: '/link_account', name: 'Link TAK.gov Account', element: LinkTAKGovAccount },
   { path: '/profile/', name: 'User Profile', element: UserProfile },
   { path: '/profile/:username', name: 'User Profile', element: UserProfile },
