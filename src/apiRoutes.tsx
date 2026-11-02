@@ -14,6 +14,7 @@ export const apiRoutes = {
   videoStreamGroups: '/api/video_streams/groups',
   assign_eud_to_user: '/api/user/assign_eud',
   status: '/api/status',
+  metricsSummary: '/api/metrics/summary',
   casevac: '/api/casevac',
   markers: '/api/markers',
   deleteDataPackage: '/api/data_packages',
