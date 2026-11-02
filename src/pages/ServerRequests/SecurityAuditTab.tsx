@@ -159,6 +159,8 @@ function actionLabel(action: string, t: (k: string) => string): string {
         member_removed: t('Removed from group'),
         member_access_changed: t('Group access changed'),
         membership_expired: t('Group membership expired'),
+        message_export_csv: t('Messages exported (CSV)'),
+        message_export_kml: t('Messages exported (KML)'),
     };
     return known[action] ?? humanize(action);
 }

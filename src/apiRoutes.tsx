@@ -47,6 +47,8 @@ export const apiRoutes = {
   securityAuditDownload: '/api/security/audit/download',
   errorLog: '/api/logs/errors',
   errorLogDownload: '/api/logs/errors/download',
+  messageSearch: '/api/message_search',
+  messageSearchExport: '/api/message_search/export',
   getRecording: '/api/videos/recording',
   getRecordings: '/api/videos/recordings',
   deleteRecording: '/api/videos/recording',
