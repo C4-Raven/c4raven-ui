@@ -21,6 +21,7 @@ const Meshtastic = React.lazy(() => import('./pages/Meshtastic.tsx').then());
 const PluginUpdates = React.lazy(() => import('./pages/PluginUpdates.tsx').then());
 const DeviceProfiles = React.lazy(() => import('./pages/DeviceProfiles/index.tsx').then());
 const Missions = React.lazy(() => import('./pages/Missions.tsx').then())
+const MissionDetail = React.lazy(() => import('./pages/MissionDetail.tsx').then());
 const Groups = React.lazy(() => import('./pages/Groups.tsx').then())
 const EUDStats = React.lazy(() => import('./pages/EUDStats.tsx').then());
 const Plugin = React.lazy(() => import('./pages/Plugin.tsx').then());
@@ -51,6 +52,7 @@ const routes = [
   { path: '/plugin_updates', name: 'PluginUpdates', element: PluginUpdates },
   { path: '/device_profiles', name: 'DeviceProfiles', element: DeviceProfiles },
   { path: '/missions', name: 'Missions', element: Missions },
+  { path: '/missions/:name', name: 'Mission', element: MissionDetail },
   { path: '/groups', name: 'Groups', element: Groups },
   { path: '/eud_stats', name: 'EUDStats', element: EUDStats },
   { path: '/plugin', name: 'Plugins', element: Plugin },

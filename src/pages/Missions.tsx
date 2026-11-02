@@ -1,4 +1,5 @@
 import {
+    Anchor,
     Button,
     Center, ComboboxItem, LoadingOverlay, Modal, MultiSelect,
     Pagination, Paper, PasswordInput, Select,
@@ -12,11 +13,13 @@ import {apiRoutes} from "@/apiRoutes.tsx";
 import {IconCircleMinus, IconQrcode, IconMail, IconCheck, IconX, IconPlus, IconEdit} from "@tabler/icons-react";
 import { QRCode } from 'react-qrcode-logo';
 import {t} from "i18next";
+import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import sortBy from "lodash.sortby";
 
 interface MissionProperties {
     name: string;
+    name_link?: React.ReactNode;
     description: string;
     creator_uid: string;
     tool: string;
@@ -185,6 +188,7 @@ export default function Missions() {
 
                         let missionProps: MissionProperties = {
                             name: row.name,
+                            name_link: <Anchor component={Link} to={`/missions/${encodeURIComponent(row.name)}`}>{row.name}</Anchor>,
                             description: row.description,
                             creator_uid: "",
                             hash_tags: "",
@@ -462,7 +466,7 @@ export default function Missions() {
                     striped
                     highlightOnHover
                     records={missions}
-                    columns={[{accessor: "name", title: t("Name"), sortable: true}, {accessor: "description", title: t("Description"), sortable: true},
+                    columns={[{accessor: "name", title: t("Name"), sortable: true, render: (row) => row.name_link ?? row.name}, {accessor: "description", title: t("Description"), sortable: true},
                         {accessor: "tool", title: t("Tool"), sortable: true}, {accessor: "default_role", title: t("Default Role"), sortable: true},
                         {accessor: "password_protected", title: t("Password Protected"), sortable: true}, {accessor: "edit_button", title: "Edit"},
                         {accessor: "invitation_button", title: t("Invite")}, {accessor: "qr_button", title: t("QR Code")},
