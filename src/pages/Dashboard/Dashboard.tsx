@@ -9,6 +9,7 @@ import { versions } from '../../_versions';
 import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
 import bytes_formatter from '../../bytes_formatter';
+import MessageTraffic from './MessageTraffic';
 import '@mantine/charts/styles.css';
 
 function UsageHistoryChart({ label, value, detail, data, dataKey, color }: {
@@ -321,6 +322,8 @@ export default function Dashboard() {
                     detail={`${t('C4 RAVEN')} ${humanDuration(ots.uptime, ['days', 'hours', 'minutes'])}`}
                 />
             </SimpleGrid>
+
+            <MessageTraffic />
 
             <Paper radius="lg" p="lg" className="raven-surface">
                 <Group justify="space-between" mb="md">

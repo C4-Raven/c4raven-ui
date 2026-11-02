@@ -12,6 +12,7 @@ export const apiRoutes = {
   download_data_packages: '/api/data_packages/download',
   assign_eud_to_user: '/api/user/assign_eud',
   status: '/api/status',
+  metricsSummary: '/api/metrics/summary',
   casevac: '/api/casevac',
   markers: '/api/markers',
   deleteDataPackage: '/api/data_packages',
