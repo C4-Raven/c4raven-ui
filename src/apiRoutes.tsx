@@ -86,6 +86,8 @@ export const apiRoutes = {
   certificates: '/api/certificates',
   revokeCertificate: (id: number) => `/api/certificates/${id}/revoke`,
   revokeUserCertificates: '/api/certificates/revoke_user',
+  revokeCertificateBySerial: '/api/certificates/revoke',
+  allowEnrollment: '/api/certificates/allow_enrollment',
   vpnQrString: '/api/vpn_qr_string',
   serverAddresses: '/api/server_addresses',
   pluginRepo: '/api/plugins/repo',
