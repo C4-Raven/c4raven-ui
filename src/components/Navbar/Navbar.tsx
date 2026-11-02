@@ -19,6 +19,7 @@ import {
     IconFlag,
     IconAffiliate,
     IconFileText,
+    IconMessageSearch,
 } from '@tabler/icons-react';
 import {
     NavLink,
@@ -41,6 +42,7 @@ const navbarLinks = [
     { link: '/video_streams', label: t('Video Streams'), icon: IconBroadcast },
     { link: '/video_recordings', label: t('Video Recordings'), icon: IconMovie },
     { link: '/missions', label: t('Missions'), icon: IconFlag },
+    { link: '/message_search', label: t('Message Search'), icon: IconMessageSearch },
 ];
 
 const adminLinks = [
