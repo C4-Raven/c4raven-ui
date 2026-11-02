@@ -5,6 +5,8 @@ import {
     Badge,
     Button,
     Group,
+    List,
+    Modal,
     NumberInput,
     Paper,
     SegmentedControl,
@@ -74,6 +76,26 @@ function toSeconds(draft: Draft): number | null {
     return Math.round(draft.amount) * (draft.unit === 'days' ? DAY : HOUR);
 }
 
+// The server accepts any whole number of seconds, which toDraft may have to round. A draft that
+// is still exactly what toDraft made of the saved value is unchanged, whatever toSeconds says.
+function sameDraft(a: Draft, b: Draft): boolean {
+    if (a.forever || b.forever) { return a.forever === b.forever; }
+    return a.amount === b.amount && a.unit === b.unit;
+}
+
+// Whether a change deletes data sooner than before
+function shortens(from: number | null, to: number | null): boolean {
+    if (to === null) { return false; }
+    return from === null || to < from;
+}
+
+function describeSeconds(seconds: number | null, t: (key: string, opts?: Record<string, unknown>) => string): string {
+    if (seconds === null) { return t('forever'); }
+    if (seconds % DAY === 0) { return t('{{count}} days', { count: seconds / DAY }); }
+    if (seconds % HOUR === 0) { return t('{{count}} hours', { count: seconds / HOUR }); }
+    return t('{{count}} seconds', { count: seconds });
+}
+
 function draftValid(draft: Draft): boolean {
     if (draft.forever) { return true; }
     const seconds = toSeconds(draft) ?? 0;
@@ -88,6 +110,8 @@ export default function DataRetentionTab() {
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [purging, setPurging] = useState(false);
+    // What the confirmation dialog is asking about: saving shorter retention, or purging now
+    const [confirm, setConfirm] = useState<'save' | 'purge' | null>(null);
 
     const load = useCallback((quiet = false) => {
         if (!quiet) { setLoading(true); }
@@ -106,7 +130,8 @@ export default function DataRetentionTab() {
         const out: Record<string, number | null> = {};
         for (const type of data?.types ?? []) {
             const draft = drafts[type.key];
-            if (draft && draftValid(draft) && toSeconds(draft) !== type.keep_seconds) {
+            if (draft && draftValid(draft) && !sameDraft(draft, toDraft(type.keep_seconds))
+                && toSeconds(draft) !== type.keep_seconds) {
                 out[type.key] = toSeconds(draft);
             }
         }
@@ -114,9 +139,22 @@ export default function DataRetentionTab() {
     }, [data, drafts]);
     const invalid = Object.values(drafts).some((d) => !draftValid(d));
     const dirty = Object.keys(changed).length > 0;
+    const shortened = (data?.types ?? []).filter(
+        (type) => type.key in changed && shortens(type.keep_seconds, changed[type.key]),
+    );
 
     function setDraft(key: string, patch: Partial<Draft>) {
         setDrafts((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+    }
+
+    function requestSave() {
+        if (shortened.length) { setConfirm('save'); } else { save(); }
+    }
+
+    function confirmed() {
+        const action = confirm;
+        setConfirm(null);
+        if (action === 'save') { save(); } else if (action === 'purge') { purgeNow(); }
     }
 
     function save() {
@@ -176,7 +214,7 @@ export default function DataRetentionTab() {
                             leftSection={<IconPlayerPlay size={14} />}
                             loading={purging}
                             disabled={dirty}
-                            onClick={purgeNow}
+                            onClick={() => setConfirm('purge')}
                         >
                             {t('Purge now')}
                         </Button>
@@ -186,7 +224,7 @@ export default function DataRetentionTab() {
                         leftSection={<IconDeviceFloppy size={14} />}
                         loading={saving}
                         disabled={!dirty || invalid}
-                        onClick={save}
+                        onClick={requestSave}
                     >
                         {t('Save changes')}
                     </Button>
@@ -198,6 +236,40 @@ export default function DataRetentionTab() {
                 </Group>
             }
         >
+            <Modal
+                opened={confirm !== null}
+                onClose={() => setConfirm(null)}
+                title={confirm === 'purge' ? t('Purge old data now?') : t('Delete data sooner?')}
+                centered
+            >
+                <Stack gap="sm">
+                    {confirm === 'purge' ? (
+                        <Text size="sm">
+                            {t('Everything older than its retention setting is permanently deleted, including files on disk. This cannot be undone.')}
+                        </Text>
+                    ) : (
+                        <>
+                            <Text size="sm">
+                                {t('These settings now keep data for less time. Data older than the new setting is permanently deleted on the next purge run, including files on disk. This cannot be undone.')}
+                            </Text>
+                            <List size="sm">
+                                {shortened.map((type) => (
+                                    <List.Item key={type.key}>
+                                        {t(type.label)}: {describeSeconds(type.keep_seconds, t)} → {describeSeconds(changed[type.key], t)}
+                                    </List.Item>
+                                ))}
+                            </List>
+                        </>
+                    )}
+                    <Group justify="flex-end" gap="xs">
+                        <Button variant="default" onClick={() => setConfirm(null)}>{t('Cancel')}</Button>
+                        <Button color="red" onClick={confirmed}>
+                            {confirm === 'purge' ? t('Purge now') : t('Save and delete sooner')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
             {error && (
                 <Alert color="red" variant="light" icon={<IconAlertCircle />} mb="md" title={t('Could not load retention settings')}>
                     {error}
