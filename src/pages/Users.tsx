@@ -46,6 +46,7 @@ import {
     IconNetwork,
     IconRefresh,
     IconWorld,
+    IconCertificate,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { QRCode } from 'react-qrcode-logo';
@@ -55,6 +56,7 @@ import {t} from "i18next";
 import {Link} from "react-router";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { VpnQrPanel } from '../components/VpnQrPanel';
+import { UserCertificatesModal } from '../components/UserCertificatesModal';
 
 export interface User {
     username: string;
@@ -122,6 +124,7 @@ export default function Users() {
     const [sendFileFile, setSendFileFile] = useState<File | null>(null);
     const [sendingFile, setSendingFile] = useState(false);
     const [showJoinQr, setShowJoinQr] = useState(false);
+    const [certificatesUsername, setCertificatesUsername] = useState('');
     const [joinQrUsername, setJoinQrUsername] = useState('');
     const [joinQrString, setJoinQrString] = useState('');
     const [joinQrTab, setJoinQrTab] = useState<string | null>('domain');
@@ -986,6 +989,12 @@ export default function Users() {
                                                 {t('Enroll device')}
                                             </Menu.Item>
                                             <Menu.Item
+                                                leftSection={<IconCertificate size={15} />}
+                                                onClick={() => setCertificatesUsername(row.username)}
+                                            >
+                                                {t('Certificates')}
+                                            </Menu.Item>
+                                            <Menu.Item
                                                 leftSection={<IconFileUpload size={15} />}
                                                 onClick={() => {
                                                     setSendFileUsername(row.username);
@@ -1137,6 +1146,11 @@ export default function Users() {
                     </Group>
                 </Stack>
             </Modal>
+            <UserCertificatesModal
+                username={certificatesUsername}
+                opened={!!certificatesUsername}
+                onClose={() => setCertificatesUsername('')}
+            />
             <Modal opened={showDeleteUser} onClose={() => setShowDeleteUser(false)} title={t('Are you sure?')}>
                 <Text mb="md">{t('Delete {{username}}? This can\'t be undone.', { username })}</Text>
                 <Group justify="flex-end">
