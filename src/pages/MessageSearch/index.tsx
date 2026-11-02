@@ -61,8 +61,13 @@ export interface MessageResult {
 
 interface SearchResponse {
     results: MessageResult[];
+    // Counted up to max_results; total_capped when more match
     total: number;
+    total_capped?: boolean;
+    max_results?: number;
     export_max_rows: number;
+    // Set when no From/To was given and the server searched the last 24 hours only
+    default_start?: string | null;
 }
 
 // Mantine dates gives "YYYY-MM-DD HH:mm:ss" in the browser's local time
@@ -198,6 +203,11 @@ export default function MessageSearch() {
 
     const areaIncomplete = (areaMode === 'box' && !bbox) || (areaMode === 'radius' && !circle);
     const overCap = data && data.total > data.export_max_rows;
+    const totalText = data
+        ? (data.total_capped
+            ? t('{{count}}+ messages', { count: data.total })
+            : t('{{count}} messages', { count: data.total }))
+        : '';
 
     return (
         <Stack gap="lg">
@@ -219,7 +229,7 @@ export default function MessageSearch() {
                               maxDate={end ?? undefined}
                               valueFormat="YYYY-MM-DD HH:mm"
                               clearable
-                              placeholder={t('Any time')}
+                              placeholder={t('Last 24 hours')}
                             />
                             <DateTimePicker
                               label={t('To')}
@@ -231,6 +241,11 @@ export default function MessageSearch() {
                               placeholder={t('Now')}
                             />
                         </SimpleGrid>
+                        {!start && !end && (
+                            <Text size="xs" c="dimmed">
+                                {t('Without a From or To date, only the last 24 hours are searched.')}
+                            </Text>
+                        )}
                         <TextInput
                           label={t('CoT type prefix')}
                           description={t('e.g. a-f-G for friendly ground units, b-t-f for chat')}
@@ -400,7 +415,7 @@ export default function MessageSearch() {
             {overCap && (
                 <Alert color="yellow" icon={<IconAlertTriangle size={16} />}>
                     {t('{{total}} messages match, but exports stop at the newest {{max}}. Narrow the search to export everything.', {
-                        total: data.total.toLocaleString(),
+                        total: data.total.toLocaleString() + (data.total_capped ? '+' : ''),
                         max: data.export_max_rows.toLocaleString(),
                     })}
                 </Alert>
@@ -408,7 +423,10 @@ export default function MessageSearch() {
 
             <Section
               title={t('Results')}
-              actions={data && <Badge variant="light" tt="none">{t('{{count}} messages', { count: data.total })}</Badge>}
+              description={data?.default_start
+                  ? t('Last 24 hours, since {{time}}', { time: formatDateTime(data.default_start) })
+                  : undefined}
+              actions={data && <Badge variant="light" tt="none">{totalText}</Badge>}
             >
                 {!data && !loading ? (
                     <EmptyState
