@@ -18,6 +18,7 @@ import {
     IconAlertCircle,
     IconDeviceMobile,
     IconEye,
+    IconFiles,
     IconPackage,
     IconPlug,
     IconSettingsOff,
@@ -25,14 +26,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import axios from '../../axios_config';
 import { findSetting } from './settingsCatalog';
-import { ON_CONNECT_KEY } from './types';
+import { formatBytes, ON_CONNECT_KEY } from './types';
 
-/** GET ?username=&eud_uid=&phase=enrollment|connection → PreviewResponse */
+/** GET ?username=&eud_uid=&phase=enrollment|connection|tool[&tool=] → PreviewResponse */
 export const DEVICE_PROFILE_PREVIEW_URL = '/api/device-profiles/preview';
 const USERS_URL = '/api/users/all';
 const EUDS_URL = '/api/eud';
 
-type Phase = 'enrollment' | 'connection';
+type Phase = 'enrollment' | 'connection' | 'tool';
 
 interface PreviewSetting {
     key: string;
@@ -42,8 +43,18 @@ interface PreviewSetting {
     profile_name: string | null;
 }
 
+interface PreviewFile {
+    id: number;
+    filename: string;
+    zip_path: string;
+    size: number;
+    profile_id: number | null;
+    profile_name: string | null;
+}
+
 interface PreviewResponse {
     settings: PreviewSetting[];
+    files?: PreviewFile[];
     data_packages: { name: string }[];
     plugins: { name: string }[];
 }
@@ -101,7 +112,8 @@ function NameList({ icon, title, items, empty }: {
     );
 }
 
-export default function PreviewPanel() {
+/** :param tools: tool names used by profiles, for the tool picker */
+export default function PreviewPanel({ tools = [] }: { tools?: string[] }) {
     const { t } = useTranslation();
     const [users, setUsers] = useState<UserOption[]>([]);
     const [usersUnavailable, setUsersUnavailable] = useState(false);
@@ -109,6 +121,7 @@ export default function PreviewPanel() {
     const [username, setUsername] = useState<string | null>(null);
     const [eudUid, setEudUid] = useState<string | null>(null);
     const [phase, setPhase] = useState<Phase>('enrollment');
+    const [tool, setTool] = useState<string | null>(null);
     const [data, setData] = useState<PreviewResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -144,8 +157,15 @@ export default function PreviewPanel() {
 
     const hasSubject = !!(username || eudUid);
 
+    // Keep the tool picker pointing at a tool that still exists
     useEffect(() => {
-        if (!hasSubject) {
+        if (tool && !tools.includes(tool)) { setTool(tools[0] ?? null); }
+        if (!tool && tools.length) { setTool(tools[0]); }
+    }, [tools, tool]);
+    const waitingForTool = phase === 'tool' && !tool;
+
+    useEffect(() => {
+        if (!hasSubject || waitingForTool) {
             setData(null);
             setError(null);
             return undefined;
@@ -156,6 +176,7 @@ export default function PreviewPanel() {
         const params: Record<string, string> = { phase };
         if (username) { params.username = username; }
         if (eudUid) { params.eud_uid = eudUid; }
+        if (phase === 'tool' && tool) { params.tool = tool; }
         axios.get<PreviewResponse>(DEVICE_PROFILE_PREVIEW_URL, { params })
             .then((r) => { if (!cancelled) { setData(r.data); } })
             .catch((err) => {
@@ -166,7 +187,7 @@ export default function PreviewPanel() {
             })
             .finally(() => { if (!cancelled) { setLoading(false); } });
         return () => { cancelled = true; };
-    }, [username, eudUid, phase, hasSubject, t]);
+    }, [username, eudUid, phase, tool, hasSubject, waitingForTool, t]);
 
     const settings = useMemo(() => [...(data?.settings ?? [])].sort((a, b) => {
         const la = findSetting(a.key)?.label ?? a.key;
@@ -216,10 +237,27 @@ export default function PreviewPanel() {
                         data={[
                             { value: 'enrollment', label: t('On enrollment') },
                             { value: 'connection', label: t('Every connection') },
+                            { value: 'tool', label: t('Tool') },
                         ]}
                     />
                 </Stack>
             </SimpleGrid>
+
+            {phase === 'tool' && (
+                tools.length ? (
+                    <Select
+                        label={t('Tool')}
+                        description={t('What a device gets from /Marti/api/device/profile/tool/<name>. Nothing at all (204) if no profile for the tool applies.')}
+                        data={tools}
+                        value={tool}
+                        onChange={setTool}
+                        allowDeselect={false}
+                        maw={360}
+                    />
+                ) : (
+                    <Text size="sm" c="dimmed">{t('No profile has a tool name yet.')}</Text>
+                )
+            )}
 
             {phase === 'connection' && (
                 <Text size="xs" c="dimmed">
@@ -297,12 +335,42 @@ export default function PreviewPanel() {
                                 <Text size="sm" c="dimmed">
                                     {phase === 'enrollment'
                                         ? t('No profile settings are sent on enrollment for this selection.')
-                                        : t('No profile settings apply on connection for this selection.')}
+                                        : phase === 'tool'
+                                            ? t('No profile settings for this tool apply to this selection.')
+                                            : t('No profile settings apply on connection for this selection.')}
                                 </Text>
                             </Group>
                         )}
                     </Paper>
 
+                    <Paper p="md" className="raven-surface raven-surface--tile">
+                        <Group gap="xs" mb="xs">
+                            <ThemeIcon size="sm" variant="light" color="gray"><IconFiles size={14} /></ThemeIcon>
+                            <Text fw={600} size="sm">{t('Profile files')}</Text>
+                            <Badge size="sm" variant="light" color="gray">{data.files?.length ?? 0}</Badge>
+                        </Group>
+                        {data.files?.length ? (
+                            <Stack gap={6}>
+                                {data.files.map((f) => (
+                                    <Group key={f.zip_path} gap="sm" justify="space-between" wrap="nowrap">
+                                        <div style={{ minWidth: 0 }}>
+                                            <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>{f.zip_path}</Text>
+                                            <Text size="xs" c="dimmed">{formatBytes(f.size)}</Text>
+                                        </div>
+                                        {f.profile_name && (
+                                            <Badge variant="light" color="blue" maw={160} style={{ textTransform: 'none', flexShrink: 0 }}>
+                                                {f.profile_name}
+                                            </Badge>
+                                        )}
+                                    </Group>
+                                ))}
+                            </Stack>
+                        ) : (
+                            <Text size="sm" c="dimmed">{t('No profile files go in at this point.')}</Text>
+                        )}
+                    </Paper>
+
+                    {phase !== 'tool' && (
                     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                         <NameList
                             icon={<IconPackage size={14} />}
@@ -317,11 +385,14 @@ export default function PreviewPanel() {
                             empty={t('No plugins are sent at this point.')}
                         />
                     </SimpleGrid>
+                    )}
 
                     <Group gap={6}>
                         <IconDeviceMobile size={14} color="var(--mantine-color-dimmed)" />
                         <Text size="xs" c="dimmed">
-                            {t('The server also adds its own connection details (update server, certificates) to every profile.')}
+                            {phase === 'tool'
+                                ? t('A tool profile carries only its own settings and files.')
+                                : t('The server also adds its own connection details (update server, certificates) to every profile.')}
                         </Text>
                     </Group>
                 </Stack>
