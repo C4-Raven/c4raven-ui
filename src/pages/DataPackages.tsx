@@ -17,6 +17,7 @@ import { apiRoutes } from '@/apiRoutes';
 import bytes_formatter from '@/bytes_formatter';
 import {t} from "i18next";
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
+import { ItemGroupBadges, ItemGroupsModal } from '@/components/ItemGroups';
 
 interface DataPackage {
     filename: string;
@@ -33,6 +34,7 @@ interface DataPackage {
     install_on_enrollment: boolean;
     install_on_connection: boolean;
     private: boolean;
+    groups: string[];
     callsign: string;
     eud: {
         callsign: string;
@@ -60,6 +62,8 @@ export default function DataPackages() {
     const [qrTitle, setQrTitle] = useState('');
     const [pageSize, setPageSize] = useState(10);
     const [downloadingHash, setDownloadingHash] = useState<string | null>(null);
+    const [groupsTarget, setGroupsTarget] = useState<DataPackage | null>(null);
+    const isAdmin = localStorage.getItem('administrator') === 'true';
     const [sortStatus, setSortStatus] = useState<DataTableSortStatus<DataPackage>>({
         columnAccessor: 'filename',
         direction: 'asc',
@@ -321,6 +325,15 @@ export default function DataPackages() {
                     </Paper>
                 </Center>
             </Modal>
+            <ItemGroupsModal
+              opened={groupsTarget !== null}
+              onClose={() => setGroupsTarget(null)}
+              title={`${t('Groups')}: ${groupsTarget?.filename ?? ''}`}
+              endpoint={apiRoutes.dataPackageGroups}
+              identifier={{ hash: groupsTarget?.hash ?? '' }}
+              groups={groupsTarget?.groups ?? []}
+              onSaved={getDatapackages}
+            />
             <Table.ScrollContainer minWidth="100%" mt="md">
                 <DataTable
                     withTableBorder
@@ -330,6 +343,10 @@ export default function DataPackages() {
                     highlightOnHover
                     records={dataPackages}
                     columns={[{accessor: "filename", title: t("File Name"), sortable: true}, {accessor: "visibility", title: t("Visibility")},
+                        {accessor: "groups", title: t("Groups"), render: (row) => <ItemGroupBadges
+                          groups={row.groups}
+                          onEdit={isAdmin ? () => setGroupsTarget(row) : undefined}
+                        />},
                         {accessor: "formatted_size", title: t("Size"), sortable: true},
                         {accessor: "submission_user", title: t("Uploader Username"), sortable: true}, {accessor: "callsign", title: t("Uploader Callsign")},
                         {accessor: "submission_time", title: t("Upload Time"), sortable: true}, {accessor: "install_on_enrollment_switch", title: t("Install on Enrollment")},

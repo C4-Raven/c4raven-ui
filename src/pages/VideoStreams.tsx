@@ -39,6 +39,7 @@ import { notifications } from '@mantine/notifications';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { t } from 'i18next';
+import { ItemGroupBadges, ItemGroupsModal } from '@/components/ItemGroups';
 
 interface VideoStream {
     thumbnail: string;
@@ -50,6 +51,7 @@ interface VideoStream {
     source: string;
     ready: boolean;
     record: boolean;
+    groups: string[];
 }
 
 export default function VideoStreams() {
@@ -72,6 +74,8 @@ export default function VideoStreams() {
     const [loading, setLoading] = useState(false);
     const [pageSize, setPageSize] = useState(12);
     const [streamCount, setStreamCount] = useState(0);
+    const [groupsTarget, setGroupsTarget] = useState<VideoStream | null>(null);
+    const isAdmin = localStorage.getItem('administrator') === 'true';
 
     function setRecord(streamPath: string, record: boolean) {
         setLoading(true);
@@ -302,6 +306,11 @@ export default function VideoStreams() {
                                 <Text size="xs" c="dimmed" truncate>{stream.username} &middot; {stream.source || t('No source')}</Text>
                             </div>
 
+                            <ItemGroupBadges
+                                groups={stream.groups}
+                                onEdit={isAdmin ? () => setGroupsTarget(stream) : undefined}
+                            />
+
                             <Group justify="space-between" mt={4}>
                                 <Tooltip label={stream.record ? t('Recording') : t('Not recording')}>
                                     <Switch
@@ -377,6 +386,16 @@ export default function VideoStreams() {
                     <Button variant="default" onClick={() => setDeleteVideoOpened(false)}>{t('No')}</Button>
                 </Center>
             </Modal>
+
+            <ItemGroupsModal
+                opened={groupsTarget !== null}
+                onClose={() => setGroupsTarget(null)}
+                title={`${t('Groups')}: ${groupsTarget?.path ?? ''}`}
+                endpoint={apiRoutes.videoStreamGroups}
+                identifier={{ path: groupsTarget?.path ?? '' }}
+                groups={groupsTarget?.groups ?? []}
+                onSaved={getVideoStreams}
+            />
 
             <Modal opened={thumbnailOpened} onClose={() => setThumbnailOpened(false)} title={t('Thumbnail')} size="xl">
                 <Image src={thumbnail} />
