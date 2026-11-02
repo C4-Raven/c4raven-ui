@@ -15,9 +15,11 @@ import {
     IconDeviceMobile,
     IconDots,
     IconDownload,
+    IconFiles,
     IconPencil,
     IconPlugConnected,
     IconQrcode,
+    IconTool,
     IconTrash,
     IconUser,
     IconUsers,
@@ -42,6 +44,7 @@ export default function ProfileCard({ profile, busy, onEdit, onDuplicate, onExpo
     const count = profile.settings.length;
     const names = profile.settings.slice(0, PREVIEW_COUNT).map((s) => settingLabel(s.key));
     const more = count - names.length;
+    const fileCount = profile.files?.length ?? 0;
     const kindIcon = {
         group: <IconUsersGroup size={12} />,
         user: <IconUser size={12} />,
@@ -104,13 +107,20 @@ export default function ProfileCard({ profile, busy, onEdit, onDuplicate, onExpo
                 </Group>
                 <Group gap={6} wrap="wrap">
                     <Text size="xs" c="dimmed" w={44}>{t('When')}</Text>
-                    {profile.apply_on_enrollment && (
+                    {profile.tool && (
+                        <Tooltip label={t('Sent only to devices that ask for this tool\'s profile')}>
+                            <Badge variant="light" color="violet" tt="none" leftSection={<IconTool size={12} />} maw={220}>
+                                {t('Tool: {{name}}', { name: profile.tool })}
+                            </Badge>
+                        </Tooltip>
+                    )}
+                    {!profile.tool && profile.apply_on_enrollment && (
                         <Badge variant="light" color="indigo" tt="none" leftSection={<IconQrcode size={12} />}>{t('On enrollment')}</Badge>
                     )}
-                    {profile.apply_on_connection && (
+                    {!profile.tool && profile.apply_on_connection && (
                         <Badge variant="light" color="orange" tt="none" leftSection={<IconPlugConnected size={12} />}>{t('Every connection')}</Badge>
                     )}
-                    {!profile.apply_on_enrollment && !profile.apply_on_connection && (
+                    {!profile.tool && !profile.apply_on_enrollment && !profile.apply_on_connection && (
                         <Badge variant="light" color="red" tt="none">{t('Never')}</Badge>
                     )}
                 </Group>
@@ -122,6 +132,16 @@ export default function ProfileCard({ profile, busy, onEdit, onDuplicate, onExpo
                     <Text size="sm" c="dimmed" lineClamp={2}>
                         {names.join(', ')}{more > 0 ? ` ${t('and {{count}} more', { count: more })}` : ''}
                     </Text>
+                )}
+                {fileCount > 0 && (
+                    <Group gap={6} mt={4} wrap="nowrap">
+                        <IconFiles size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
+                        <Text size="sm" c="dimmed" lineClamp={1}>
+                            {fileCount === 1 ? t('1 file') : t('{{count}} files', { count: fileCount })}
+                            {': '}
+                            {profile.files!.map((f) => f.zip_path).join(', ')}
+                        </Text>
+                    </Group>
                 )}
             </div>
 

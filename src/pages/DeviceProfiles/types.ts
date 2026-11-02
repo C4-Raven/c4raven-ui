@@ -21,6 +21,25 @@ export interface ProfileSetting {
     value_class: string;
 }
 
+/** A file shipped in the profile's data package, at zip_path. */
+export interface ProfileFile {
+    id: number;
+    filename: string;
+    zip_path: string;
+    size: number;
+    sha256?: string;
+    content_type?: string | null;
+    uploaded_by?: string | null;
+    created_at?: string | null;
+}
+
+/** A file picked in the editor, uploaded once the profile is saved. */
+export interface PendingFile {
+    key: string;
+    file: File;
+    folder: string;
+}
+
 export interface Profile {
     id: number;
     name: string;
@@ -29,13 +48,17 @@ export interface Profile {
     apply_on_enrollment: boolean;
     apply_on_connection: boolean;
     target_everyone: boolean;
+    /** Set: only served to devices asking for this tool's profile. */
+    tool?: string | null;
     targets: ProfileTarget[];
     settings: ProfileSetting[];
+    files?: ProfileFile[];
     created_at?: string;
     updated_at?: string;
 }
 
-export type ProfileInput = Omit<Profile, 'id' | 'created_at' | 'updated_at' | 'targets'> & {
+export type ProfileInput = Omit<Profile, 'id' | 'created_at' | 'updated_at' | 'targets' | 'files' | 'tool'> & {
+    tool: string;
     targets: { kind: TargetKind; value: string }[];
 };
 
@@ -83,6 +106,7 @@ export function blankProfile(): ProfileInput {
         apply_on_enrollment: true,
         apply_on_connection: false,
         target_everyone: true,
+        tool: '',
         targets: [],
         settings: [],
     };
@@ -96,9 +120,39 @@ export function toInput(profile: Profile): ProfileInput {
         apply_on_enrollment: profile.apply_on_enrollment,
         apply_on_connection: profile.apply_on_connection,
         target_everyone: profile.target_everyone,
+        tool: profile.tool ?? '',
         targets: (profile.targets ?? []).map(({ kind, value }) => ({ kind, value })),
         settings: (profile.settings ?? []).map(({ key, value, value_class }) => ({ key, value, value_class })),
     };
+}
+
+/** Tool names as the server accepts them (letters, numbers, dots, dashes, underscores). */
+export const TOOL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** Folder names the server writes into every profile package itself. */
+export const RESERVED_FOLDERS = ['manifest', '5c2bfcae3d98c9f4d262172df99ebac5'];
+
+export function formatBytes(size: number): string {
+    if (size < 1024) { return `${size} B`; }
+    if (size < 1024 * 1024) { return `${(size / 1024).toFixed(1)} KB`; }
+    if (size < 1024 * 1024 * 1024) { return `${(size / (1024 * 1024)).toFixed(1)} MB`; }
+    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/** Mirrors the server's folder clean-up closely enough to show where a file will land. */
+export function cleanFolder(folder: string): string {
+    return folder
+        .replace(/\\/g, '/')
+        .split('/')
+        .map((p) => p.trim().replace(/\s+/g, '_').replace(/[^A-Za-z0-9._-]/g, ''))
+        .filter((p) => p && p !== '.' && p !== '..')
+        .join('/');
+}
+
+export function zipPathFor(name: string, folder: string): string {
+    const clean = cleanFolder(folder);
+    const file = cleanFolder(name.split(/[\\/]/).pop() ?? name) || name;
+    return clean ? `${clean}/${file}` : file;
 }
 
 /** A sensible starting value when a catalog setting is first added. */

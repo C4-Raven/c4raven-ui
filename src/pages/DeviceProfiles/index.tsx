@@ -55,7 +55,7 @@ function HowItWorks() {
         {
             icon: <IconAdjustments size={18} />,
             title: t('What'),
-            body: t('A profile is a named set of ATAK settings, like team colour, map units or server options, that the server pushes to devices so you don\'t have to set each phone up by hand.'),
+            body: t('A profile is a named set of ATAK settings, like team colour, map units or server options, plus any files to go with them (map sources, imagery, plugins, certificates, .pref files), that the server pushes to devices so you don\'t have to set each phone up by hand.'),
         },
         {
             icon: <IconUsers size={18} />,
@@ -116,6 +116,10 @@ export default function DeviceProfiles() {
     const [busyId, setBusyId] = useState<number | null>(null);
 
     const templates = useMemo(() => starterTemplates(), []);
+    const tools = useMemo(
+        () => [...new Set(profiles.map((p) => p.tool).filter((x): x is string => !!x))].sort(),
+        [profiles],
+    );
 
     const showError = useCallback(async (title: string, err: unknown) => {
         notifications.show({ title, message: await extractError(err), icon: <IconX size={16} />, color: 'red' });
@@ -332,9 +336,9 @@ export default function DeviceProfiles() {
                         <span>{t('Preview what a device gets')}</span>
                     </Group>
                 )}
-                description={t('Pick a user or device to see exactly which settings it would receive, and which profile each one comes from.')}
+                description={t('Pick a user or device to see exactly which settings and files it would receive, and which profile each one comes from.')}
             >
-                <PreviewPanel />
+                <PreviewPanel tools={tools} />
             </Section>
 
             <ProfileEditor

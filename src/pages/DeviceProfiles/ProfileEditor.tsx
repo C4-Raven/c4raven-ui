@@ -23,6 +23,7 @@ import {
     IconClockPlay,
     IconDeviceFloppy,
     IconInfoCircle,
+    IconTool,
     IconPlugConnected,
     IconQrcode,
     IconUsers,
@@ -31,13 +32,21 @@ import { useTranslation } from 'react-i18next';
 import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
 import { extractError } from '../ServerRequests/shared';
+import FilesStep, { filesAfterSave, filesProblem, useFileLimits } from './FilesStep';
 import SettingsStep from './SettingsStep';
 import { findSetting } from './settingsCatalog';
-import { ON_CONNECT_KEY, type Profile, type ProfileInput, type TargetKind } from './types';
+import {
+    ON_CONNECT_KEY,
+    TOOL_NAME_RE,
+    type PendingFile,
+    type Profile,
+    type ProfileInput,
+    type TargetKind,
+} from './types';
 
-type StepKey = 'basics' | 'settings' | 'who' | 'when';
-const STEPS: StepKey[] = ['basics', 'settings', 'who', 'when'];
-type Errors = Partial<Record<'name' | 'settings' | 'who' | 'when', string>>;
+type StepKey = 'basics' | 'settings' | 'files' | 'who' | 'when';
+const STEPS: StepKey[] = ['basics', 'settings', 'files', 'who', 'when'];
+type Errors = Partial<Record<'name' | 'settings' | 'files' | 'who' | 'when', string>>;
 
 interface Option { value: string; label: string }
 
@@ -76,14 +85,25 @@ function withSelected(options: Option[], selected: string[], labels: Map<string,
     return [...options, ...extra];
 }
 
-export function validate(draft: ProfileInput, t: (k: string) => string): Errors {
+export function validate(
+    draft: ProfileInput,
+    t: (k: string) => string,
+    { toolMode = false, fileCount = 0, filesError }: { toolMode?: boolean; fileCount?: number; filesError?: string } = {},
+): Errors {
     const errors: Errors = {};
     if (!draft.name.trim()) { errors.name = t('Give the profile a name so you can recognise it later'); }
-    if (draft.settings.length === 0) { errors.settings = t('Add at least one setting'); }
+    if (draft.settings.length === 0 && fileCount === 0) { errors.settings = t('Add at least one setting or file'); }
+    if (filesError) { errors.files = filesError; }
     if (!draft.target_everyone && draft.targets.length === 0) {
         errors.who = t('Choose who gets this profile, or switch on "Everyone"');
     }
-    if (!draft.apply_on_enrollment && !draft.apply_on_connection) {
+    if (toolMode) {
+        if (!draft.tool.trim()) {
+            errors.when = t('Enter the tool name this profile is for');
+        } else if (!TOOL_NAME_RE.test(draft.tool.trim())) {
+            errors.when = t('Tool names can only use letters, numbers, dots, dashes and underscores');
+        }
+    } else if (!draft.apply_on_enrollment && !draft.apply_on_connection) {
         errors.when = t('Pick at least one moment for devices to receive this profile');
     }
     return errors;
@@ -92,6 +112,7 @@ export function validate(draft: ProfileInput, t: (k: string) => string): Errors 
 function stepOf(errors: Errors): StepKey | null {
     if (errors.name) { return 'basics'; }
     if (errors.settings) { return 'settings'; }
+    if (errors.files) { return 'files'; }
     if (errors.who) { return 'who'; }
     if (errors.when) { return 'when'; }
     return null;
@@ -115,6 +136,11 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
     const [saving, setSaving] = useState(false);
     const [serverError, setServerError] = useState<string>();
     const { groups, users, devices } = useAudienceOptions(opened);
+    const limits = useFileLimits(opened);
+    const [toolMode, setToolMode] = useState(false);
+    const [pending, setPending] = useState<PendingFile[]>([]);
+    const [removed, setRemoved] = useState<number[]>([]);
+    const existingFiles = useMemo(() => profile?.files ?? [], [profile]);
 
     useEffect(() => {
         if (opened) {
@@ -123,13 +149,20 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
             setErrors({});
             setAttempted(false);
             setServerError(undefined);
+            setToolMode(!!initial.tool);
+            setPending([]);
+            setRemoved([]);
         }
     }, [opened, initial]);
 
+    const fileCount = filesAfterSave(existingFiles, pending, removed).length;
+    const filesError = filesProblem(existingFiles, pending, removed, limits, t);
+    const checkAll = () => validate(draft, t, { toolMode, fileCount, filesError });
+
     // Once the admin has tried to save, keep the inline errors live as they fix things.
     useEffect(() => {
-        if (attempted) { setErrors(validate(draft, t)); }
-    }, [draft, attempted, t]);
+        if (attempted) { setErrors(validate(draft, t, { toolMode, fileCount, filesError })); }
+    }, [draft, attempted, t, toolMode, fileCount, filesError]);
 
     const targetLabels = useMemo(() => {
         const m = new Map<string, string>();
@@ -151,7 +184,7 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
 
     async function save() {
         setAttempted(true);
-        const errs = validate(draft, t);
+        const errs = checkAll();
         setErrors(errs);
         const bad = stepOf(errs);
         if (bad) {
@@ -165,6 +198,7 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
             name: draft.name.trim(),
             description: draft.description.trim(),
             targets: draft.target_everyone ? [] : draft.targets,
+            tool: toolMode ? draft.tool.trim() : '',
         };
         try {
             const r = profile
@@ -174,18 +208,61 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
                 setServerError(r.data?.error ?? t('The server rejected the profile'));
                 return;
             }
-            notifications.show({
-                color: 'green',
-                icon: <IconCheck size={16} />,
-                title: profile ? t('Profile saved') : t('Profile created'),
-                message: body.name,
-            });
-            onSaved(r.data?.profile);
+            let saved: Profile = r.data?.profile;
+            const fileError = saved ? await saveFiles(saved) : undefined;
+            if (fileError) {
+                // The settings are saved; say which file part failed so it can be retried
+                notifications.show({
+                    color: 'red',
+                    icon: <IconAlertCircle size={16} />,
+                    title: t('Profile saved, but some files were not'),
+                    message: fileError,
+                    autoClose: false,
+                });
+            } else {
+                notifications.show({
+                    color: 'green',
+                    icon: <IconCheck size={16} />,
+                    title: profile ? t('Profile saved') : t('Profile created'),
+                    message: body.name,
+                });
+            }
+            saved = lastSaved.current ?? saved;
+            onSaved(saved);
         } catch (err) {
             setServerError(await extractError(err) ?? t('The server rejected the profile'));
         } finally {
             setSaving(false);
         }
+    }
+
+    const lastSaved = React.useRef<Profile | null>(null);
+
+    /** Uploads the picked files (one request per folder) and removes the dropped ones. */
+    async function saveFiles(saved: Profile): Promise<string | undefined> {
+        lastSaved.current = null;
+        const byFolder = new Map<string, File[]>();
+        for (const p of pending) {
+            byFolder.set(p.folder, [...(byFolder.get(p.folder) ?? []), p.file]);
+        }
+        try {
+            for (const id of removed) {
+                const r = await axios.delete(`${apiRoutes.deviceProfileSets}/${saved.id}/files/${id}`);
+                if (r.data?.profile) { lastSaved.current = r.data.profile; }
+            }
+            for (const [folder, files] of byFolder) {
+                const form = new FormData();
+                files.forEach((f) => form.append('file', f));
+                if (folder.trim()) { form.append('folder', folder.trim()); }
+                const r = await axios.post(`${apiRoutes.deviceProfileSets}/${saved.id}/files`, form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                if (r.data?.profile) { lastSaved.current = r.data.profile; }
+            }
+        } catch (err) {
+            return await extractError(err) ?? t('A file could not be saved');
+        }
+        return undefined;
     }
 
     const stepError = (key: StepKey) => {
@@ -235,6 +312,13 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
                     icon={stepError('settings') ? <IconAlertCircle size={16} color="var(--mantine-color-red-5)" /> : undefined}
                 />
                 <Stepper.Step
+                    label={isPhone ? undefined : t('Files')}
+                    aria-label={t('Files')}
+                    description={stepDescription('files', t('What comes along'))}
+                    color={stepError('files') ? 'red' : undefined}
+                    icon={stepError('files') ? <IconAlertCircle size={16} color="var(--mantine-color-red-5)" /> : undefined}
+                />
+                <Stepper.Step
                     label={isPhone ? undefined : t('Who')}
                     aria-label={t('Who')}
                     description={stepDescription('who', t('Which devices'))}
@@ -251,7 +335,7 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
             </Stepper>
             {isPhone && (
                 <Text size="sm" fw={600} mt={-8} mb="md">
-                    {t('Step {{n}} of 4', { n: active + 1 })} · {[t('Basics'), t('Settings'), t('Who gets it'), t('When it is sent')][active]}
+                    {t('Step {{n}} of {{total}}', { n: active + 1, total: STEPS.length })} · {[t('Basics'), t('Settings'), t('Files'), t('Who gets it'), t('When it is sent')][active]}
                 </Text>
             )}
 
@@ -296,6 +380,21 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
             )}
 
             {active === 2 && (
+                <FilesStep
+                    profileId={profile?.id ?? null}
+                    existing={existingFiles}
+                    pending={pending}
+                    removed={removed}
+                    limits={limits}
+                    error={errors.files ?? (pending.length ? filesError : undefined)}
+                    onChange={(change) => {
+                        if (change.pending) { setPending(change.pending); }
+                        if (change.removed) { setRemoved(change.removed); }
+                    }}
+                />
+            )}
+
+            {active === 3 && (
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
                         {t('Choose which devices receive this profile. You can mix groups, users and individual devices.')}
@@ -359,7 +458,7 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
                 </Stack>
             )}
 
-            {active === 3 && (
+            {active === 4 && (
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
                         {t('Choose when devices pick up this profile. Most profiles use both.')}
@@ -367,6 +466,31 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
                     {errors.when && (
                         <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />} py="xs">{errors.when}</Alert>
                     )}
+                    <Paper p="md" className="raven-surface raven-surface--tile">
+                        <Group gap="md" wrap="nowrap" align="flex-start">
+                            <IconTool size={22} style={{ flexShrink: 0, marginTop: 2, opacity: 0.8 }} />
+                            <Stack gap="sm" style={{ flex: 1 }}>
+                                <Switch
+                                    size="md"
+                                    label={t('Only when a tool asks for it')}
+                                    description={t('For a tool or plugin that fetches its own profile from the server (e.g. "mission"). The profile is then sent only to devices that request that tool\'s profile, not on enrollment or connection.')}
+                                    checked={toolMode}
+                                    onChange={(e) => setToolMode(e.currentTarget.checked)}
+                                />
+                                {toolMode && (
+                                    <TextInput
+                                        label={t('Tool name')}
+                                        description={t('Devices fetch it from /Marti/api/device/profile/tool/<name>')}
+                                        placeholder={t('e.g. mission')}
+                                        value={draft.tool}
+                                        onChange={(e) => patch({ tool: e.currentTarget.value })}
+                                        required
+                                    />
+                                )}
+                            </Stack>
+                        </Group>
+                    </Paper>
+                    {!toolMode && (<>
                     <Paper p="md" className="raven-surface raven-surface--tile">
                         <Group gap="md" wrap="nowrap" align="flex-start">
                             <IconQrcode size={22} style={{ flexShrink: 0, marginTop: 2, opacity: 0.8 }} />
@@ -394,6 +518,7 @@ export default function ProfileEditor({ opened, onClose, profile, initial, onSav
                     <Alert variant="light" color="gray" icon={<IconClockPlay size={16} />}>
                         {t('Settings sent on connect overwrite whatever the user changed on their device each time you save this profile. Use it for things that must stay the same.')}
                     </Alert>
+                    </>)}
                 </Stack>
             )}
 
