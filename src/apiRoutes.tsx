@@ -47,6 +47,8 @@ export const apiRoutes = {
   cancelScheduledRun: '/api/scheduler/job/cancel',
   securityAudit: '/api/security/audit',
   securityAuditDownload: '/api/security/audit/download',
+  auditEvents: '/api/security/audit/events',
+  auditEventsDownload: '/api/security/audit/events/download',
   errorLog: '/api/logs/errors',
   errorLogDownload: '/api/logs/errors/download',
   getRecording: '/api/videos/recording',

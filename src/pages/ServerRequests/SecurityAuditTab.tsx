@@ -90,6 +90,7 @@ interface AuditEvent {
     user_agent: string | null;
     success: boolean | null;
     details: unknown;
+    summary?: string | null;
 }
 
 interface AuditResponse {
@@ -195,7 +196,7 @@ export default function SecurityAuditTab() {
     const [data, setData] = useState<AuditResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
-    const [downloading, setDownloading] = useState(false);
+    const [downloading, setDownloading] = useState<'txt' | 'csv' | null>(null);
     const [eventsPage, setEventsPage] = useState(1);
     const [knownCategories, setKnownCategories] = useState<string[]>([]);
     const requestId = useRef(0);
@@ -225,10 +226,14 @@ export default function SecurityAuditTab() {
 
     useEffect(() => { load(); }, [load]);
 
-    async function download() {
-        setDownloading(true);
+    async function download(format: 'txt' | 'csv') {
+        setDownloading(format);
         try {
-            await downloadFile(apiRoutes.securityAuditDownload, { days }, 'security-audit.txt');
+            // The CSV is the event log with the current filters; the .txt is the whole report
+            const params = format === 'csv'
+                ? { days, format, category: category ?? '', search: debouncedSearch }
+                : { days };
+            await downloadFile(apiRoutes.securityAuditDownload, params, `security-audit.${format}`);
         } catch (err) {
             notifications.show({
                 title: t('Download failed'),
@@ -237,7 +242,7 @@ export default function SecurityAuditTab() {
                 icon: <IconX />,
             });
         } finally {
-            setDownloading(false);
+            setDownloading(null);
         }
     }
 
@@ -294,7 +299,10 @@ export default function SecurityAuditTab() {
                         <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={load} loading={loading}>
                             {t('Refresh')}
                         </Button>
-                        <Button leftSection={<IconDownload size={16} />} onClick={download} loading={downloading}>
+                        <Button variant="default" leftSection={<IconDownload size={16} />} onClick={() => download('csv')} loading={downloading === 'csv'}>
+                            {t('Events .csv')}
+                        </Button>
+                        <Button leftSection={<IconDownload size={16} />} onClick={() => download('txt')} loading={downloading === 'txt'}>
                             {t('Download .txt')}
                         </Button>
                     </Group>
