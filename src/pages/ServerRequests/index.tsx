@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Group, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconBug, IconCalendarDue, IconClipboardList, IconShieldLock } from '@tabler/icons-react';
+import { IconBug, IconCalendarDue, IconClipboardList, IconDatabaseCog, IconShieldLock } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import ScheduledJobsTab from './ScheduledJobsTab';
 import SecurityAuditTab from './SecurityAuditTab';
 import AdminActionsTab from './AdminActionsTab';
 import ErrorLogTab from './ErrorLogTab';
+import DataRetentionTab from './DataRetentionTab';
 
-const TABS = ['jobs', 'audit', 'admin', 'errors'] as const;
+const TABS = ['jobs', 'audit', 'admin', 'errors', 'retention'] as const;
 type TabValue = (typeof TABS)[number];
 
 function isTab(value: string | null): value is TabValue {
@@ -36,7 +37,7 @@ export default function ServerRequests() {
                 <div>
                     <Title order={2}>{t('Server Requests')}</Title>
                     <Text size="sm" c="dimmed">
-                        {t('Background jobs, sign-in and enrollment audit, admin actions, and the server error log')}
+                        {t('Background jobs, sign-in and enrollment audit, admin actions, the server error log and data retention')}
                     </Text>
                 </div>
             </Group>
@@ -47,12 +48,14 @@ export default function ServerRequests() {
                     <Tabs.Tab value="audit" leftSection={<IconShieldLock size={16} />}>{t('Security Audit')}</Tabs.Tab>
                     <Tabs.Tab value="admin" leftSection={<IconClipboardList size={16} />}>{t('Admin Actions')}</Tabs.Tab>
                     <Tabs.Tab value="errors" leftSection={<IconBug size={16} />}>{t('Error Log')}</Tabs.Tab>
+                    <Tabs.Tab value="retention" leftSection={<IconDatabaseCog size={16} />}>{t('Data Retention')}</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="jobs">{visited.has('jobs') && <ScheduledJobsTab />}</Tabs.Panel>
                 <Tabs.Panel value="audit">{visited.has('audit') && <SecurityAuditTab />}</Tabs.Panel>
                 <Tabs.Panel value="admin">{visited.has('admin') && <AdminActionsTab />}</Tabs.Panel>
                 <Tabs.Panel value="errors">{visited.has('errors') && <ErrorLogTab active={tab === 'errors'} />}</Tabs.Panel>
+                <Tabs.Panel value="retention">{visited.has('retention') && <DataRetentionTab />}</Tabs.Panel>
             </Tabs>
         </Stack>
     );
