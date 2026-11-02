@@ -10,6 +10,8 @@ export const apiRoutes = {
   generate_certificate: '/api/certificate',
   data_packages: '/api/data_packages',
   download_data_packages: '/api/data_packages/download',
+  dataPackageGroups: '/api/data_packages/groups',
+  videoStreamGroups: '/api/video_streams/groups',
   assign_eud_to_user: '/api/user/assign_eud',
   status: '/api/status',
   casevac: '/api/casevac',
