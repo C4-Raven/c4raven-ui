@@ -38,8 +38,6 @@ export default function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/404" element={<Error404 />} />
                   <Route path="/reset" element={<PasswordReset />} />
-                  {/*<Route path="/register" name="Register Page" element={<Register />} />
-                  <Route path="/500" name="Page 500" element={<Page500 />} />*/}
                   <Route path="*" element={<DefaultLayout />} />
               </Routes>
           </BrowserRouter>
