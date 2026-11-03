@@ -47,6 +47,8 @@ interface ServerAddresses {
 export interface VpnQrResult {
     qr_string: string;
     url: string;
+    // Same-origin HTTPS link for downloading from this page; browsers block the plain-HTTP url
+    download_url?: string;
     host: string;
     username: string;
     expiration: number | null;
@@ -276,14 +278,14 @@ export function VpnQrPanel({ username, beforeGenerate }: VpnQrPanelProps) {
                             )}
                         </CopyButton>
                     </Group>
-                    <Anchor href={result.url} size="sm">
+                    <Anchor href={result.download_url ?? result.url} size="sm">
                         <Group gap={4} wrap="nowrap">
                             <IconDownload size={14} />
                             {t('Download connection package (iTAK / WinTAK)')}
                         </Group>
                     </Anchor>
                     <Text size="xs" c="dimmed" mt={-8}>
-                        {t('Open this link from a device on the VPN')}
+                        {t('The package connects to {{host}}, so the device needs to be on the VPN to use it', { host: result.host })}
                     </Text>
                     <List size="sm" spacing={4} type="ordered" w="100%">
                         <List.Item>{t('Connect the phone to the VPN first')}</List.Item>
