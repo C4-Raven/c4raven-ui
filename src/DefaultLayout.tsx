@@ -28,7 +28,6 @@ import {
     IconCertificate,
     IconQrcode,
     Icon2fa,
-    IconHelp,
     IconRefresh,
     IconCircleMinus,
     IconChevronDown,
@@ -69,6 +68,13 @@ export function DefaultLayout() {
         return <Navigate to="/login" />;
     }
 
+    return <LoggedInLayout />;
+}
+
+// Split out so the login redirect above runs before, not between, this
+// component's hooks: an early return ahead of them changes the hook count
+// when loggedIn flips while the layout is mounted.
+function LoggedInLayout() {
     const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
     const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
 
