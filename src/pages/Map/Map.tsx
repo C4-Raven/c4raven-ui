@@ -233,8 +233,6 @@ export default function Map() {
 
     function MapContext() {
         const map = useMap();
-        //const fullscreenControl = L.Control.fullscreen();
-        //map.addControl(fullscreenControl);
 
         useEffect(() => {
             map.addLayer(eudsLayer);
@@ -453,13 +451,6 @@ export default function Map() {
                 socket.off('marker', onMarker);
                 socket.off('eud', onEud);
                 socket.off('casevac', onCaseEvac);
-
-                // janky fix for duplicate fullscreen buttons
-                //const elementsToRemove =
-                //    fullscreenControl.getContainer()?.getElementsByClassName('leaflet-control-zoom-fullscreen') ?? [];
-                //for (let i = 0; i < elementsToRemove.length; i++) {
-                //    elementsToRemove[i].remove();
-                //}
             };
         }, []);
 
