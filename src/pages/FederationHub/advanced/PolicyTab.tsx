@@ -22,19 +22,20 @@ import axios from '../../../axios_config';
 import FederationPolicyDiagram, { type DiagramRule } from '../../../components/FederationPolicyDiagram';
 import { formatDateTime } from '../../ServerRequests/shared';
 import { endpoints } from './endpoints';
-import { activatePolicy, errorCode, saveText, savePolicy } from './api';
-import { blankFederation, buildSaveBody, filterWarnings, isPolicyDirty, normalizePolicy, orphanRules, ownCaGroup, parsePolicyJson, policyHasCa, restoreOwnNode, stableStringify } from './helpers';
+import { activatePolicy, errorCode, fetchActivePolicy, saveText, savePolicy } from './api';
+import { blankFederation, buildSaveBody, filterWarnings, isPolicyDirty, normalizePolicy, orphanRules, ownCaGroup, ownNodeActive, parsePolicyJson, pluginRoutingValid, restoreOwnNode, stableStringify, withGroupSets } from './helpers';
 import { ActiveBadge, ConfirmModal, notifyFail, notifyOk, useHubData } from './shared';
-import type { Federation, GraphView, PolicyCore } from './types';
+import type { Federation, GraphView, PolicyCore, PolicyPluginRouting } from './types';
 import NodesSection from './policy/NodesSection';
 import RulesSection from './policy/RulesSection';
 import GroupSetsSection from './policy/GroupSetsSection';
+import PluginRoutingSection from './policy/PluginRoutingSection';
 
 type PendingSwitch = { kind: 'open'; fed: Federation } | { kind: 'new' } | null;
 
 export default function PolicyTab() {
     const { t } = useTranslation();
-    const { federations, activeName, caGroups, connections, reload } = useHubData();
+    const { federations, activeName, caGroups, connections, plugins: registeredPlugins, reload } = useHubData();
     const own = ownCaGroup(caGroups);
 
     const [base, setBase] = useState<Federation | null>(null);
@@ -54,11 +55,19 @@ export default function PolicyTab() {
     const [confirmApply, setConfirmApply] = useState(false);
     const [confirmActivate, setConfirmActivate] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
-    /** The server refused to apply: own CA node missing (own_ca_missing_from_policy). */
-    const [ownRefused, setOwnRefused] = useState(false);
+    /** The server refused to apply/activate: own CA node missing (own_ca_missing_from_policy). */
+    const [ownRefused, setOwnRefused] = useState<'save' | 'activate' | null>(null);
+    /** The stored version of the ACTIVE policy differs from what the hub enforces (e.g. after "Save only"). */
+    const [savedNotApplied, setSavedNotApplied] = useState(false);
+    const [description, setDescription] = useState('');
+    const [plugins, setPlugins] = useState<PolicyPluginRouting[]>([]);
+    const [renameOpen, setRenameOpen] = useState(false);
+    const [renameTo, setRenameTo] = useState('');
     const [confirmForce, setConfirmForce] = useState(false);
 
-    const dirty = !!base && (isNew || isPolicyDirty(saved, draft));
+    const modelDirty = !!base && (description !== (base.description ?? '') || stableStringify(plugins) !== stableStringify(base.plugins ?? []));
+    const pluginsInvalid = !pluginRoutingValid(plugins);
+    const dirty = !!base && (isNew || isPolicyDirty(saved, draft) || modelDirty);
     const isActive = !!base && !isNew && base.name === activeName;
     const remote = base ? federations.find((f) => f.name === base.name) : undefined;
     const changedOnHub = !!base && !isNew && !!remote && dirty && remote.modifiedDate !== base.modifiedDate;
@@ -76,6 +85,9 @@ export default function PolicyTab() {
         setSaved(fresh ? normalizePolicy({}) : p);
         setDraft(p);
         setViews(fed.views?.graph);
+        setDescription(fed.description ?? '');
+        setPlugins(fed.plugins ?? []);
+        setSavedNotApplied(false);
         setDiagramKey((k) => k + 1);
     }, [setDraft]);
 
@@ -91,8 +103,23 @@ export default function PolicyTab() {
             setSaved(p);
             setDraft(p);
             setViews(fresh.views?.graph);
+            setDescription(fresh.description ?? '');
+            setPlugins(fresh.plugins ?? []);
         }
     }, [federations, base, isNew, setDraft]);
+
+    // Is the stored version of the active policy what the hub actually enforces?
+    useEffect(() => {
+        if (!base || isNew || base.name !== activeName) { setSavedNotApplied(false); return undefined; }
+        let cancelled = false;
+        fetchActivePolicy()
+            .then((enforced) => {
+                if (cancelled || !enforced) { return; }
+                setSavedNotApplied(stableStringify(normalizePolicy(enforced.policy)) !== stableStringify(saved));
+            })
+            .catch(() => undefined);
+        return () => { cancelled = true; };
+    }, [base, isNew, activeName, saved]);
 
     // Warn before leaving the page with unsaved policy edits.
     useEffect(() => {
@@ -126,25 +153,31 @@ export default function PolicyTab() {
         if (parsed) { setDraftState(parsed); }
     }
 
+    /** The stored model to send: the latest layout (drags save separately and base.views can be stale) and description. */
+    function currentFederation(fed: Federation): Federation {
+        return { ...fed, description, plugins, views: views ? { ...(fed.views ?? {}), graph: views } : fed.views };
+    }
+
     async function doSave(activate: boolean, policy: PolicyCore = draft, force = false) {
-        if (!base || rawInvalid) { return; }
+        if (!base || rawInvalid || pluginsInvalid) { return; }
         setBusy(activate ? 'apply' : 'save');
         try {
-            await savePolicy(base, policy, activate, force);
+            await savePolicy(currentFederation(base), policy, activate, force);
             notifyOk(activate ? t('Policy saved and applied') : t('Policy saved'), activate ? t('The hub is now enforcing "{{name}}".', { name: base.name, interpolation: { escapeValue: false } }) : t('Saved but not applied. The hub keeps enforcing the active policy until you apply.'));
-            const nextBase = { ...base, policy, views: views ? { graph: views } : base.views };
+            const nextBase = { ...currentFederation(base), policy };
             setBase(nextBase);
+            setSavedNotApplied(!activate && base.name === activeName);
             setSaved(policy);
             if (policy !== draft) { setDraft(policy); setDiagramKey((k) => k + 1); }
             setIsNew(false);
             setConfirmApply(false);
-            setOwnRefused(false);
+            setOwnRefused(null);
             setConfirmForce(false);
             await reload();
         } catch (err) {
             if (activate && errorCode(err) === 'own_ca_missing_from_policy') {
                 setConfirmApply(false);
-                setOwnRefused(true);
+                setOwnRefused('save');
                 return;
             }
             notifyFail(activate ? t('Failed to save and apply the policy') : t('Failed to save policy'), err);
@@ -155,23 +188,70 @@ export default function PolicyTab() {
 
     function requestApply() {
         // Applying a different policy replaces the active one; a policy without our own CA locks out the bridge (G1).
-        if ((activeName && base && base.name !== activeName) || (own && !policyHasCa(draft, own.uid))) {
+        if ((activeName && base && base.name !== activeName) || (own && !ownNodeActive(draft, own.uid))) {
             setConfirmApply(true);
         } else {
             doSave(true);
         }
     }
 
-    async function doActivate() {
+    async function doActivate(force = false) {
         if (!base) { return; }
         setBusy('activate');
         try {
-            await activatePolicy(base.name);
+            await activatePolicy(base.name, force);
             notifyOk(t('Policy applied'), t('The hub is now enforcing "{{name}}".', { name: base.name, interpolation: { escapeValue: false } }));
             setConfirmActivate(false);
+            setOwnRefused(null);
+            setConfirmForce(false);
+            setSavedNotApplied(false);
             await reload();
         } catch (err) {
+            if (!force && errorCode(err) === 'own_ca_missing_from_policy') {
+                setConfirmActivate(false);
+                setOwnRefused('activate');
+                return;
+            }
             notifyFail(t('Failed to apply the policy'), err);
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    /**
+     * Rename = save under the new name, activate it if the old one was active,
+     * then delete the old one. The hub has no rename of its own.
+     */
+    async function doRename() {
+        if (!base) { return; }
+        const to = renameTo.trim();
+        if (!to || to === base.name) { setRenameOpen(false); return; }
+        if (federations.some((f) => f.name === to)) { return; }
+        const from = base.name;
+        const wasActive = from === activeName;
+        setBusy('rename');
+        let stage: 'save' | 'activate' | 'delete' = 'save';
+        try {
+            const renamed = { ...currentFederation(base), name: to };
+            await savePolicy(renamed, saved, false);
+            if (wasActive) {
+                stage = 'activate';
+                await activatePolicy(to);
+            }
+            stage = 'delete';
+            await axios.delete(endpoints.deleteFederation(from));
+            notifyOk(t('Policy renamed'), t('"{{from}}" is now "{{to}}".', { from, to, interpolation: { escapeValue: false } }));
+            setRenameOpen(false);
+            load({ ...renamed, policy: saved }, false);
+            await reload();
+        } catch (err) {
+            const where = stage === 'save'
+                ? t('Nothing was changed.')
+                : stage === 'activate'
+                    ? t('"{{to}}" was saved but isn\'t active; "{{from}}" is still active and was kept.', { from, to, interpolation: { escapeValue: false } })
+                    : t('"{{to}}" was saved (and activated if needed), but the old "{{from}}" couldn\'t be deleted. Delete it by hand.', { from, to, interpolation: { escapeValue: false } });
+            notifyFail(`${t('Rename failed')}. ${where}`, err);
+            await reload();
         } finally {
             setBusy(null);
         }
@@ -217,7 +297,8 @@ export default function PolicyTab() {
         if (!base || isNew) { return; }
         setBusy('groupsets');
         try {
-            const next = { ...saved, groupSets: draft.groupSets };
+            // Saved rules can still name a set the draft deleted: strip those references too.
+            const next = withGroupSets(saved, draft.groupSets);
             await axios.post(endpoints.connectionGroupSets, buildSaveBody(base, next));
             setSaved(next);
             notifyOk(t('Group sets applied'));
@@ -231,7 +312,7 @@ export default function PolicyTab() {
 
     const warnings = useMemo(() => filterWarnings(draft, own?.uid ?? null), [draft, own]);
     const orphans = useMemo(() => orphanRules(draft), [draft]);
-    const ownMissing = !!own && !!base && !policyHasCa(draft, own.uid);
+    const ownMissing = !!own && !!base && !ownNodeActive(draft, own.uid);
     const tokensInPolicy = draft.entities.some((e) => (e.type === 'FederationTokenGroup' && Array.isArray(e.config?.tokens) && e.config.tokens.length > 0) || !!e.config?.token);
 
     return (
@@ -290,18 +371,23 @@ export default function PolicyTab() {
                         <Group gap="xs">
                             <Title order={4}>{base.name}</Title>
                             {isNew ? <Badge color="blue" variant="light">{t('New, not on the hub yet')}</Badge> : <ActiveBadge active={isActive} />}
-                            {dirty ? <Badge color="yellow" variant="filled">{t('Unsaved changes')}</Badge> : <Badge color="gray" variant="outline">{t('Saved')}</Badge>}
+                            {dirty
+                                ? <Badge color="yellow" variant="filled">{t('Unsaved changes')}</Badge>
+                                : savedNotApplied
+                                    ? <Badge color="orange" variant="filled">{t('Saved, not applied')}</Badge>
+                                    : <Badge color="gray" variant="outline">{t('Saved')}</Badge>}
                         </Group>
                         <Group gap="xs">
                             <Button size="xs" radius="xl" variant="default" leftSection={<IconArrowBackUp size={14} />} disabled={!dirty || isNew} onClick={() => load(base, false)}>{t('Discard changes')}</Button>
-                            <Button size="xs" radius="xl" variant="default" leftSection={<IconDeviceFloppy size={14} />} disabled={!dirty || rawInvalid} loading={busy === 'save'} onClick={() => doSave(false)}>{t('Save only')}</Button>
-                            <Button size="xs" radius="xl" className="raven-cta" leftSection={<IconCloudUpload size={14} />} disabled={rawInvalid || (!dirty && isActive)} loading={busy === 'apply'} onClick={requestApply}>{t('Save & apply')}</Button>
+                            <Button size="xs" radius="xl" variant="default" leftSection={<IconDeviceFloppy size={14} />} disabled={!dirty || rawInvalid || pluginsInvalid} loading={busy === 'save'} onClick={() => doSave(false)}>{t('Save only')}</Button>
+                            <Button size="xs" radius="xl" className="raven-cta" leftSection={<IconCloudUpload size={14} />} disabled={rawInvalid || pluginsInvalid || (!dirty && isActive && !savedNotApplied)} loading={busy === 'apply'} onClick={requestApply}>{t('Save & apply')}</Button>
                             <Menu position="bottom-end" withinPortal>
                                 <Menu.Target>
                                     <Button size="xs" radius="xl" variant="default" rightSection={<IconChevronDown size={14} />}>{t('More')}</Button>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    <Menu.Item leftSection={<IconPlayerPlay size={16} />} disabled={isNew || isActive || dirty} onClick={() => setConfirmActivate(true)}>{t('Apply saved version (activate)')}</Menu.Item>
+                                    <Menu.Item leftSection={<IconPlayerPlay size={16} />} disabled={isNew || dirty || (isActive && !savedNotApplied)} onClick={() => setConfirmActivate(true)}>{t('Apply saved version (activate)')}</Menu.Item>
+                                    <Menu.Item disabled={isNew || dirty} onClick={() => { setRenameTo(base.name); setRenameOpen(true); }}>{t('Rename…')}</Menu.Item>
                                     <Menu.Item leftSection={<IconDownload size={16} />} disabled={isNew} onClick={() => doExport('json')}>{t('Export saved version as JSON')}</Menu.Item>
                                     <Menu.Item leftSection={<IconDownload size={16} />} disabled={isNew} onClick={() => doExport('yaml')}>{t('Export saved version as YAML')}</Menu.Item>
                                     <Menu.Divider />
@@ -311,7 +397,17 @@ export default function PolicyTab() {
                         </Group>
                     </Group>
 
+                    <TextInput
+                        label={t('Policy description')}
+                        value={description}
+                        onChange={(e) => setDescription(e.currentTarget.value)}
+                        mb="sm"
+                        maw={640}
+                    />
                     <Stack gap="sm" mb="md">
+                        {savedNotApplied && !dirty && (
+                            <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>{t('The saved version differs from what the hub is enforcing. "Apply saved version" or "Save & apply" makes the hub enforce it.')}</Alert>
+                        )}
                         {!isActive && !isNew && (
                             <Alert color="blue" variant="light">{t('This policy is stored but not active. The hub is enforcing "{{name}}". "Save & apply" makes this one active instead.', { name: activeName ?? t('nothing'), interpolation: { escapeValue: false } })}</Alert>
                         )}
@@ -319,7 +415,7 @@ export default function PolicyTab() {
                             <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>{t('This policy changed on the hub after you opened it. Saving overwrites those changes; discard to load the latest.')}</Alert>
                         )}
                         {ownMissing && (
-                            <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>{t('This hub\'s own CA isn\'t a node in this policy. If applied, this Raven\'s bridge is refused. Add it with "Add node".')}</Alert>
+                            <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>{t('This hub\'s own CA isn\'t an enabled node in this policy (it is missing or turned off). If applied, this Raven\'s bridge is refused. Add it with "Add node", or turn it back on.')}</Alert>
                         )}
                         {orphans.length > 0 && (
                             <Alert color="orange" variant="light">
@@ -349,6 +445,8 @@ export default function PolicyTab() {
                             onApplyNow={applyGroupSetsOnly}
                         />
                         <Divider />
+                        <PluginRoutingSection plugins={plugins} onChange={setPlugins} registered={registeredPlugins} entities={draft.entities} />
+                        <Divider />
                         <div>
                             <Text fw={600}>{t('Connection map')}</Text>
                             <Text size="sm" c="dimmed" mb="sm">{t('Drag nodes to arrange them (the layout saves straight away). Click two nodes to draw a rule; rule changes go into the draft.')}</Text>
@@ -357,7 +455,7 @@ export default function PolicyTab() {
                                 entities={draft.entities}
                                 rules={draft.rules as DiagramRule[]}
                                 views={views}
-                                knownGroups={caGroups.map((c) => c.nickname || c.alias)}
+                                knownGroups={[]}
                                 connections={connections}
                                 onRulesChange={(rules) => setDraft({ ...draft, rules })}
                                 onViewsChange={saveViews}
@@ -392,21 +490,25 @@ export default function PolicyTab() {
             </ConfirmModal>
 
             <ConfirmModal
-                opened={ownRefused}
-                onClose={() => setOwnRefused(false)}
-                onConfirm={() => own && doSave(true, restoreOwnNode(draft, own))}
-                loading={busy === 'apply'}
+                opened={ownRefused !== null}
+                onClose={() => setOwnRefused(null)}
+                onConfirm={() => {
+                    if (!own) { setOwnRefused(null); return; }
+                    // Activate refused: the saved version is what was refused, so fix that one.
+                    doSave(true, restoreOwnNode(ownRefused === 'activate' ? saved : draft, own));
+                }}
+                loading={busy === 'apply' || busy === 'activate'}
                 title={t('This would cut off this Raven')}
                 confirmLabel={own ? t('Add it back and apply') : t('Close')}
                 color="blue"
             >
                 <Text size="sm">
-                    {t('The hub refused to apply "{{name}}" because this server\'s own certificate node is missing from it. Without that node the hub refuses this Raven\'s own bridge, so nothing from this server is federated any more.', { name: base?.name ?? '', interpolation: { escapeValue: false } })}
+                    {t('The hub refused to apply "{{name}}" because this server\'s own certificate node is missing from it (or turned off). Without that node the hub refuses this Raven\'s own bridge, so nothing from this server is federated any more.', { name: base?.name ?? '', interpolation: { escapeValue: false } })}
                 </Text>
                 {own
                     ? <Text size="sm">{t('"Add it back" puts the node "{{own}}" back with rules both ways to every other server in the policy, then applies it.', { own: own.nickname || own.uid, interpolation: { escapeValue: false } })}</Text>
                     : <Text size="sm" c="red">{t('The hub doesn\'t report its own certificate, so it can\'t be added back from here.')}</Text>}
-                <Button variant="subtle" color="red" size="xs" radius="xl" onClick={() => { setOwnRefused(false); setConfirmForce(true); }}>
+                <Button variant="subtle" color="red" size="xs" radius="xl" onClick={() => { setConfirmForce(true); }}>
                     {t('Apply without it anyway…')}
                 </Button>
             </ConfirmModal>
@@ -414,8 +516,12 @@ export default function PolicyTab() {
             <ConfirmModal
                 opened={confirmForce}
                 onClose={() => setConfirmForce(false)}
-                onConfirm={() => doSave(true, draft, true)}
-                loading={busy === 'apply'}
+                onConfirm={() => {
+                    const from = ownRefused;
+                    setOwnRefused(null);
+                    if (from === 'activate') { doActivate(true); } else { doSave(true, draft, true); }
+                }}
+                loading={busy === 'apply' || busy === 'activate'}
                 title={t('Cut off this Raven\'s bridge?')}
                 confirmLabel={t('Apply without our certificate')}
                 requireText="CUT OFF"
@@ -423,7 +529,30 @@ export default function PolicyTab() {
                 <Text size="sm" c="red">{t('The hub will refuse this Raven\'s own bridge as soon as this is applied. Devices on this server stop being federated until a policy with our certificate is applied again.')}</Text>
             </ConfirmModal>
 
-            <ConfirmModal opened={confirmActivate} onClose={() => setConfirmActivate(false)} onConfirm={doActivate} loading={busy === 'activate'} title={t('Make this the active policy?')} confirmLabel={t('Apply')} color="blue">
+            <ConfirmModal
+                opened={renameOpen}
+                onClose={() => setRenameOpen(false)}
+                onConfirm={doRename}
+                loading={busy === 'rename'}
+                title={t('Rename this policy?')}
+                confirmLabel={t('Rename')}
+                color="blue"
+            >
+                <TextInput
+                    label={t('New name')}
+                    value={renameTo}
+                    onChange={(e) => setRenameTo(e.currentTarget.value)}
+                    error={renameTo.trim() && renameTo.trim() !== base?.name && federations.some((f) => f.name === renameTo.trim()) ? t('Another policy already has this name') : undefined}
+                    data-autofocus
+                />
+                <Text size="sm">
+                    {base?.name === activeName
+                        ? t('The hub can\'t rename a policy. Raven saves a copy under the new name, makes the copy the active policy, then deletes "{{name}}". Partners stay connected; if a step fails you are told what was left.', { name: base?.name ?? '', interpolation: { escapeValue: false } })
+                        : t('The hub can\'t rename a policy. Raven saves a copy under the new name, then deletes "{{name}}".', { name: base?.name ?? '', interpolation: { escapeValue: false } })}
+                </Text>
+            </ConfirmModal>
+
+            <ConfirmModal opened={confirmActivate} onClose={() => setConfirmActivate(false)} onConfirm={() => doActivate()} loading={busy === 'activate'} title={t('Make this the active policy?')} confirmLabel={t('Apply')} color="blue">
                 <Text size="sm">{t('The hub stops enforcing "{{active}}" and starts enforcing the saved version of "{{name}}".', { name: base?.name ?? '', active: activeName ?? t('nothing'), interpolation: { escapeValue: false } })}</Text>
             </ConfirmModal>
 

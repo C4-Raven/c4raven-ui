@@ -8,6 +8,7 @@ import type {
     HubConnection,
     PolicyCore,
     PolicyEntity,
+    PolicyPluginRouting,
     PolicyRule,
     RuleFilter,
 } from './types';
@@ -161,6 +162,32 @@ export function restoreOwnNode(policy: PolicyCore, own: Pick<CaGroup, 'uid'> & P
     return next;
 }
 
+/**
+ * Graph positions for entities that have none yet (e.g. a CA node added by
+ * addCaToPolicy), so the hub's map and ours show them instead of stacking
+ * them at 0,0. Existing positions are kept as they are.
+ */
+export function addViewNodes(views: Federation['views'], policy: PolicyCore): NonNullable<Federation['views']> {
+    const graph = views?.graph ?? {};
+    const nodes = Array.isArray(graph.nodes) ? (graph.nodes as { id: string; x?: number; y?: number }[]) : [];
+    const placed = new Set(nodes.map((n) => n.id));
+    const missing = policy.entities.filter((e) => !placed.has(e.id));
+    if (missing.length === 0) { return { ...(views ?? {}), graph: { ...graph, nodes } }; }
+    const maxY = nodes.reduce((m, n) => Math.max(m, Number(n.y) || 0), 0);
+    const added = missing.map((e, i) => ({ id: e.id, x: 120 + (i % 4) * 220, y: maxY + 160 + Math.floor(i / 4) * 140 }));
+    return { ...(views ?? {}), graph: { ...graph, nodes: [...nodes, ...added] } };
+}
+
+/** A new plugins[] entry, with the hub's defaults (send and receive by default, enabled). */
+export function blankPluginRouting(pluginName = ''): PolicyPluginRouting {
+    return { pluginName, sendTo: [], dontSend: [], receiveFrom: [], dontReceive: [], sendByDefault: true, receiveByDefault: true, disabled: false };
+}
+
+/** Every plugin routing entry needs a name. */
+export function pluginRoutingValid(plugins: PolicyPluginRouting[]): boolean {
+    return plugins.every((p) => !!(p.pluginName ?? '').trim());
+}
+
 export function ownCaGroup(caGroups: CaGroup[]): CaGroup | null {
     return caGroups.find((c) => c.hubGroup) ?? null;
 }
@@ -181,8 +208,68 @@ export function orphanRules(policy: PolicyCore): PolicyRule[] {
  */
 export function ravenNodeIds(policy: PolicyCore, ownCaUid: string | null): Set<string> {
     return new Set(policy.entities
-        .filter((e) => (ownCaUid && e.name === ownCaUid) || e.config?.ravenKind === 'raven_hub')
+        .filter((e) => (ownCaUid && e.name === ownCaUid) || nodeMeta(e).kind === 'raven_hub')
         .map((e) => e.id));
+}
+
+/* ------------------------------------------------- node description metadata */
+
+/**
+ * Raven's bookkeeping for a node lives in its free-text description as JSON,
+ * exactly as the server writes it (fedhub_partners.node_meta/set_node_meta):
+ * {"raven": {"kind", "ca", "expires"}}, with a typed note kept under "note".
+ */
+export function nodeMeta(e: Pick<PolicyEntity, 'description'>): Record<string, unknown> {
+    try {
+        const data = JSON.parse(e.description || '');
+        const meta = data && typeof data === 'object' && !Array.isArray(data) ? data.raven : null;
+        return meta && typeof meta === 'object' && !Array.isArray(meta) ? { ...meta } : {};
+    } catch {
+        return {};
+    }
+}
+
+function descriptionObject(description: string | null | undefined): Record<string, unknown> | null {
+    if (!description) { return null; }
+    try {
+        const data = JSON.parse(description);
+        return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The human part of a description: the note next to Raven's metadata, or the plain text. */
+export function descriptionNote(description: string | null | undefined): string {
+    const data = descriptionObject(description);
+    if (data && 'raven' in data) { return typeof data.note === 'string' ? data.note : ''; }
+    return description ?? '';
+}
+
+/** Sets the human note and keeps Raven's metadata (and any other JSON keys) untouched. */
+export function withDescriptionNote(description: string | null | undefined, note: string): string {
+    const data = descriptionObject(description);
+    if (!data || !('raven' in data)) { return note; }
+    const next: Record<string, unknown> = { ...data };
+    if (note.trim()) { next.note = note; } else { delete next.note; }
+    // Same key order as the server (json.dumps(sort_keys=True)) so a no-op edit changes nothing.
+    return JSON.stringify(Object.fromEntries(Object.keys(next).sort().map((k) => [k, next[k]])));
+}
+
+/** The own-CA node exists AND is enabled (a disabled own node locks the bridge out just the same). */
+export function ownNodeActive(policy: PolicyCore, ownCaUid: string): boolean {
+    return policy.entities.some((e) => e.type === 'FederationGroup' && e.name === ownCaUid && e.config?.enabled !== false);
+}
+
+/**
+ * New group sets on the SAVED rules (for "Apply group sets only"): ids of sets
+ * that no longer exist are stripped from every rule filter, as removeGroupSet does.
+ */
+export function withGroupSets(policy: PolicyCore, groupSets: GroupSet[]): PolicyCore {
+    const kept = new Set(groupSets.map((g) => g.id));
+    const gone = policy.groupSets.map((g) => g.id).filter((id) => !kept.has(id));
+    const stripped = gone.reduce((p, id) => removeGroupSet(p, id), policy);
+    return { ...stripped, groupSets };
 }
 
 /**
@@ -312,15 +399,19 @@ export function validateOutgoing(f: OutgoingForm): Partial<Record<'displayName' 
  * "<displayName>_<uuid>"; keep an existing name so live connections and
  * metrics stay attributed after an edit.
  */
-export function outgoingEntity(f: OutgoingForm): PolicyEntity {
+export function outgoingEntity(f: OutgoingForm, previous?: PolicyEntity | null): PolicyEntity {
     const displayName = f.displayName.trim();
+    const prevConfig = previous?.config ?? {};
     return {
+        // Unknown fields (and the description with Raven's partner metadata) survive the edit.
+        ...(previous ?? {}),
         id: f.id,
         type: 'FederationOutgoing',
         displayName,
         name: f.name || `${displayName}_${f.id}`,
-        description: '',
+        description: previous?.description ?? '',
         config: {
+            ...prevConfig,
             host: f.host.trim(),
             port: f.port,
             tls: f.tls,
@@ -328,7 +419,7 @@ export function outgoingEntity(f: OutgoingForm): PolicyEntity {
             useToken: f.useToken,
             tokenType: f.useToken ? (f.tokenType || 'manual') : 'manual',
             token: f.useToken ? f.token.trim() : null,
-            outgoing_uuid: null,
+            outgoing_uuid: prevConfig.outgoing_uuid ?? null,
         },
     };
 }

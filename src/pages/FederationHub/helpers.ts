@@ -408,6 +408,7 @@ const ERROR_TEXT: Record<string, string> = {
     bad_certificate: 'That certificate is damaged or uses a format the hub can\'t read.',
     busy: 'Another change to the Federation Hub is in progress. Wait a moment and try again.',
     ca_exists: 'A partner with this certificate is already connected. Open it instead of adding it twice.',
+    ca_in_use: 'The active policy still uses this certificate. Remove those nodes from the policy first, or remove it from Advanced, Certificates, which does that for you.',
     ca_not_added: 'The Federation Hub didn\'t keep the certificate. Nothing was changed.',
     ca_not_found: 'That certificate isn\'t trusted by the hub yet. Upload the file instead.',
     hub_error: 'The Federation Hub refused the request.',

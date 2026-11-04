@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { outgoingEntity, validateOutgoing, type OutgoingForm } from '../helpers';
 import type { PolicyEntity } from '../types';
 
-export default function OutgoingModal({ opened, initial, editing, incomingFromSameHost, onClose, onSave }: {
+export default function OutgoingModal({ opened, initial, previous, editing, incomingFromSameHost, onClose, onSave }: {
     opened: boolean;
     initial: OutgoingForm;
+    /** The entity being edited: its description (Raven's partner metadata) and unknown fields are kept. */
+    previous?: PolicyEntity | null;
     editing: boolean;
     /** Live incoming connection already coming from this host (G6: only one side may dial). */
     incomingFromSameHost: (host: string) => boolean;
@@ -25,7 +27,7 @@ export default function OutgoingModal({ opened, initial, editing, incomingFromSa
     function save() {
         setTried(true);
         if (Object.keys(errors).length > 0) { return; }
-        onSave(outgoingEntity(form));
+        onSave(outgoingEntity(form, previous));
     }
 
     return (

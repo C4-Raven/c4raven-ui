@@ -37,8 +37,9 @@ export function errorCode(err: any): string | null {
     return null;
 }
 
-export async function activatePolicy(name: string): Promise<void> {
-    await axios.post(endpoints.activateFederation(name));
+/** Make a stored policy active. The server refuses one without our own CA node unless `forceWithoutOwnCa`. */
+export async function activatePolicy(name: string, forceWithoutOwnCa = false): Promise<void> {
+    await axios.post(endpoints.activateFederation(name), undefined, { params: forceWithoutOwnCa ? { force_without_own_ca: 1 } : undefined });
 }
 
 /** The active policy, or null when the hub has none (it answers 4xx in that case). */
@@ -71,6 +72,7 @@ export async function fetchStoredActive(): Promise<Federation | null> {
  * truststore. Returns how many nodes/rules were taken out of the policy.
  */
 export async function deleteCaSafely(ca: CaGroup): Promise<{ nodes: number; rules: number }> {
+    if (ca.hubGroup) { throw new Error('This is the hub\'s own CA. Removing it would cut off every connection, so Raven doesn\'t allow it.'); }
     const active = await fetchStoredActive();
     let nodes = 0;
     let rules = 0;
@@ -82,8 +84,35 @@ export async function deleteCaSafely(ca: CaGroup): Promise<{ nodes: number; rule
             await savePolicy(active, result.policy, true);
         }
     }
-    await axios.delete(endpoints.caGroup(ca.uid));
+    try {
+        await axios.delete(endpoints.caGroup(ca.uid));
+    } catch (err) {
+        if (nodes > 0 || rules > 0) {
+            // Half done: the policy no longer uses the CA, but the hub still trusts it.
+            throw new CaDeleteHalfDone(nodes, rules, err);
+        }
+        throw err;
+    }
     return { nodes, rules };
+}
+
+/** Thrown when the policy step of deleteCaSafely was applied but the CA delete itself failed. */
+export class CaDeleteHalfDone extends Error {
+    constructor(public nodes: number, public rules: number, public reason: unknown) {
+        super('policy updated, CA not removed');
+    }
+}
+
+/** The override: delete a CA the active policy still uses (?force=1), after a typed confirm. */
+export async function forceDeleteCa(uid: string): Promise<void> {
+    await axios.delete(endpoints.caGroup(uid), { params: { force: 1 } });
+}
+
+/** Node names on a 409 ca_in_use. */
+export function caInUseNodes(err: any): string[] {
+    const data = err?.response?.data;
+    const nodes = data && typeof data === 'object' ? data.nodes : null;
+    return Array.isArray(nodes) ? nodes.map(String) : [];
 }
 
 /** Wait for the hub to answer again after a broker restart. */

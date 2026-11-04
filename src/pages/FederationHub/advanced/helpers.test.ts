@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
     addCaToPolicy,
+    addViewNodes,
+    blankPluginRouting,
+    descriptionNote,
+    nodeMeta,
+    ownNodeActive,
+    pluginRoutingValid,
+    withDescriptionNote,
+    withGroupSets,
     blankFederation,
     buildSaveBody,
     connectionDirection,
@@ -178,11 +186,17 @@ describe('G12 filter warning', () => {
         expect(filterWarnings(samplePolicy(), own.uid).map((r) => r.id)).toEqual(['r3']);
     });
 
-    it('flags rules leaving a node tagged as a Raven hub', () => {
+    it('flags rules leaving a node the server tagged as a Raven hub (description metadata)', () => {
         const p = samplePolicy();
-        p.entities[1].config = { ravenKind: 'raven_hub' };
         p.rules[1].filter.groupsFilterType = 'disallowed';
+        // Untagged: r2 (p -> own) isn't a Raven source, so no warning for it.
+        expect(filterWarnings(p, null).map((r) => r.id)).toEqual([]);
+        // Exactly what fedhub_partners.set_node_meta writes.
+        p.entities[1].description = JSON.stringify({ raven: { kind: 'raven_hub', expires: '2036-01-01T00:00:00Z' } });
         expect(filterWarnings(p, null).map((r) => r.id)).toEqual(['r2']);
+        // Another kind isn't a Raven.
+        p.entities[1].description = JSON.stringify({ raven: { kind: 'tak_server' } });
+        expect(filterWarnings(p, null).map((r) => r.id)).toEqual([]);
     });
 
     it('ignores filtered rules from non-Raven sources', () => {
@@ -298,5 +312,86 @@ describe('pollUntil', () => {
     it('stops when cancelled', async () => {
         const ok = await pollUntil(async () => false, { sleep: noSleep, isCancelled: () => true });
         expect(ok).toBe(false);
+    });
+});
+
+describe('description metadata (server format, round-trip)', () => {
+    const meta = JSON.stringify({ raven: { ca: 'CN=x-1', kind: 'raven_hub' } });
+
+    it('reads Raven metadata and the note', () => {
+        expect(nodeMeta({ description: meta })).toEqual({ ca: 'CN=x-1', kind: 'raven_hub' });
+        expect(nodeMeta({ description: 'typed text' })).toEqual({});
+        expect(nodeMeta({ description: '' })).toEqual({});
+        expect(descriptionNote(meta)).toBe('');
+        expect(descriptionNote(JSON.stringify({ note: 'hi', raven: {} }))).toBe('hi');
+        expect(descriptionNote('plain')).toBe('plain');
+    });
+
+    it('editing the note keeps the metadata, sorted like the server writes it', () => {
+        const next = withDescriptionNote(meta, 'Ops link');
+        expect(JSON.parse(next)).toEqual({ note: 'Ops link', raven: { ca: 'CN=x-1', kind: 'raven_hub' } });
+        expect(Object.keys(JSON.parse(next))).toEqual(['note', 'raven']);
+        expect(nodeMeta({ description: withDescriptionNote(next, '') })).toEqual({ ca: 'CN=x-1', kind: 'raven_hub' });
+        expect(JSON.parse(withDescriptionNote(next, ''))).not.toHaveProperty('note');
+        expect(withDescriptionNote('old text', 'new text')).toBe('new text');
+    });
+
+    it('outgoingEntity keeps the description, unknown fields and unknown config keys', () => {
+        const previous = {
+            id: 'out', type: 'FederationOutgoing', name: 'Partner_x', displayName: 'Partner', description: meta,
+            extra: 42, config: { host: '10.0.0.5', port: 9102, enabled: true, outgoing_uuid: 'u-1', futureKey: 'keep' },
+        };
+        const form = { ...outgoingFormFromEntity(previous), host: '10.0.0.6' };
+        const e = outgoingEntity(form, previous);
+        expect(e.description).toBe(meta);
+        expect((e as unknown as { extra: number }).extra).toBe(42);
+        expect(e.config).toMatchObject({ host: '10.0.0.6', futureKey: 'keep', outgoing_uuid: 'u-1' });
+        expect(e.name).toBe('Partner_x');
+        expect(outgoingEntity(blankOutgoing(ids())).description).toBe('');
+    });
+});
+
+describe('own node guard', () => {
+    it('treats a disabled own node as missing', () => {
+        const p = samplePolicy();
+        expect(ownNodeActive(p, own.uid)).toBe(true);
+        p.entities[0].config = { enabled: false };
+        expect(ownNodeActive(p, own.uid)).toBe(false);
+        expect(ownNodeActive({ ...p, entities: p.entities.slice(1) }, own.uid)).toBe(false);
+    });
+});
+
+describe('withGroupSets', () => {
+    it('strips deleted sets from the saved rules', () => {
+        const p = samplePolicy(); // r3 allows gs1 + Blue
+        const next = withGroupSets(p, []);
+        expect(next.groupSets).toEqual([]);
+        expect(next.rules.find((r) => r.id === 'r3')!.filter.allowedGroups).toEqual(['Blue']);
+        const kept = withGroupSets(p, [{ id: 'gs1', name: 'Renamed', groups: ['A', 'B'] }]);
+        expect(kept.rules.find((r) => r.id === 'r3')!.filter.allowedGroups).toEqual(['gs1', 'Blue']);
+        expect(kept.groupSets[0].name).toBe('Renamed');
+    });
+});
+
+describe('addViewNodes', () => {
+    it('places nodes that have no position, keeping existing ones', () => {
+        const p = samplePolicy();
+        const views = { graph: { nodes: [{ id: 'own', x: 10, y: 20 }], settings: { zoom: 1 } } };
+        const out = addViewNodes(views, p);
+        const nodes = out.graph!.nodes as { id: string; x: number; y: number }[];
+        expect(nodes.map((n) => n.id)).toEqual(['own', 'p', 'out']);
+        expect(nodes[0]).toEqual({ id: 'own', x: 10, y: 20 });
+        expect(nodes[1].y).toBeGreaterThan(20);
+        expect(out.graph!.settings).toEqual({ zoom: 1 });
+        expect(addViewNodes(out, p).graph!.nodes).toEqual(nodes);
+        expect((addViewNodes(undefined, p).graph!.nodes as unknown[]).length).toBe(3);
+    });
+});
+
+describe('plugin routing', () => {
+    it('new entries use the hub defaults and need a name', () => {
+        expect(blankPluginRouting('p')).toMatchObject({ pluginName: 'p', sendByDefault: true, receiveByDefault: true, disabled: false, sendTo: [] });
+        expect(pluginRoutingValid([blankPluginRouting('p')])).toBe(true);
+        expect(pluginRoutingValid([blankPluginRouting('')])).toBe(false);
     });
 });

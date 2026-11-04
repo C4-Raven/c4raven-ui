@@ -19,8 +19,9 @@ import { useTranslation } from 'react-i18next';
 import axios from '../../../axios_config';
 import { downloadFile, EmptyState } from '../../ServerRequests/shared';
 import { endpoints } from './endpoints';
-import { deleteCaSafely, fetchStoredActive, savePolicy } from './api';
-import { addCaToPolicy, formatFingerprint, normalizePolicy, ownCaGroup, policyHasCa, removeEntitiesForCa, shortFingerprint } from './helpers';
+import { notifications } from '@mantine/notifications';
+import { CaDeleteHalfDone, caInUseNodes, deleteCaSafely, errorCode, errorText, fetchStoredActive, forceDeleteCa, savePolicy } from './api';
+import { addCaToPolicy, addViewNodes, formatFingerprint, normalizePolicy, ownCaGroup, policyHasCa, removeEntitiesForCa, shortFingerprint } from './helpers';
 import { ConfirmModal, CopyValue, notifyFail, notifyOk, useHubData } from './shared';
 import type { CaGroup, Federation } from './types';
 
@@ -40,6 +41,9 @@ export default function CertificatesTab() {
     const [adding, setAdding] = useState(false);
 
     const [toDelete, setToDelete] = useState<CaGroup | null>(null);
+    /** 409 ca_in_use: the nodes that still use it, for the safe path or a typed override. */
+    const [inUse, setInUse] = useState<{ ca: CaGroup; nodes: string[] } | null>(null);
+    const [forceOpen, setForceOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     const loadActive = useCallback(() => {
@@ -92,7 +96,7 @@ export default function CertificatesTab() {
                     policyNote = t('There is no active policy to add it to.');
                 } else {
                     const next = addCaToPolicy(normalizePolicy(current.policy), added, ownCaGroup(r.data ?? []));
-                    await savePolicy(current, next, true);
+                    await savePolicy({ ...current, views: addViewNodes(current.views, next) }, next, true);
                     policyNote = t('Added to "{{name}}" with All-groups rules both ways, and applied.', { name: current.name, interpolation: { escapeValue: false } });
                 }
             } catch (err) {
@@ -132,6 +136,47 @@ export default function CertificatesTab() {
                 ? t('Also removed {{nodes}} policy node(s) and {{rules}} rule(s) from the active policy.', { nodes, rules })
                 : '');
             setToDelete(null);
+            setInUse(null);
+            reload();
+            loadActive();
+        } catch (err) {
+            if (err instanceof CaDeleteHalfDone) {
+                notifications.show({
+                    color: 'orange',
+                    autoClose: false,
+                    title: t('Only half done: the CA is still trusted'),
+                    message: t('{{nodes}} node(s) and {{rules}} rule(s) were removed from the active policy and it was applied, but the CA itself couldn\'t be removed: {{error}}. Try removing it again.', {
+                        nodes: err.nodes, rules: err.rules, error: await errorText(err.reason), interpolation: { escapeValue: false },
+                    }),
+                });
+                setToDelete(null);
+                reload();
+                loadActive();
+            } else if (errorCode(err) === 'ca_in_use') {
+                setInUse({ ca: toDelete, nodes: caInUseNodes(err) });
+                setToDelete(null);
+            } else {
+                notifyFail(t('Failed to remove CA'), err);
+            }
+        } finally {
+            setDeleting(false);
+        }
+    }
+
+    async function retrySafe() {
+        if (!inUse) { return; }
+        setToDelete(inUse.ca);
+        setInUse(null);
+    }
+
+    async function forceDelete() {
+        if (!inUse) { return; }
+        setDeleting(true);
+        try {
+            await forceDeleteCa(inUse.ca.uid);
+            notifyOk(t('CA removed'), t('The policy nodes that used it were left in place and now point at an untrusted CA.'));
+            setInUse(null);
+            setForceOpen(false);
             reload();
             loadActive();
         } catch (err) {
@@ -226,8 +271,8 @@ export default function CertificatesTab() {
                                             </Group>
                                         </Table.Td>
                                         <Table.Td>
-                                            <Tooltip label={t('Remove')}>
-                                                <ActionIcon color="red" variant="subtle" onClick={() => setToDelete(ca)} aria-label={t('Remove')}>
+                                            <Tooltip label={ca.hubGroup ? t('This is the hub\'s own CA. Removing it would cut off every connection, including this Raven\'s bridge, so it can\'t be removed here.') : t('Remove')} multiline maw={280}>
+                                                <ActionIcon color="red" variant="subtle" disabled={ca.hubGroup} onClick={() => setToDelete(ca)} aria-label={t('Remove')}>
                                                     <IconTrash size={16} />
                                                 </ActionIcon>
                                             </Tooltip>
@@ -279,7 +324,6 @@ export default function CertificatesTab() {
                 loading={deleting}
                 title={t('Remove this CA?')}
                 confirmLabel={t('Remove CA')}
-                requireText={toDelete?.hubGroup ? (toDelete.nickname || 'REMOVE') : undefined}
             >
                 <Text size="sm">
                     {t('Servers whose certificates come from "{{name}}" lose federation access.', { name: toDelete?.nickname || shortFingerprint(toDelete?.alias), interpolation: { escapeValue: false } })}
@@ -297,11 +341,34 @@ export default function CertificatesTab() {
                 <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
                     {t('Removing a CA restarts the hub\'s federation listener, so EVERY connection drops for a few seconds and reconnects.')}
                 </Alert>
-                {toDelete?.hubGroup && (
-                    <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>
-                        {t('This is the hub\'s OWN CA. This Raven\'s bridge and every partner using our certificates will be refused.')}
-                    </Alert>
-                )}
+            </ConfirmModal>
+
+            <ConfirmModal
+                opened={inUse !== null && !forceOpen}
+                onClose={() => setInUse(null)}
+                onConfirm={retrySafe}
+                title={t('This CA is still in use')}
+                confirmLabel={t('Remove them from the policy first')}
+                color="blue"
+            >
+                <Text size="sm">{t('The active policy still uses "{{name}}" in these nodes:', { name: inUse?.ca.nickname || shortFingerprint(inUse?.ca.alias), interpolation: { escapeValue: false } })}</Text>
+                <Stack gap={2}>
+                    {(inUse?.nodes.length ? inUse.nodes : [t('(the hub didn\'t say which)')]).map((n) => <Text key={n} size="sm" ff="monospace">{n}</Text>)}
+                </Stack>
+                <Text size="sm">{t('The safe way removes those nodes and their rules from the active policy, applies it, and then removes the CA.')}</Text>
+                <Button variant="subtle" color="red" size="xs" radius="xl" onClick={() => setForceOpen(true)}>{t('Remove the CA anyway…')}</Button>
+            </ConfirmModal>
+
+            <ConfirmModal
+                opened={forceOpen}
+                onClose={() => setForceOpen(false)}
+                onConfirm={forceDelete}
+                loading={deleting}
+                title={t('Remove a CA the policy still uses?')}
+                confirmLabel={t('Remove anyway')}
+                requireText="REMOVE"
+            >
+                <Text size="sm" c="red">{t('The nodes above stay in the active policy pointing at a CA the hub no longer trusts, so those servers are refused. Every connection also drops for a few seconds while the hub restarts its listener.')}</Text>
             </ConfirmModal>
         </Stack>
     );

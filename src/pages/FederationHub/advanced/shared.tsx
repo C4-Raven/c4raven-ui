@@ -50,7 +50,10 @@ export function HubDataProvider({ children, active }: { children: React.ReactNod
     const [federations, setFederations] = useState<Federation[]>([]);
     const [activeName, setActiveName] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Kept apart so the 10 s poll only clears its own error, never a failed full load's.
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [pollError, setPollError] = useState<string | null>(null);
+    const error = loadError && pollError && loadError !== pollError ? `${loadError} · ${pollError}` : (loadError ?? pollError);
     const mounted = useRef(true);
 
     useEffect(() => () => { mounted.current = false; }, []);
@@ -76,9 +79,10 @@ export function HubDataProvider({ children, active }: { children: React.ReactNod
         const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
         if (failures.length > 0) {
             const msgs = await Promise.all(failures.map((f) => errorText(f.reason)));
-            setError(Array.from(new Set(msgs)).join(' · '));
+            setLoadError(Array.from(new Set(msgs)).join(' · '));
         } else {
-            setError(null);
+            setLoadError(null);
+            setPollError(null);
         }
         setLoading(false);
     }, []);
@@ -95,9 +99,9 @@ export function HubDataProvider({ children, active }: { children: React.ReactNod
                 if (!mounted.current) { return; }
                 setConnections(Array.isArray(c.data) ? c.data : []);
                 setMetrics(m.data ?? null);
-                setError(null);
+                setPollError(null);
             }).catch(async (err) => {
-                if (mounted.current) { setError(await errorText(err)); }
+                if (mounted.current) { setPollError(await errorText(err)); }
             });
         }, 10000);
         return () => clearInterval(timer);

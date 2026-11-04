@@ -79,10 +79,9 @@ export default function RulesSection({ policy, onChange, caGroups, ownCaUid }: {
         return () => { cancelled = true; };
     }, [sourceId]);
 
-    const groupSuggestions = useMemo(() => Array.from(new Set([
-        ...knownGroups,
-        ...caGroups.map((c) => c.nickname || c.alias).filter(Boolean),
-    ])), [knownGroups, caGroups]);
+    // Plain groups: only those the hub has seen from the source node (group sets have their own
+    // picker). CA nicknames aren't federation groups, so they aren't suggested.
+    const groupSuggestions = useMemo(() => Array.from(new Set(knownGroups)), [knownGroups]);
 
     function openAdd() {
         const first = policy.entities[0]?.id ?? '';

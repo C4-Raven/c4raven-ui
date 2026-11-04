@@ -23,14 +23,17 @@ import {
     addCaToPolicy,
     blankOutgoing,
     connectionDirection,
+    descriptionNote,
     entityLabel,
     entityLiveState,
     makeTokenGroupEntity,
+    nodeMeta as nodeMetaOf,
     outgoingFormFromEntity,
     removeEntities,
     shortFingerprint,
     tokenEntries,
     upsertEntity,
+    withDescriptionNote,
     type LiveState,
     type OutgoingForm,
 } from '../helpers';
@@ -71,6 +74,7 @@ export default function NodesSection({ policy, onChange, caGroups, connections, 
     const [outgoingOpen, setOutgoingOpen] = useState(false);
     const [outgoingForm, setOutgoingForm] = useState<OutgoingForm>(() => blankOutgoing());
     const [editingOutgoing, setEditingOutgoing] = useState(false);
+    const [outgoingPrev, setOutgoingPrev] = useState<PolicyEntity | null>(null);
 
     const [caPickOpen, setCaPickOpen] = useState(false);
     const [caPick, setCaPick] = useState<string | null>(null);
@@ -119,6 +123,7 @@ export default function NodesSection({ policy, onChange, caGroups, connections, 
     function openEdit(e: PolicyEntity) {
         if (e.type === 'FederationOutgoing') {
             setOutgoingForm(outgoingFormFromEntity(e));
+            setOutgoingPrev(e);
             setEditingOutgoing(true);
             setOutgoingOpen(true);
         } else {
@@ -158,7 +163,7 @@ export default function NodesSection({ policy, onChange, caGroups, connections, 
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Item leftSection={<IconCertificate size={16} />} onClick={() => setCaPickOpen(true)}>{t('CA group (a trusted CA)')}</Menu.Item>
-                        <Menu.Item leftSection={<IconArrowsExchange size={16} />} onClick={() => { setOutgoingForm(blankOutgoing()); setEditingOutgoing(false); setOutgoingOpen(true); }}>{t('Outgoing connection')}</Menu.Item>
+                        <Menu.Item leftSection={<IconArrowsExchange size={16} />} onClick={() => { setOutgoingForm(blankOutgoing()); setOutgoingPrev(null); setEditingOutgoing(false); setOutgoingOpen(true); }}>{t('Outgoing connection')}</Menu.Item>
                         <Menu.Item leftSection={<IconKey size={16} />} onClick={() => { setTokenName(''); setTokenOpen(true); }}>{t('Token group')}</Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -206,6 +211,7 @@ export default function NodesSection({ policy, onChange, caGroups, connections, 
             <OutgoingModal
                 opened={outgoingOpen}
                 initial={outgoingForm}
+                previous={outgoingPrev}
                 editing={editingOutgoing}
                 incomingFromSameHost={incomingFromHost}
                 onClose={() => setOutgoingOpen(false)}
@@ -277,6 +283,7 @@ function NodeEditModal({ node, onClose, onSave }: { node: PolicyEntity | null; o
     const c = draft.config ?? {};
     const setConfig = (patch: Record<string, unknown>) => setDraft({ ...draft, config: { ...c, ...patch } });
     const isCa = draft.type === 'FederationGroup';
+    const isToken = draft.type === 'FederationTokenGroup';
     return (
         <Modal opened={node !== null} onClose={onClose} title={<Text fw={700}>{isCa ? t('Edit CA group node') : t('Edit node')}</Text>} centered>
             <Stack gap="sm">
@@ -286,7 +293,12 @@ function NodeEditModal({ node, onClose, onSave }: { node: PolicyEntity | null; o
                 ) : (
                     <TextInput label={t('Name')} value={draft.name ?? ''} onChange={(e) => setDraft({ ...draft, name: e.currentTarget.value })} />
                 )}
-                <TextInput label={t('Description')} value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.currentTarget.value })} />
+                <TextInput
+                    label={t('Description')}
+                    description={Object.keys(nodeMetaOf(draft)).length ? t('Raven\'s own notes for this partner are kept alongside.') : undefined}
+                    value={descriptionNote(draft.description)}
+                    onChange={(e) => setDraft({ ...draft, description: withDescriptionNote(draft.description, e.currentTarget.value) })}
+                />
                 <Switch label={t('Enabled')} checked={c.enabled !== false} onChange={(e) => setConfig({ enabled: e.currentTarget.checked })} />
                 {isCa && (
                     <>
@@ -312,6 +324,16 @@ function NodeEditModal({ node, onClose, onSave }: { node: PolicyEntity | null; o
                             />
                         )}
                     </>
+                )}
+                {isToken && (
+                    <NumberInput
+                        label={t('Token expiration (ms since 1970)')}
+                        description={t('When tokens of this group stop working. -1 = never expires.')}
+                        value={typeof c.expiration === 'number' ? c.expiration : -1}
+                        onChange={(v) => setConfig({ expiration: v === '' ? -1 : Number(v) })}
+                        min={-1}
+                        allowDecimal={false}
+                    />
                 )}
             </Stack>
             <Group justify="flex-end" mt="lg" gap="sm">

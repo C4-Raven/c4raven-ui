@@ -39,9 +39,23 @@ export default function TokensTab() {
     const policy = active ? normalizePolicy(active.policy) : null;
     const groups = policy ? policy.entities.filter((e) => e.type === 'FederationTokenGroup') : [];
 
+    /**
+     * The active policy as the hub has it NOW. Aborts if it changed since this
+     * tab loaded it (another admin, the partner page or the policy editor), so a
+     * stale copy is never applied over newer changes.
+     */
+    async function currentActive() {
+        const fresh = await fetchStoredActive();
+        if (!active || !fresh || fresh.name !== active.name || (fresh.modifiedDate ?? '') !== (active.modifiedDate ?? '')) {
+            load();
+            throw new Error(t('The active policy changed on the hub since this tab loaded it. Nothing was saved; the tab has been reloaded, try again.'));
+        }
+        return fresh;
+    }
+
     async function persist(node: PolicyEntity) {
-        if (!active || !policy) { return; }
-        await savePolicy(active, upsertEntity(policy, node), true);
+        const fresh = await currentActive();
+        await savePolicy(fresh, upsertEntity(normalizePolicy(fresh.policy), node), true);
     }
 
     async function generate() {
@@ -49,6 +63,7 @@ export default function TokensTab() {
         setBusy(true);
         try {
             const expiration = never || !expires ? -1 : new Date(expires.replace(' ', 'T')).getTime();
+            await currentActive(); // before the hub issues a token we couldn't record
             const tok = await generateToken({
                 clientFingerprint: tokenFingerprint(label || entityLabel(genFor), Date.now()),
                 clientGroup: genFor.name ?? '',
