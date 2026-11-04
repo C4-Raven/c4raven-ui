@@ -2,7 +2,7 @@
   {
     "code": "ca_trusted",
     "detail": "This connection isn't linked to a trusted CA, so Raven can't tell",
-    "fix": "Make sure the other server's CA is added under Advanced > CA certificates",
+    "fix": "Make sure the partner's CA is added under Advanced > Certificates",
     "level": "warning",
     "ok": false,
     "title": "Their CA certificate is trusted"

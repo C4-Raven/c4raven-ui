@@ -1,6 +1,6 @@
 {
   "code": "no_active_policy",
-  "error": "Federation Hub has no active policy. Activate one of the stored policies (Tak) under Advanced first",
+  "error": "Federation Hub has no active policy, and Repair can't create one while stored policies exist. Activate one of them (Tak) under Advanced > Policy editor, or with its Activate button",
   "stored_policies": [
     "Tak"
   ],

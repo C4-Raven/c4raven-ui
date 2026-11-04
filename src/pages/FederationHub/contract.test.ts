@@ -18,8 +18,10 @@ import createTheyDial from './__fixtures__/create_they_dial.json';
 import createWeDial from './__fixtures__/create_we_dial.json';
 import deleted from './__fixtures__/delete.json';
 import deletedWarning from './__fixtures__/delete_warning.json';
+import errorActivateOwnCaMissing from './__fixtures__/error_activate_own_ca_missing.json';
 import errorAddressNotAllowed from './__fixtures__/error_address_not_allowed.json';
 import errorBusy from './__fixtures__/error_busy.json';
+import errorCaInUse from './__fixtures__/error_ca_in_use.json';
 import errorCaExists from './__fixtures__/error_ca_exists.json';
 import errorInvalidCa from './__fixtures__/error_invalid_ca.json';
 import errorNoActivePolicy from './__fixtures__/error_no_active_policy.json';
@@ -29,7 +31,9 @@ import errorOwnCaMissingFromPolicy from './__fixtures__/error_own_ca_missing_fro
 import errorRollbackFailed from './__fixtures__/error_rollback_failed.json';
 import errorTheyAlreadyDial from './__fixtures__/error_they_already_dial.json';
 import handoff from './__fixtures__/handoff.json';
+import handoffPartner from './__fixtures__/handoff_partner.json';
 import handoffTak from './__fixtures__/handoff_tak_server.json';
+import handoffWeDial from './__fixtures__/handoff_we_dial.json';
 import knownGroups from './__fixtures__/known_groups.json';
 import overviewBothDial from './__fixtures__/overview_both_dial.json';
 import overviewHubDown from './__fixtures__/overview_hub_down.json';
@@ -42,7 +46,7 @@ import repairChanged from './__fixtures__/repair_changed.json';
 import repairNoActivePolicy from './__fixtures__/repair_no_active_policy.json';
 import repairUnchanged from './__fixtures__/repair_unchanged.json';
 import serverCodes from './__fixtures__/server_codes.json';
-import { errorCode } from './advanced/api';
+import { caInUseNodes, errorCode } from './advanced/api';
 import {
     caWarnings,
     CHECK_ORDER,
@@ -389,5 +393,31 @@ describe('contract: no unmapped codes (scanned from the server source)', () => {
         for (const code of ['partially_applied', 'rollback_failed']) {
             expect(partnerErrorView({ success: false, code, error: '' }, [], t).halfChanged, code).toBe(true);
         }
+    });
+});
+
+describe('contract: advanced section errors and the specific hand-off', () => {
+    it('activating a stored policy without our CA is recognised for "Add it back"', () => {
+        expect(errorCode({ response: { status: 400, data: errorActivateOwnCaMissing } })).toBe('own_ca_missing_from_policy');
+    });
+
+    it('ca_in_use lists the nodes that still use the CA', () => {
+        const err = { response: { status: 409, data: errorCaInUse } };
+        expect(errorCode(err)).toBe('ca_in_use');
+        expect(caInUseNodes(err)).toEqual((errorCaInUse as { nodes: string[] }).nodes);
+        expect(caInUseNodes(err).length).toBeGreaterThan(0);
+        expect(isKnownError('ca_in_use')).toBe(true);
+    });
+
+    it('the neutral hand-off says to agree on ONE side; a specific one tells them what to pick', () => {
+        expect(handoffSteps(handoff as Handoff, 'raven_hub').join(' ')).toMatch(/ONE side/);
+        // We dial, so they must choose "They connect to us".
+        expect(handoffSteps(handoffWeDial as Handoff, 'raven_hub').join(' ')).toContain('"They connect to us"');
+        expect(handoffSteps(handoffWeDial as Handoff, 'raven_hub').join(' ')).not.toMatch(/ONE side/);
+        expect(Object.values((handoffPartner as Handoff).steps).flat().length).toBeGreaterThan(1);
+        expect((handoffWeDial as Handoff).direction).toBe('we_dial');
+        // VPN Server is an outgoing partner: we dial it.
+        expect((handoffPartner as Handoff).direction).toBe('we_dial');
+        expect((handoff as Handoff).direction ?? null).toBeNull();
     });
 });

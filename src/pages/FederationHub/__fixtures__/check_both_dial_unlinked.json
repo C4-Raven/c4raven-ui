@@ -2,7 +2,7 @@
   {
     "code": "ca_trusted",
     "detail": "This connection isn't linked to a trusted CA, so Raven can't tell",
-    "fix": "Make sure the other server's CA is added under Advanced > CA certificates",
+    "fix": "Make sure the partner's CA is added under Advanced > Certificates",
     "level": "warning",
     "ok": false,
     "title": "Their CA certificate is trusted"
@@ -37,7 +37,7 @@
   },
   {
     "code": "dial_direction",
-    "detail": "This hub dials out to another hub while a hub this partner trusts also dials in; if they're the same server the hub drops one of the two connections over and over",
+    "detail": "This hub dials out to another hub while a hub this partner trusts also dials in; if they're the same partner the hub drops one of the two connections over and over",
     "fix": "Keep only one direction: remove the outgoing connection here, or ask the other admin to remove theirs",
     "level": "error",
     "ok": false,

@@ -1,6 +1,6 @@
 {
   "code": "ca_exists",
   "error": "A server with this CA is already connected",
-  "existing_partner_id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+  "existing_partner_id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662",
   "success": false
 }

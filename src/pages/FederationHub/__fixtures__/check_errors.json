@@ -1,7 +1,7 @@
 [
   {
     "code": "ca_trusted",
-    "detail": "Fingerprint 13:BE:E3:68:16:F3:05:D5:4B:23:F7:EC:51:D7:90:89:68:8C:91:A2:9E:0B:B3:F5:44:46:3E:EC:5E:20:5E:B3",
+    "detail": "Fingerprint 8D:1F:D7:91:56:33:95:39:B1:3B:0C:AD:82:A6:08:91:A6:3C:9A:60:01:BE:99:DE:B7:1C:0C:FF:D0:AD:AD:BC",
     "level": "ok",
     "ok": true,
     "title": "Their CA certificate is trusted"

@@ -1,14 +1,14 @@
 {
   "already_trusted": true,
   "days_left": 3649,
-  "existing_partner_id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
-  "fingerprint": "EC:4A:6F:C4:F7:C7:6F:EE:77:14:AE:6C:96:9A:0E:37:3C:45:1F:C0:44:DC:46:80:E4:79:DF:04:9D:B6:96:31",
+  "existing_partner_id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662",
+  "fingerprint": "83:FB:2D:07:AF:76:5A:82:35:F9:63:77:9B:91:8F:3E:72:16:86:33:67:CA:94:0A:DF:AA:44:C3:C1:B9:96:62",
   "is_ca": true,
   "is_own": false,
   "issuer": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
   "nickname": "Pub Server",
-  "not_after": "2036-11-01T08:35:18Z",
-  "sha256": "ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+  "not_after": "2036-11-01T08:57:08Z",
+  "sha256": "83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662",
   "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
-  "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631"
+  "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662"
 }

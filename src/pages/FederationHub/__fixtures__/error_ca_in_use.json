@@ -1,0 +1,8 @@
+{
+  "code": "ca_in_use",
+  "error": "The active policy still uses this CA (VPN). Remove those partners or nodes first",
+  "nodes": [
+    "VPN"
+  ],
+  "success": false
+}

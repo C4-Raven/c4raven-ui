@@ -13,23 +13,23 @@
   "own": {
     "connected": false,
     "nickname": "Pubserver",
-    "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+    "sha256": "57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e",
     "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
-    "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8"
+    "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e"
   },
   "partners": [
     {
       "ca": {
         "expires": null,
         "nickname": "Pub Server",
-        "sha256": "ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+        "sha256": "83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662",
         "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
-        "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631"
+        "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662"
       },
       "connections": [],
       "direction": "they_dial",
       "enabled": true,
-      "id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+      "id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-83fb2d07af765a8235f963779b918f3e7216863367ca940adfaa44c3c1b99662",
       "interconnected": true,
       "kind": "other",
       "name": "Pub Server",
@@ -55,18 +55,18 @@
     },
     {
       "ca": {
-        "expires": "2036-11-01T08:35:18Z",
+        "expires": "2036-11-01T08:57:08Z",
         "nickname": "TAK X",
-        "sha256": "13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3",
+        "sha256": "8d1fd79156339539b13b0cad82a60891a63c9a6001be99deb71c0cffd0adadbc",
         "subject": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US",
-        "uid": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3"
+        "uid": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-8d1fd79156339539b13b0cad82a60891a63c9a6001be99deb71c0cffd0adadbc"
       },
       "connections": [
         {
           "connectionId": "Pub server_eb4007c1-e417-4755-8aba-b0d19021f421-c0dc4de9-622713fa-MwccocTf",
           "federationProtocolVersion": 2,
           "groupIdentities": [
-            "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3"
+            "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-8d1fd79156339539b13b0cad82a60891a63c9a6001be99deb71c0cffd0adadbc"
           ],
           "localConnectionType": "FEDERATION_HUB_SERVER",
           "remoteAddress": "198.51.100.139:48026",
@@ -76,14 +76,14 @@
       ],
       "direction": "we_dial",
       "enabled": true,
-      "id": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3",
+      "id": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-8d1fd79156339539b13b0cad82a60891a63c9a6001be99deb71c0cffd0adadbc",
       "interconnected": false,
       "kind": "tak_server",
       "name": "TAK X",
       "outgoing": {
         "enabled": true,
         "host": "tak.partner.example",
-        "name": "TAK X_a9d0e9d6-c004-4d47-a388-aaf4720b40c8",
+        "name": "TAK X_a952a435-8b83-409e-bcc2-d3544ec727e8",
         "port": 9001
       },
       "problems": [

@@ -1,22 +1,22 @@
 {
   "ca": {
-    "expires": "2036-11-01T08:35:18Z",
+    "expires": "2036-11-01T08:57:08Z",
     "nickname": "Raven North",
-    "sha256": "e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03",
+    "sha256": "135cea32dce3697b904ff93a06c7669af7bedbaabe26f4d1c9ddf3a81ebe38a8",
     "subject": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
-    "uid": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03"
+    "uid": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-135cea32dce3697b904ff93a06c7669af7bedbaabe26f4d1c9ddf3a81ebe38a8"
   },
   "connections": [],
   "direction": "we_dial",
   "enabled": true,
-  "id": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03",
+  "id": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-135cea32dce3697b904ff93a06c7669af7bedbaabe26f4d1c9ddf3a81ebe38a8",
   "interconnected": false,
   "kind": "raven_hub",
   "name": "Raven North",
   "outgoing": {
     "enabled": true,
     "host": "north.example.org",
-    "name": "Raven North_ae6384c0-b75f-4bcb-aef8-c08a4800c750",
+    "name": "Raven North_0541a921-3fe2-4c9f-9994-f823bc231b7d",
     "port": 9102
   },
   "problems": [],

@@ -13,9 +13,9 @@
   "own": {
     "connected": false,
     "nickname": "Pubserver",
-    "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+    "sha256": "57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e",
     "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
-    "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8"
+    "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e"
   },
   "partners": [],
   "problems": [

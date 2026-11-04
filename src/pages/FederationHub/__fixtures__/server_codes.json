@@ -17,6 +17,7 @@
     "bad_certificate",
     "busy",
     "ca_exists",
+    "ca_in_use",
     "ca_not_added",
     "ca_not_found",
     "hub_error",

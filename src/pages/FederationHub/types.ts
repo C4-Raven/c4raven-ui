@@ -159,6 +159,8 @@ export interface Handoff {
     not_after: string | null;
     host: string | null;
     port: number;
+    /** OUR direction the steps were written for (from `direction` or the partner); null = neutral. */
+    direction?: Direction | null;
     /** Only the requested kind with `?kind=`, else all three. */
     steps: Partial<Record<PartnerKind, string[]>>;
 }

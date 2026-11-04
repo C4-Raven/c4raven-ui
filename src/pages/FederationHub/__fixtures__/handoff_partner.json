@@ -1,0 +1,18 @@
+{
+  "ca_pem": "-----BEGIN CERTIFICATE-----\nMIIBsjCCAVmgAwIBAgIUPlARYRpZg114kWMUMRLmOS+9S18wCgYIKoZIzj0EAwIw\nTzELMAkGA1UEBhMCVVMxCzAJBgNVBAoMAlpaMRcwFQYDVQQLDA5DNFJhdmVuLUZl\nZEh1YjEaMBgGA1UEAwwRQzRSYXZlbi1GZWRIdWItQ0EwHhcNMjYxMTAzMDg1NzA4\nWhcNMzYxMTAxMDg1NzA4WjBPMQswCQYDVQQGEwJVUzELMAkGA1UECgwCWloxFzAV\nBgNVBAsMDkM0UmF2ZW4tRmVkSHViMRowGAYDVQQDDBFDNFJhdmVuLUZlZEh1Yi1D\nQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOuXgnigQlKSOLvrsmkxXFALWG+I\nU+CdA356elpWjICSYcz0ICqvjkG8cQN81CnbfKja2tbeRFVYesDddQxgnOyjEzAR\nMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgIe7JY9fJgRGQtBRD\nvX57Qq4BsZvaPbubmQYBH0maxa8CIGtfdOKGH94nDVG/Qi3p8l/f/2z72NSdQUm3\nRyIfUFHR\n-----END CERTIFICATE-----\n",
+  "direction": "we_dial",
+  "fingerprint": "57:CD:78:A6:85:B5:65:7F:C2:DD:53:F6:B5:1D:8B:03:C6:EE:EB:03:A8:86:EE:05:F2:7A:B3:89:F4:98:4E:3E",
+  "host": "tak.example.net",
+  "nickname": "Pubserver",
+  "not_after": "2036-11-01T08:57:08Z",
+  "port": 9102,
+  "sha256": "57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e",
+  "steps": {
+    "other": [
+      "Trust our CA (attached) in your federation trust store. Fingerprint: 57:CD:78:A6:85:B5:65:7F:C2:DD:53:F6:B5:1D:8B:03:C6:EE:EB:03:A8:86:EE:05:F2:7A:B3:89:F4:98:4E:3E.",
+      "Send us the CA that issued the certificate your server presents.",
+      "Don't connect to us: we connect to you. Make sure your federation port is reachable from us."
+    ]
+  },
+  "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US"
+}

@@ -1,17 +1,20 @@
 {
-  "ca_pem": "-----BEGIN CERTIFICATE-----\nMIIBsjCCAVmgAwIBAgIUSf5w2RerRgF57zrZ3sBq0bLoXRowCgYIKoZIzj0EAwIw\nTzELMAkGA1UEBhMCVVMxCzAJBgNVBAoMAlpaMRcwFQYDVQQLDA5DNFJhdmVuLUZl\nZEh1YjEaMBgGA1UEAwwRQzRSYXZlbi1GZWRIdWItQ0EwHhcNMjYxMTAzMDgzNTE4\nWhcNMzYxMTAxMDgzNTE4WjBPMQswCQYDVQQGEwJVUzELMAkGA1UECgwCWloxFzAV\nBgNVBAsMDkM0UmF2ZW4tRmVkSHViMRowGAYDVQQDDBFDNFJhdmVuLUZlZEh1Yi1D\nQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABEyYnmJX6fztWQfvTBroskFao6LN\n+NQLGbj4n9zFBFuNHeORlqfflA730gwIuzz/KbMk3VvYHKrHwAIdCpC/1NqjEzAR\nMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgRgPvv3nQNe39ifg/\ncZ3U8smKlNbeFVl591gAaA3f/I0CIDWQz5znRq4BplxfBc3/CjbTni/esklReNdn\ndBRrq+3y\n-----END CERTIFICATE-----\n",
-  "fingerprint": "88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8",
+  "ca_pem": "-----BEGIN CERTIFICATE-----\nMIIBsjCCAVmgAwIBAgIUPlARYRpZg114kWMUMRLmOS+9S18wCgYIKoZIzj0EAwIw\nTzELMAkGA1UEBhMCVVMxCzAJBgNVBAoMAlpaMRcwFQYDVQQLDA5DNFJhdmVuLUZl\nZEh1YjEaMBgGA1UEAwwRQzRSYXZlbi1GZWRIdWItQ0EwHhcNMjYxMTAzMDg1NzA4\nWhcNMzYxMTAxMDg1NzA4WjBPMQswCQYDVQQGEwJVUzELMAkGA1UECgwCWloxFzAV\nBgNVBAsMDkM0UmF2ZW4tRmVkSHViMRowGAYDVQQDDBFDNFJhdmVuLUZlZEh1Yi1D\nQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOuXgnigQlKSOLvrsmkxXFALWG+I\nU+CdA356elpWjICSYcz0ICqvjkG8cQN81CnbfKja2tbeRFVYesDddQxgnOyjEzAR\nMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgIe7JY9fJgRGQtBRD\nvX57Qq4BsZvaPbubmQYBH0maxa8CIGtfdOKGH94nDVG/Qi3p8l/f/2z72NSdQUm3\nRyIfUFHR\n-----END CERTIFICATE-----\n",
+  "direction": null,
+  "fingerprint": "57:CD:78:A6:85:B5:65:7F:C2:DD:53:F6:B5:1D:8B:03:C6:EE:EB:03:A8:86:EE:05:F2:7A:B3:89:F4:98:4E:3E",
   "host": "tak.example.net",
   "nickname": "Pubserver",
-  "not_after": "2036-11-01T08:35:18Z",
+  "not_after": "2036-11-01T08:57:08Z",
   "port": 9102,
-  "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+  "sha256": "57cd78a685b5657fc2dd53f6b51d8b03c6eeeb03a886ee05f27ab389f4984e3e",
   "steps": {
     "tak_server": [
       "In TAK Server go to Configuration > Manage Federates > Edit Configuration, enable federation (v2) and restart TAK Server if it asks.",
-      "Under Manage Federate Certificate Authorities, upload our CA (attached). Its fingerprint is 88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8.",
+      "Under Manage Federate Certificate Authorities, upload our CA (attached). Its fingerprint is 57:CD:78:A6:85:B5:65:7F:C2:DD:53:F6:B5:1D:8B:03:C6:EE:EB:03:A8:86:EE:05:F2:7A:B3:89:F4:98:4E:3E.",
       "Send us /opt/tak/certs/files/ca.pem: the CA that issued your server certificate.",
-      "Add an Outgoing Connection: address tak.example.net, port 9102, protocol version 2, enabled. Skip this if we agreed that we connect to you (then we dial your federation port, 9001 by default).",
+      "Agree with the other admin which ONE side connects. If both sides connect, the hubs drop one of the two connections over and over.",
+      "If you connect to us: add an Outgoing Connection with address tak.example.net, port 9102, protocol version 2, enabled.",
+      "If we connect to you: add no Outgoing Connection; make sure your federation port (9001 by default) is reachable from us.",
       "Under Active Connections, open Manage Groups for the Pubserver federate and choose the inbound and outbound groups (for example __ANON__ or your federation group). Nothing is shared until you do."
     ]
   },
