@@ -252,7 +252,9 @@ export function withDescriptionNote(description: string | null | undefined, note
     if (!data || !('raven' in data)) { return note; }
     const next: Record<string, unknown> = { ...data };
     if (note.trim()) { next.note = note; } else { delete next.note; }
-    // Same key order as the server (json.dumps(sort_keys=True)) so a no-op edit changes nothing.
+    // Top-level keys are sorted, matching the server's json.dumps(sort_keys=True). Nested values keep
+    // their existing order; descriptions the server wrote are already sorted throughout, so editing
+    // only the note leaves Raven's metadata byte-for-byte the same.
     return JSON.stringify(Object.fromEntries(Object.keys(next).sort().map((k) => [k, next[k]])));
 }
 

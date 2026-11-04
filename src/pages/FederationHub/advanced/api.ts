@@ -72,7 +72,7 @@ export async function fetchStoredActive(): Promise<Federation | null> {
  * truststore. Returns how many nodes/rules were taken out of the policy.
  */
 export async function deleteCaSafely(ca: CaGroup): Promise<{ nodes: number; rules: number }> {
-    if (ca.hubGroup) { throw new Error('This is the hub\'s own CA. Removing it would cut off every connection, so Raven doesn\'t allow it.'); }
+    if (ca.hubGroup) { throw new OwnCaDeleteRefused(); }
     const active = await fetchStoredActive();
     let nodes = 0;
     let rules = 0;
@@ -94,6 +94,13 @@ export async function deleteCaSafely(ca: CaGroup): Promise<{ nodes: number; rule
         throw err;
     }
     return { nodes, rules };
+}
+
+/** deleteCaSafely refuses this hub's own CA; the caller shows the (translated) reason. */
+export class OwnCaDeleteRefused extends Error {
+    constructor() {
+        super('own CA');
+    }
 }
 
 /** Thrown when the policy step of deleteCaSafely was applied but the CA delete itself failed. */

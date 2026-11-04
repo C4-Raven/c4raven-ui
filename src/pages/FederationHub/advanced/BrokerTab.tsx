@@ -83,7 +83,7 @@ export default function BrokerTab() {
             {error && <Alert color="red" variant="light">{error}</Alert>}
             {timeout !== null && timeout <= 15 && (
                 <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
-                    {t('clientTimeoutTime is {{n}} seconds, so quiet federation links will be dropped. Raven\'s installer sets 3600.', { n: timeout })}
+                    {t('clientTimeoutTime is {{n}} seconds, so quiet federation links will be dropped. Raven\'s installer sets 3600.', { n: timeout, interpolation: { escapeValue: false } })}
                 </Alert>
             )}
 

@@ -67,7 +67,7 @@ export default function GroupSetsSection({ policy, onChange, caGroups, canApplyN
                             ) : (
                                 <Group gap={4}>{set.groups.map((g) => <Badge key={g} size="sm" variant="light" color="indigo">{g}</Badge>)}</Group>
                             )}
-                            <Text size="xs" c="dimmed" mt={6}>{t('Used by {{count}} rule(s)', { count: usedBy(set.id) })}</Text>
+                            <Text size="xs" c="dimmed" mt={6}>{t('Used by {{count}} rule(s)', { count: usedBy(set.id), interpolation: { escapeValue: false } })}</Text>
                         </Card>
                     ))}
                 </SimpleGrid>

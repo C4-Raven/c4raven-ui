@@ -46,9 +46,12 @@ import { explainError, hubDown, ourAddressOf, problemColor, problemText, shortFi
 import { Fingerprint, ServerErrorAlert } from './parts';
 import PartnerCard from './PartnerCard';
 import PartnerEditor from './PartnerEditor';
+import { createRefresher, POLICY_EVERY_N_POLLS } from './refresh';
 import type { ActivePolicy, Overview, Partner } from './types';
 
 const POLL_MS = 10_000;
+/** React already escapes; i18next must not turn "&" or "'" in names into entities. */
+const RAW = { interpolation: { escapeValue: false } } as const;
 
 function HowItWorks() {
     const { t } = useTranslation();
@@ -112,7 +115,7 @@ function StatusStrip({ overview, onRepair, repairing, repairError, onRetryRepair
             ? t('Connected')
             : bridge.service_state === 'active'
                 ? t('Running, not connected')
-                : t('Service {{state}}', { state: bridge.service_state || t('unknown') });
+                : t('Service {{state}}', { state: bridge.service_state || t('unknown'), interpolation: { escapeValue: false } });
     return (
         <Paper p="md" className="raven-surface" radius="lg">
             <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
@@ -202,40 +205,76 @@ export default function FederationHub() {
     const [removing, setRemoving] = useState<Partner | null>(null);
     const [keepCa, setKeepCa] = useState(false);
     const [removeBusy, setRemoveBusy] = useState(false);
-    const [busyId, setBusyId] = useState<string | null>(null);
+    /** Partners with a request in flight (a Set, so two cards never clear each other). */
+    const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(() => new Set());
+    const [stopping, setStopping] = useState<Partner | null>(null);
     const [repairing, setRepairing] = useState(false);
     const [repairError, setRepairError] = useState<PartnerErrorView>();
     const [showMap, setShowMap] = useState(true);
-    const inFlight = useRef(false);
+    const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const tRef = useRef(t);
+    tRef.current = t;
 
     const showError = useCallback(async (title: string, err: unknown) => {
         notifications.show({ title, message: await extractError(err), icon: <IconX size={16} />, color: 'red' });
     }, []);
 
-    const loadPolicy = useCallback(() => {
-        getActivePolicy().then(setPolicy).catch(() => setPolicy(null));
-    }, []);
-
-    const load = useCallback(async (withPolicy = false) => {
-        if (inFlight.current) { return; }
-        inFlight.current = true;
-        try {
-            setOverview(await getOverview());
+    // One refresher for the page's lifetime: stale responses are dropped, refreshes after a
+    // mutation are queued rather than lost (see refresh.ts).
+    const refresher = useMemo(() => createRefresher<{ overview: Overview; policy?: ActivePolicy | null }>({
+        fetch: async (withPolicy) => {
+            const [ov, pol] = await Promise.all([
+                getOverview(),
+                withPolicy ? getActivePolicy().catch(() => null) : Promise.resolve(undefined),
+            ]);
+            return { overview: ov, policy: pol };
+        },
+        apply: ({ value, withPolicy }) => {
+            setOverview(value.overview);
+            if (withPolicy) { setPolicy(value.policy ?? null); }
             setLoadError(undefined);
-        } catch (err) {
-            setLoadError(await extractError(err) ?? t('The Federation Hub could not be reached'));
-        } finally {
-            inFlight.current = false;
             setLoading(false);
+        },
+        fail: async (err) => {
+            setLoadError(await extractError(err) ?? tRef.current('The Federation Hub could not be reached'));
+            setLoading(false);
+        },
+    }), []);
+
+    const load = useCallback((withPolicy = false) => refresher.request({ force: true, withPolicy }), [refresher]);
+
+    /** Run a change on the hub: polls during it are discarded and a full reload follows it. */
+    const mutate = useCallback(async <R,>(fn: () => Promise<R>): Promise<R> => {
+        refresher.begin();
+        try {
+            return await fn();
+        } finally {
+            refresher.end();
         }
-        if (withPolicy) { loadPolicy(); }
-    }, [loadPolicy, t]);
+    }, [refresher]);
+
+    /** A change made by the wizard or the editor (already applied): drop stale data and reload. */
+    const afterChange = useCallback(() => { refresher.begin(); refresher.end(); }, [refresher]);
 
     useEffect(() => {
-        load(true);
-        const timer = setInterval(() => { if (!document.hidden) { load(); } }, POLL_MS);
-        return () => clearInterval(timer);
-    }, [load]);
+        refresher.request({ force: true, withPolicy: true });
+        let tick = 0;
+        const timer = setInterval(() => {
+            if (document.hidden) { return; }
+            tick += 1;
+            refresher.request({ withPolicy: tick % POLICY_EVERY_N_POLLS === 0 });
+        }, POLL_MS);
+        return () => {
+            clearInterval(timer);
+            if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); }
+        };
+    }, [refresher]);
+
+    const markBusy = (id: string, busy: boolean) => setBusyIds((prev) => {
+        const next = new Set(prev);
+        if (busy) { next.add(id); } else { next.delete(id); }
+        return next;
+    });
 
     useEffect(() => { setShowMap(!isPhone); }, [isPhone]);
 
@@ -263,53 +302,58 @@ export default function FederationHub() {
     }
 
     async function toggle(p: Partner, enabled: boolean) {
-        setBusyId(p.id);
+        markBusy(p.id, true);
         replacePartner(p.id, { ...p, enabled, status: enabled ? p.status : 'disabled' });
         try {
-            const saved = await patchPartner(p.id, { enabled });
-            if (saved?.id) { replacePartner(p.id, saved); }
-            loadPolicy();
+            await mutate(async () => {
+                const saved = await patchPartner(p.id, { enabled });
+                if (saved?.id) { replacePartner(p.id, saved); }
+            });
         } catch (err) {
             replacePartner(p.id, p);
             showError(t('Failed to update partner'), err);
         } finally {
-            setBusyId(null);
+            markBusy(p.id, false);
         }
     }
 
     async function reconnect(p: Partner) {
-        setBusyId(p.id);
+        markBusy(p.id, true);
         try {
             const result = await reconnectPartner(p.id);
             notifications.show(result?.disconnected
-                ? { color: 'green', title: t('Reconnecting'), message: t('{{name}}: {{count}} connection(s) dropped. They come back by themselves in a few seconds.', { name: p.name, count: result.disconnected }) }
-                : { color: 'blue', title: t('Nothing to reconnect'), message: t('{{name}} has no live connection right now.', { name: p.name }) });
-            setTimeout(() => load(), 3000);
+                ? { color: 'green', title: t('Reconnecting'), message: t('{{name}}: {{count}} connection(s) dropped. They come back by themselves in a few seconds.', { name: p.name, count: result.disconnected, ...RAW }) }
+                : { color: 'blue', title: t('Nothing to reconnect'), message: t('{{name}} has no live connection right now.', { name: p.name, ...RAW }) });
+            if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); }
+            reconnectTimer.current = setTimeout(() => { load(); }, 3000);
         } catch (err) {
             showError(t('Failed to reconnect'), err);
         } finally {
-            setBusyId(null);
+            markBusy(p.id, false);
         }
     }
 
     /** Both sides dial: drop our outgoing connection (outgoing-only: remove it, keeping any CA). */
     async function stopDialling(p: Partner) {
-        setBusyId(p.id);
+        setStopping(null);
+        markBusy(p.id, true);
         try {
-            if (p.ca) {
-                const saved = await patchPartner(p.id, { direction: 'they_dial' });
-                if (saved?.id) { replacePartner(p.id, saved); }
-                notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('No longer connecting to them'), message: t('{{name}} now connects to us; this hub stopped dialling.', { name: p.name }) });
-            } else {
-                const result = await deletePartner(p.id, true);
-                notifications.show({ color: result?.warning ? 'yellow' : 'green', icon: <IconCircleCheck size={16} />, title: t('Outgoing connection removed'), message: result?.warning ?? p.name });
-            }
-            load(true);
+            await mutate(async () => {
+                if (p.ca) {
+                    const saved = await patchPartner(p.id, { direction: 'they_dial' });
+                    if (saved?.id) { replacePartner(p.id, saved); }
+                    notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('No longer connecting to them'), message: t('{{name}} now connects to us; this hub stopped dialling.', { name: p.name, ...RAW }) });
+                } else {
+                    const result = await deletePartner(p.id, true);
+                    setOverview((o) => (o ? { ...o, partners: o.partners.filter((x) => x.id !== p.id) } : o));
+                    notifications.show({ color: result?.warning ? 'yellow' : 'green', icon: <IconCircleCheck size={16} />, title: t('Outgoing connection removed'), message: result?.warning ?? p.name });
+                }
+            });
         } catch (err) {
             const v = await explainError(err, partners, t);
             notifications.show({ color: 'red', icon: <IconX size={16} />, title: t('Failed to change the connection'), message: v.message });
         } finally {
-            setBusyId(null);
+            markBusy(p.id, false);
         }
     }
 
@@ -317,18 +361,17 @@ export default function FederationHub() {
         if (!removing) { return; }
         setRemoveBusy(true);
         try {
-            const result = await deletePartner(removing.id, keepCa);
+            const result = await mutate(() => deletePartner(removing.id, keepCa));
             notifications.show(result?.warning
                 ? { color: 'yellow', icon: <IconAlertTriangle size={16} />, title: t('Partner removed, certificate kept'), message: result.warning, autoClose: 12000 }
                 : {
                     color: 'green',
                     icon: <IconCircleCheck size={16} />,
                     title: t('Partner removed'),
-                    message: result?.ca_removed ? t('{{name}} and its certificate were removed.', { name: removing.name }) : removing.name,
+                    message: result?.ca_removed ? t('{{name}} and its certificate were removed.', { name: removing.name, ...RAW }) : removing.name,
                 });
             setOverview((o) => (o ? { ...o, partners: o.partners.filter((x) => x.id !== removing.id) } : o));
             setRemoving(null);
-            load(true);
         } catch (err) {
             const v = await explainError(err, partners, t);
             notifications.show({ color: 'red', icon: <IconX size={16} />, title: t('Failed to remove partner'), message: v.message });
@@ -341,11 +384,10 @@ export default function FederationHub() {
         setRepairing(true);
         setRepairError(undefined);
         try {
-            const result = await repairHub();
+            const result = await mutate(() => repairHub());
             notifications.show(result?.changed === false
                 ? { color: 'blue', title: t('Nothing to repair'), message: t('This hub\'s certificate is already in the active policy.') }
                 : { color: 'green', icon: <IconCircleCheck size={16} />, title: t('Repaired'), message: t('This hub\'s certificate is back in the active policy.') });
-            load(true);
         } catch (err) {
             setRepairError(await explainError(err, partners, t, t('Repair failed')));
         } finally {
@@ -420,13 +462,13 @@ export default function FederationHub() {
                         <PartnerCard
                             key={p.id}
                             partner={p}
-                            busy={busyId === p.id}
+                            busy={busyIds.has(p.id)}
                             onEdit={() => setEditing(p)}
                             onCheck={() => setChecking(p)}
                             onReconnect={() => reconnect(p)}
                             onRemove={() => { setKeepCa(false); setRemoving(p); }}
                             onToggle={(enabled) => toggle(p, enabled)}
-                            onStopDialling={() => stopDialling(p)}
+                            onStopDialling={() => setStopping(p)}
                             onInstructions={() => handoffActions.handoff({ partnerId: p.id, kind: p.kind })}
                         />
                     ))}
@@ -502,9 +544,9 @@ export default function FederationHub() {
 
             <ConnectWizard
                 opened={wizardOpen}
-                onClose={() => { setWizardOpen(false); load(true); }}
+                onClose={() => { setWizardOpen(false); afterChange(); }}
                 overview={overview}
-                onCreated={() => load(true)}
+                onCreated={afterChange}
                 onOpenPartner={openPartner}
             />
 
@@ -516,7 +558,7 @@ export default function FederationHub() {
                 onSaved={(p) => {
                     if (editing && p?.id) { replacePartner(editing.id, p); }
                     setEditing(null);
-                    load(true);
+                    afterChange();
                 }}
             />
 
@@ -525,15 +567,39 @@ export default function FederationHub() {
                 onClose={() => setChecking(null)}
                 size="lg"
                 fullScreen={isPhone}
-                title={<Text fw={700}>{t('Check connection to {{name}}', { name: checking?.name ?? '' })}</Text>}
+                title={<Text fw={700}>{t('Check connection to {{name}}', { name: checking?.name ?? '', ...RAW })}</Text>}
             >
                 {checking && <CheckPanel partnerId={checking.id} />}
             </Modal>
 
             <Modal
+                opened={stopping !== null}
+                onClose={() => setStopping(null)}
+                title={<Text fw={700}>{stopping && !stopping.ca ? t('Remove this outgoing connection?') : t('Stop connecting to {{name}}?', { name: stopping?.name ?? '', ...RAW })}</Text>}
+                centered
+            >
+                <Stack gap="sm">
+                    <Text size="sm">
+                        {stopping && !stopping.ca
+                            ? t('This hub stops dialling {{address}} and the outgoing connection is removed from the active policy, which is applied straight away. Certificates stay trusted.', { address: stopping.outgoing ? `${stopping.outgoing.host}:${stopping.outgoing.port}` : '', ...RAW })
+                            : t('This hub stops dialling {{name}} and waits for them instead. The change is applied on the hub straight away; their certificate and sharing settings stay as they are.', { name: stopping?.name ?? '', ...RAW })}
+                    </Text>
+                    <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={16} />} py="xs">
+                        {t('From now on the OTHER side must be the one that connects. If they don\'t connect to us, the link stays down until they do.')}
+                    </Alert>
+                </Stack>
+                <Group justify="flex-end" mt="lg" gap="sm">
+                    <Button variant="default" radius="xl" onClick={() => setStopping(null)}>{t('Cancel')}</Button>
+                    <Button color="red" radius="xl" leftSection={<IconPlugConnectedX size={16} />} onClick={() => stopping && stopDialling(stopping)}>
+                        {stopping && !stopping.ca ? t('Remove outgoing connection') : t('Stop connecting')}
+                    </Button>
+                </Group>
+            </Modal>
+
+            <Modal
                 opened={removing !== null}
                 onClose={() => setRemoving(null)}
-                title={<Text fw={700}>{t('Remove {{name}}?', { name: removing?.name ?? '' })}</Text>}
+                title={<Text fw={700}>{t('Remove {{name}}?', { name: removing?.name ?? '', ...RAW })}</Text>}
                 centered
             >
                 <Stack gap="sm">

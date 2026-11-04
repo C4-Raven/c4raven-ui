@@ -93,7 +93,7 @@ export default function CheckPanel({ partnerId, poll = false, onResult }: {
                     {(running || polling) && <Loader size="xs" />}
                     <Text size="sm" fw={600}>
                         {summary
-                            ? t('{{passed}} of {{total}} checks passed', { passed: summary.passed, total: summary.total })
+                            ? t('{{passed}} of {{total}} checks passed', { passed: summary.passed, total: summary.total, interpolation: { escapeValue: false } })
                             : t('Running checks…')}
                     </Text>
                     {polling && <Text size="xs" c="dimmed">{t('Checking again every few seconds')}</Text>}

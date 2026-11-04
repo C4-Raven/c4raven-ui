@@ -13,14 +13,15 @@ export default function ConnectStep({
     kind, direction, onDirection, host, port, onHost, onPort, errors, ourAddress, partnerName,
 }: {
     kind: PartnerKind;
-    direction: Direction;
+    /** null = not chosen yet (the wizard has no default). */
+    direction: Direction | null;
     /** Leave out to show the direction read-only (existing partners). */
     onDirection?: (d: Direction) => void;
     host: string;
     port: number | '';
     onHost: (v: string) => void;
     onPort: (v: number | '') => void;
-    errors: { host?: string; port?: string };
+    errors: { direction?: string; host?: string; port?: string };
     ourAddress: string;
     partnerName: string;
 }) {
@@ -64,7 +65,7 @@ export default function ConnectStep({
                 <SegmentedControl
                     fullWidth
                     radius="xl"
-                    value={direction}
+                    value={direction ?? ''}
                     onChange={(v) => onDirection(v as Direction)}
                     data={[
                         { value: 'we_dial', label: t('We connect to them') },
@@ -80,13 +81,21 @@ export default function ConnectStep({
                 </Group>
             )}
 
-            <Alert variant="light" color="yellow" icon={<IconInfoCircle size={16} />} py="xs">
-                {direction === 'we_dial'
-                    ? t('Tell {{name}}\'s admin: they must choose "They connect to us" (on a TAK Server: no outgoing connection to us).', { name })
-                    : t('Tell {{name}}\'s admin: they must choose "We connect to them" and enter {{address}}.', { name, address: ourAddress || t('our address') })}
-            </Alert>
+            {onDirection && !direction && (
+                <Text size="sm" c={errors.direction ? 'red' : 'dimmed'}>
+                    {errors.direction ?? t('Nothing is chosen yet. Agree with the other admin which ONE side connects, then pick it here.')}
+                </Text>
+            )}
 
-            {direction === 'we_dial' ? (
+            {direction && (
+                <Alert variant="light" color="yellow" icon={<IconInfoCircle size={16} />} py="xs">
+                    {direction === 'we_dial'
+                        ? t('Tell {{name}}\'s admin: they must choose "They connect to us" (on a TAK Server: no outgoing connection to us).', { name, interpolation: { escapeValue: false } })
+                        : t('Tell {{name}}\'s admin: they must choose "We connect to them" and enter {{address}}.', { name, address: ourAddress || t('our address'), interpolation: { escapeValue: false } })}
+                </Alert>
+            )}
+
+            {!direction ? null : direction === 'we_dial' ? (
                 <Paper p="md" className="raven-surface raven-surface--tile">
                     <Stack gap="sm">
                         <Group grow align="flex-start" wrap="wrap" gap="sm">
@@ -139,7 +148,7 @@ export default function ConnectStep({
                                     {result.dns_ok ? <IconCircleCheck size={16} color="var(--mantine-color-green-5)" /> : <IconCircleX size={16} color="var(--mantine-color-red-5)" />}
                                     <Text size="sm">
                                         {result.dns_ok
-                                            ? t('Name found: {{addresses}}', { addresses: (result.addresses ?? []).join(', ') || host })
+                                            ? t('Name found: {{addresses}}', { addresses: (result.addresses ?? []).join(', ') || host, interpolation: { escapeValue: false } })
                                             : t('The name could not be found. Check the spelling.')}
                                     </Text>
                                 </Group>
@@ -148,8 +157,8 @@ export default function ConnectStep({
                                         {result.tcp_ok ? <IconCircleCheck size={16} color="var(--mantine-color-green-5)" /> : <IconCircleX size={16} color="var(--mantine-color-red-5)" />}
                                         <Text size="sm">
                                             {result.tcp_ok
-                                                ? t('Port {{port}} is open', { port })
-                                                : t('Port {{port}} did not answer. Their federation service may be off, or a firewall is blocking it.', { port })}
+                                                ? t('Port {{port}} is open', { port, interpolation: { escapeValue: false } })
+                                                : t('Port {{port}} did not answer. Their federation service may be off, or a firewall is blocking it.', { port, interpolation: { escapeValue: false } })}
                                         </Text>
                                     </Group>
                                 )}

@@ -17,11 +17,12 @@ import {
     validateHost,
     validateName,
     validatePort,
+    stepHasError,
     validateWizard,
     wizardStepOf,
     type WizardDraft,
 } from './helpers';
-import { EVERYTHING, defaultDirection, defaultPort, type CaInspect, type Partner } from './types';
+import { EVERYTHING, defaultPort, type CaInspect, type Partner } from './types';
 
 /** Fake i18next t(): returns the key with {{vars}} filled in. */
 const t = (key: string, opts?: Record<string, unknown>) =>
@@ -200,8 +201,15 @@ describe('wizard', () => {
     it('defaults by kind', () => {
         expect(defaultPort('tak_server')).toBe(9001);
         expect(defaultPort('raven_hub')).toBe(9102);
-        expect(defaultDirection('tak_server')).toBe('they_dial');
-        expect(defaultDirection('raven_hub')).toBe('we_dial');
+    });
+    it('has no default direction: a choice is required (G6)', () => {
+        for (const kind of ['raven_hub', 'tak_server', 'other'] as const) {
+            const errs = validateWizard(draft({ kind, direction: null }), [], t);
+            expect(errs.direction, kind).toMatch(/Choose who connects/);
+            expect(wizardStepOf(errs)).toBe('connect');
+            expect(stepHasError('connect', errs)).toBe(true);
+        }
+        expect(describeChanges(draft({ direction: null }), { policy: 'Tak', ourAddress: 'hub:9102' }, t)).toContain('Who connects is not chosen yet.');
     });
     it('accepts a complete draft', () => {
         expect(validateWizard(draft(), [], t)).toEqual({});

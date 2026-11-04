@@ -59,7 +59,6 @@ import {
 import { CopyAddress, Fingerprint, KindIcon, ServerErrorAlert } from './parts';
 import ShareStep from './ShareStep';
 import {
-    defaultDirection,
     defaultPort,
     EVERYTHING,
     type CheckItem,
@@ -75,7 +74,7 @@ function blankDraft(): WizardDraft {
         caFile: null,
         ca: null,
         name: '',
-        direction: 'we_dial',
+        direction: null,
         host: '',
         port: defaultPort('raven_hub'),
         share: { ...EVERYTHING },
@@ -204,7 +203,7 @@ function CertsStep({ draft, overview, handoff, partners, errors, inspecting, onF
                     {steps.length > 0 && (
                         <>
                             <Text size="xs" fw={600} mt={4}>
-                                {t('What the other admin does ({{kind}})', { kind: kindLabel(draft.kind ?? 'other', t) })}
+                                {t('What the other admin does ({{kind}})', { kind: kindLabel(draft.kind ?? 'other', t), interpolation: { escapeValue: false } })}
                             </Text>
                             <List type="ordered" size="xs" spacing={4}>
                                 {steps.map((step) => <List.Item key={step}>{step}</List.Item>)}
@@ -240,7 +239,7 @@ function CertsStep({ draft, overview, handoff, partners, errors, inspecting, onF
                             <Fingerprint sha256={draft.ca.sha256} label={t('Fingerprint')} />
                             {draft.ca.not_after && (
                                 <Text size="sm">
-                                    {t('Expires {{date}} ({{relative}})', { date: formatDateTime(draft.ca.not_after), relative: formatRelative(draft.ca.not_after) })}
+                                    {t('Expires {{date}} ({{relative}})', { date: formatDateTime(draft.ca.not_after), relative: formatRelative(draft.ca.not_after), interpolation: { escapeValue: false } })}
                                 </Text>
                             )}
                             {warnings.map((w) => (
@@ -292,7 +291,7 @@ function ReviewStep({ draft, overview, ourAddress }: { draft: WizardDraft; overv
             <Alert variant="light" color="blue" icon={<IconInfoCircle size={16} />}>
                 <Stack gap="xs">
                     <Text size="sm">{t('The other admin still has to do their part. These instructions match what you chose here, including who connects:')}</Text>
-                    <HandoffButtons size="xs" handoff={{ kind: draft.kind, direction: draft.direction }} />
+                    <HandoffButtons size="xs" handoff={{ kind: draft.kind, direction: draft.direction ?? undefined }} />
                 </Stack>
             </Alert>
         </Stack>
@@ -349,7 +348,6 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated, on
         setDraft((d) => ({
             ...d,
             kind,
-            direction: d.kind === null ? defaultDirection(kind) : d.direction,
             port: portTouched ? d.port : defaultPort(kind),
         }));
     }
@@ -417,7 +415,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated, on
             size="xl"
             fullScreen={isPhone}
             radius={isPhone ? 0 : 'lg'}
-            title={<Text fw={700} size="lg">{created ? t('Connecting to {{name}}', { name: created.name }) : t('Connect a server')}</Text>}
+            title={<Text fw={700} size="lg">{created ? t('Connecting to {{name}}', { name: created.name, interpolation: { escapeValue: false } }) : t('Connect a server')}</Text>}
             closeOnClickOutside={false}
         >
             {created ? (
@@ -470,7 +468,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated, on
                     </Stepper>
                     {isPhone && (
                         <Text size="sm" fw={600} mt={-8} mb="md">
-                            {t('Step {{n}} of {{total}}', { n: active + 1, total: WIZARD_STEPS.length })} · {labels[step][0]}
+                            {t('Step {{n}} of {{total}}', { n: active + 1, total: WIZARD_STEPS.length, interpolation: { escapeValue: false } })} · {labels[step][0]}
                         </Text>
                     )}
 

@@ -115,7 +115,7 @@ export default function NodesSection({ policy, onChange, caGroups, connections, 
             );
         }
         if (e.type === 'FederationTokenGroup') {
-            return <Text size="sm">{t('{{count}} token(s)', { count: tokenEntries(e).length })}</Text>;
+            return <Text size="sm">{t('{{count}} token(s)', { count: tokenEntries(e).length, interpolation: { escapeValue: false } })}</Text>;
         }
         return <Text size="sm" c="dimmed">—</Text>;
     }

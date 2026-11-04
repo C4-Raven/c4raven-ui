@@ -114,24 +114,23 @@ export function shareSummary(filter: ShareFilter | null | undefined, t: T): Shar
             };
         case 'allowed':
             return {
-                label: t('{{count}} allowed', { count: allowed }),
+                label: t('{{count}} allowed', { count: allowed, interpolation: { escapeValue: false } }),
                 color: allowed ? 'blue' : 'red',
-                detail: allowed ? t('Only: {{groups}}', { groups: f.allowed.join(', ') }) : t('No groups allowed, so nothing flows'),
+                detail: allowed ? t('Only: {{groups}}', { groups: f.allowed.join(', '), interpolation: { escapeValue: false } }) : t('No groups allowed, so nothing flows'),
             };
         case 'disallowed':
             return {
-                label: t('{{count}} blocked', { count: blocked }),
+                label: t('{{count}} blocked', { count: blocked, interpolation: { escapeValue: false } }),
                 color: 'orange',
-                detail: blocked ? t('Everything except: {{groups}}', { groups: f.disallowed.join(', ') }) : t('Nothing blocked'),
+                detail: blocked ? t('Everything except: {{groups}}', { groups: f.disallowed.join(', '), interpolation: { escapeValue: false } }) : t('Nothing blocked'),
             };
         case 'allowedAndDisallowed':
             return {
-                label: t('{{allowed}} allowed, {{blocked}} blocked', { allowed, blocked }),
+                label: t('{{allowed}} allowed, {{blocked}} blocked', { allowed, blocked, interpolation: { escapeValue: false } }),
                 color: allowed ? 'blue' : 'red',
                 detail: t('Only {{allowedGroups}}, never {{blockedGroups}}', {
                     allowedGroups: f.allowed.join(', ') || '—',
-                    blockedGroups: f.disallowed.join(', ') || '—',
-                }),
+                    blockedGroups: f.disallowed.join(', ') || '—', interpolation: { escapeValue: false } }),
             };
         case 'allGroups':
         default:
@@ -143,14 +142,13 @@ export function shareSummary(filter: ShareFilter | null | undefined, t: T): Shar
 export function shareSentence(filter: ShareFilter, t: T): string {
     switch (filter.type) {
         case 'allowed':
-            return t('only these groups: {{groups}}', { groups: filter.allowed.join(', ') });
+            return t('only these groups: {{groups}}', { groups: filter.allowed.join(', '), interpolation: { escapeValue: false } });
         case 'disallowed':
-            return t('everything except these groups: {{groups}}', { groups: filter.disallowed.join(', ') });
+            return t('everything except these groups: {{groups}}', { groups: filter.disallowed.join(', '), interpolation: { escapeValue: false } });
         case 'allowedAndDisallowed':
             return t('only {{allowedGroups}}, and never {{blockedGroups}}', {
                 allowedGroups: filter.allowed.join(', '),
-                blockedGroups: filter.disallowed.join(', '),
-            });
+                blockedGroups: filter.disallowed.join(', '), interpolation: { escapeValue: false } });
         case 'none':
             return t('nothing (no rule, so the hub blocks it)');
         default:
@@ -239,7 +237,7 @@ export function caWarnings(ca: CaInspect, partners: Pick<Partner, 'id' | 'name'>
         const p = partners.find((x) => x.id === ca.existing_partner_id);
         out.push({
             level: 'error',
-            text: t('This certificate already belongs to the partner "{{name}}". Edit that partner instead of adding it twice.', { name: p?.name ?? ca.existing_partner_id }),
+            text: t('This certificate already belongs to the partner "{{name}}". Edit that partner instead of adding it twice.', { name: p?.name ?? ca.existing_partner_id, interpolation: { escapeValue: false } }),
         });
     } else if (ca.already_trusted) {
         out.push({ level: 'info', text: t('This hub already trusts this certificate. It will be reused, not uploaded again.') });
@@ -254,7 +252,7 @@ export function caWarnings(ca: CaInspect, partners: Pick<Partner, 'id' | 'name'>
     if (days !== null && days <= 0) {
         out.push({ level: 'error', text: t('This certificate has expired. Ask the other admin for a current one.') });
     } else if (days !== null && days <= CA_EXPIRY_WARN_DAYS) {
-        out.push({ level: 'warning', text: t('This certificate expires in {{count}} days. The link stops working when it does.', { count: days }) });
+        out.push({ level: 'warning', text: t('This certificate expires in {{count}} days. The link stops working when it does.', { count: days, interpolation: { escapeValue: false } }) });
     }
     return out;
 }
@@ -270,7 +268,7 @@ export function outgoingClash(host: string, port: number, partners: Partner[], e
 
 export function directionLabel(p: Pick<Partner, 'direction' | 'outgoing'>, t: T): string {
     if (p.direction === 'we_dial' && p.outgoing) {
-        return t('We dial {{address}}', { address: `${p.outgoing.host}:${p.outgoing.port}` });
+        return t('We dial {{address}}', { address: `${p.outgoing.host}:${p.outgoing.port}`, interpolation: { escapeValue: false } });
     }
     return p.direction === 'we_dial' ? t('We dial them') : t('They dial us');
 }
@@ -482,7 +480,7 @@ export function partnerErrorView(
     switch (code) {
         case 'ca_exists':
             message = name
-                ? t('This certificate already belongs to the partner "{{name}}". Open it instead of adding it twice.', { name })
+                ? t('This certificate already belongs to the partner "{{name}}". Open it instead of adding it twice.', { name, interpolation: { escapeValue: false } })
                 : t('A partner with this certificate is already connected. Open it instead of adding it twice.');
             break;
         case 'own_ca':
@@ -490,7 +488,7 @@ export function partnerErrorView(
             break;
         case 'outgoing_exists':
             message = name
-                ? t('This hub already connects to that address for the partner "{{name}}". Open it, or use a different address.', { name })
+                ? t('This hub already connects to that address for the partner "{{name}}". Open it, or use a different address.', { name, interpolation: { escapeValue: false } })
                 : t('This hub already connects to that address. Use a different address, or edit the existing connection.');
             break;
         case 'they_already_dial':
@@ -502,7 +500,7 @@ export function partnerErrorView(
         case 'no_active_policy': {
             const names = storedPolicyNames(body as Record<string, unknown>);
             message = names.length
-                ? t('No federation policy is active on the hub. Activate one of: {{names}}', { names: names.join(', ') })
+                ? t('No federation policy is active on the hub. Activate one of: {{names}}', { names: names.join(', '), interpolation: { escapeValue: false } })
                 : t('No federation policy is active on the hub, and none is stored. Create one under Advanced, Policy.');
             break;
         }
@@ -593,7 +591,8 @@ export interface WizardDraft {
     ca: CaInspect | null;
     caError?: string;
     name: string;
-    direction: Direction;
+    /** null until the admin picks one: there is no default (G6). */
+    direction: Direction | null;
     host: string;
     port: number | '';
     share: ShareFilter;
@@ -601,7 +600,7 @@ export interface WizardDraft {
     interconnected: boolean;
 }
 
-export type WizardErrors = Partial<Record<'kind' | 'ca' | 'name' | 'host' | 'port' | 'share' | 'receive', string>>;
+export type WizardErrors = Partial<Record<'kind' | 'ca' | 'name' | 'direction' | 'host' | 'port' | 'share' | 'receive', string>>;
 
 export function validateWizard(draft: WizardDraft, partners: Partner[], t: T, now: Date = new Date()): WizardErrors {
     const e: WizardErrors = {};
@@ -618,6 +617,9 @@ export function validateWizard(draft: WizardDraft, partners: Partner[], t: T, no
     }
     const nameErr = validateName(draft.name, partners.map((p) => p.name), t);
     if (nameErr) { e.name = nameErr; }
+    if (!draft.direction) {
+        e.direction = t('Choose who connects. Agree it with the other admin: only one side may connect.');
+    }
     if (draft.direction === 'we_dial') {
         const hostErr = validateHost(draft.host, t);
         const portErr = validatePort(draft.port, t);
@@ -625,7 +627,7 @@ export function validateWizard(draft: WizardDraft, partners: Partner[], t: T, no
         if (portErr) { e.port = portErr; }
         if (!hostErr && !portErr) {
             const clash = outgoingClash(draft.host, Number(draft.port), partners);
-            if (clash) { e.host = t('The partner "{{name}}" already connects to this address', { name: clash.name }); }
+            if (clash) { e.host = t('The partner "{{name}}" already connects to this address', { name: clash.name, interpolation: { escapeValue: false } }); }
         }
     }
     const shareErr = validateFilter(draft.share, t);
@@ -638,7 +640,7 @@ export function validateWizard(draft: WizardDraft, partners: Partner[], t: T, no
 export function wizardStepOf(errors: WizardErrors): WizardStep | null {
     if (errors.kind) { return 'type'; }
     if (errors.ca || errors.name) { return 'certs'; }
-    if (errors.host || errors.port) { return 'connect'; }
+    if (errors.direction || errors.host || errors.port) { return 'connect'; }
     if (errors.share || errors.receive) { return 'share'; }
     return null;
 }
@@ -647,7 +649,7 @@ export function stepHasError(step: WizardStep, errors: WizardErrors): boolean {
     switch (step) {
         case 'type': return !!errors.kind;
         case 'certs': return !!(errors.ca || errors.name);
-        case 'connect': return !!(errors.host || errors.port);
+        case 'connect': return !!(errors.direction || errors.host || errors.port);
         case 'share': return !!(errors.share || errors.receive);
         default: return false;
     }
@@ -665,7 +667,7 @@ export function buildCreateForm(draft: WizardDraft): FormData {
     const form = new FormData();
     form.append('name', draft.name.trim());
     form.append('kind', draft.kind ?? 'other');
-    form.append('direction', draft.direction);
+    form.append('direction', draft.direction ?? '');
     if (draft.ca?.already_trusted && !draft.ca.existing_partner_id && !draft.ca.is_own && draft.ca.uid) {
         form.append('ca_uid', draft.ca.uid);
     } else if (draft.caFile) {
@@ -686,22 +688,23 @@ export function describeChanges(draft: WizardDraft, ctx: { policy: string | null
     const name = draft.name.trim() || t('the new partner');
     const lines: string[] = [];
     if (draft.ca?.already_trusted && !draft.ca.existing_partner_id) {
-        lines.push(t('Reuse {{name}}\'s certificate, which this hub already trusts (fingerprint {{fp}}).', { name, fp: shortFingerprint(draft.ca.sha256) }));
+        lines.push(t('Reuse {{name}}\'s certificate, which this hub already trusts (fingerprint {{fp}}).', { name, fp: shortFingerprint(draft.ca.sha256), interpolation: { escapeValue: false } }));
     } else {
         lines.push(t('Trust {{name}}\'s certificate authority (fingerprint {{fp}}), so the hub accepts their server.', {
-            name, fp: draft.ca ? shortFingerprint(draft.ca.sha256) : '—',
-        }));
+            name, fp: draft.ca ? shortFingerprint(draft.ca.sha256) : '—', interpolation: { escapeValue: false } }));
     }
-    lines.push(t('Add {{name}} to the active policy "{{policy}}", linked both ways to this Raven.', { name, policy: ctx.policy ?? t('(none yet)') }));
-    if (draft.direction === 'we_dial') {
-        lines.push(t('This hub starts dialling {{address}} and retries every 5 seconds until they answer.', { address: `${draft.host.trim()}:${draft.port}` }));
+    lines.push(t('Add {{name}} to the active policy "{{policy}}", linked both ways to this Raven.', { name, policy: ctx.policy ?? t('(none yet)'), interpolation: { escapeValue: false } }));
+    if (!draft.direction) {
+        lines.push(t('Who connects is not chosen yet.'));
+    } else if (draft.direction === 'we_dial') {
+        lines.push(t('This hub starts dialling {{address}} and retries every 5 seconds until they answer.', { address: `${draft.host.trim()}:${draft.port}`, interpolation: { escapeValue: false } }));
     } else {
-        lines.push(t('Nothing is dialled from here. The hub waits for {{name}} to connect to {{address}}.', { name, address: ctx.ourAddress }));
+        lines.push(t('Nothing is dialled from here. The hub waits for {{name}} to connect to {{address}}.', { name, address: ctx.ourAddress, interpolation: { escapeValue: false } }));
     }
-    lines.push(t('Send them {{what}}.', { what: shareSentence(cleanFilter(draft.share), t) }));
-    lines.push(t('Accept from them {{what}}.', { what: shareSentence(cleanFilter(draft.receive), t) }));
+    lines.push(t('Send them {{what}}.', { what: shareSentence(cleanFilter(draft.share), t), interpolation: { escapeValue: false } }));
+    lines.push(t('Accept from them {{what}}.', { what: shareSentence(cleanFilter(draft.receive), t), interpolation: { escapeValue: false } }));
     if (draft.interconnected) {
-        lines.push(t('Let servers that use {{name}}\'s certificate authority exchange data with each other.', { name }));
+        lines.push(t('Let servers that use {{name}}\'s certificate authority exchange data with each other.', { name, interpolation: { escapeValue: false } }));
     }
     lines.push(t('Save and activate the policy straight away. Other partners stay connected.'));
     return lines;

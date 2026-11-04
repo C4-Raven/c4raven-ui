@@ -75,7 +75,7 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
                             checked={partner.enabled}
                             disabled={busy}
                             onChange={(e) => onToggle(e.currentTarget.checked)}
-                            aria-label={t('Enable {{name}}', { name: partner.name })}
+                            aria-label={t('Enable {{name}}', { name: partner.name, interpolation: { escapeValue: false } })}
                             size="md"
                         />
                     </div>
@@ -110,14 +110,14 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
                 <div>
                     <Text size="xs" c="dimmed">{t('Sent')}</Text>
                     <Text size="sm" fw={600}>
-                        {t('{{count}} messages', { count: formatCount(traffic.msgs_out) })}
+                        {t('{{count}} messages', { count: formatCount(traffic.msgs_out), interpolation: { escapeValue: false } })}
                         <Text span size="xs" c="dimmed"> · {formatBytes(traffic.bytes_out)}</Text>
                     </Text>
                 </div>
                 <div>
                     <Text size="xs" c="dimmed">{t('Received')}</Text>
                     <Text size="sm" fw={600}>
-                        {t('{{count}} messages', { count: formatCount(traffic.msgs_in) })}
+                        {t('{{count}} messages', { count: formatCount(traffic.msgs_in), interpolation: { escapeValue: false } })}
                         <Text span size="xs" c="dimmed"> · {formatBytes(traffic.bytes_in)}</Text>
                     </Text>
                 </div>
@@ -155,17 +155,17 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
             <Group justify="space-between" align="center" mt="auto" gap="xs" wrap="nowrap">
                 <Text size="xs" c="dimmed">
                     {partner.connections?.length
-                        ? t('{{count}} live connections', { count: partner.connections.length })
+                        ? t('{{count}} live connections', { count: partner.connections.length, interpolation: { escapeValue: false } })
                         : t('No live connection')}
                 </Text>
                 <Group gap={6} wrap="nowrap">
                     <Tooltip label={t('Check connection')}>
-                        <ActionIcon variant="light" size="lg" radius="xl" aria-label={t('Check connection to {{name}}', { name: partner.name })} onClick={onCheck}>
+                        <ActionIcon variant="light" size="lg" radius="xl" aria-label={t('Check connection to {{name}}', { name: partner.name, interpolation: { escapeValue: false } })} onClick={onCheck}>
                             <IconStethoscope size={16} />
                         </ActionIcon>
                     </Tooltip>
                     <Tooltip label={t('Edit')}>
-                        <ActionIcon variant="light" size="lg" radius="xl" aria-label={t('Edit {{name}}', { name: partner.name })} onClick={onEdit}>
+                        <ActionIcon variant="light" size="lg" radius="xl" aria-label={t('Edit {{name}}', { name: partner.name, interpolation: { escapeValue: false } })} onClick={onEdit}>
                             <IconPencil size={16} />
                         </ActionIcon>
                     </Tooltip>

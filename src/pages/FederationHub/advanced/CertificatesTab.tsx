@@ -20,7 +20,7 @@ import axios from '../../../axios_config';
 import { downloadFile, EmptyState } from '../../ServerRequests/shared';
 import { endpoints } from './endpoints';
 import { notifications } from '@mantine/notifications';
-import { CaDeleteHalfDone, caInUseNodes, deleteCaSafely, errorCode, errorText, fetchStoredActive, forceDeleteCa, savePolicy } from './api';
+import { CaDeleteHalfDone, OwnCaDeleteRefused, caInUseNodes, deleteCaSafely, errorCode, errorText, fetchStoredActive, forceDeleteCa, savePolicy } from './api';
 import { addCaToPolicy, addViewNodes, formatFingerprint, normalizePolicy, ownCaGroup, policyHasCa, removeEntitiesForCa, shortFingerprint } from './helpers';
 import { ConfirmModal, CopyValue, notifyFail, notifyOk, useHubData } from './shared';
 import type { CaGroup, Federation } from './types';
@@ -133,14 +133,21 @@ export default function CertificatesTab() {
         try {
             const { nodes, rules } = await deleteCaSafely(toDelete);
             notifyOk(t('CA removed'), nodes || rules
-                ? t('Also removed {{nodes}} policy node(s) and {{rules}} rule(s) from the active policy.', { nodes, rules })
+                ? t('Also removed {{nodes}} policy node(s) and {{rules}} rule(s) from the active policy.', { nodes, rules, interpolation: { escapeValue: false } })
                 : '');
             setToDelete(null);
             setInUse(null);
             reload();
             loadActive();
         } catch (err) {
-            if (err instanceof CaDeleteHalfDone) {
+            if (err instanceof OwnCaDeleteRefused) {
+                notifications.show({
+                    color: 'red',
+                    title: t('Failed to remove CA'),
+                    message: t('This is the hub\'s own CA. Removing it would cut off every connection, including this Raven\'s bridge, so Raven doesn\'t allow it.'),
+                });
+                setToDelete(null);
+            } else if (err instanceof CaDeleteHalfDone) {
                 notifications.show({
                     color: 'orange',
                     autoClose: false,

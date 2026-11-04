@@ -68,7 +68,7 @@ export function ServerErrorAlert({ view, title, onOpenPartner, onRetry, children
                                 disabled={activating !== null && activating !== name}
                                 onClick={() => activate(name)}
                             >
-                                {onRetry ? t('Activate "{{name}}" and try again', { name }) : t('Activate "{{name}}"', { name })}
+                                {onRetry ? t('Activate "{{name}}" and try again', { name, interpolation: { escapeValue: false } }) : t('Activate "{{name}}"', { name, interpolation: { escapeValue: false } })}
                             </Button>
                         ))}
                     </Group>

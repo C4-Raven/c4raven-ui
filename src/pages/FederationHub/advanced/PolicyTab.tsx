@@ -420,13 +420,13 @@ export default function PolicyTab() {
                         {orphans.length > 0 && (
                             <Alert color="orange" variant="light">
                                 <Group justify="space-between" wrap="wrap" gap="xs">
-                                    <Text size="sm">{t('{{count}} rule(s) point at nodes that no longer exist.', { count: orphans.length })}</Text>
+                                    <Text size="sm">{t('{{count}} rule(s) point at nodes that no longer exist.', { count: orphans.length, interpolation: { escapeValue: false } })}</Text>
                                     <Button size="xs" radius="xl" variant="light" color="orange" onClick={() => { const ids = new Set(orphans.map((r) => r.id)); setDraft({ ...draft, rules: draft.rules.filter((r) => !ids.has(r.id)) }); }}>{t('Remove them from the draft')}</Button>
                                 </Group>
                             </Alert>
                         )}
                         {warnings.length > 0 && (
-                            <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>{t('{{count}} rule(s) from a Raven node use a group filter. Raven traffic only passes "All groups" rules. See Rules below.', { count: warnings.length })}</Alert>
+                            <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>{t('{{count}} rule(s) from a Raven node use a group filter. Raven traffic only passes "All groups" rules. See Rules below.', { count: warnings.length, interpolation: { escapeValue: false } })}</Alert>
                         )}
                     </Stack>
 

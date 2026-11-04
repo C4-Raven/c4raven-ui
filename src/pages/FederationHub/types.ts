@@ -262,7 +262,8 @@ export function defaultPort(kind: PartnerKind): number {
     return kind === 'tak_server' ? TAK_SERVER_FED_PORT : HUB_V2_PORT;
 }
 
-/** Most TAK Servers dial the hub (§4C); hubs are usually dialled by us. */
-export function defaultDirection(kind: PartnerKind): Direction {
-    return kind === 'tak_server' ? 'they_dial' : 'we_dial';
-}
+/*
+ * There is deliberately NO default direction: with a default, two Ravens that
+ * both keep it end up both dialling (G6). The admin must pick one, after
+ * agreeing with the other admin.
+ */

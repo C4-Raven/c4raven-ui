@@ -82,7 +82,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved, onO
             if (p) { e.port = p; }
             if (!h && !p) {
                 const clash = outgoingClash(d.host, Number(d.port), others);
-                if (clash) { e.host = t('The partner "{{name}}" already connects to this address', { name: clash.name }); }
+                if (clash) { e.host = t('The partner "{{name}}" already connects to this address', { name: clash.name, interpolation: { escapeValue: false } }); }
             }
         }
         const s = validateFilter(d.share, t);
@@ -131,7 +131,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved, onO
             size="xl"
             fullScreen={isPhone}
             radius={isPhone ? 0 : 'lg'}
-            title={<Text fw={700} size="lg">{t('Edit {{name}}', { name: partner.name })}</Text>}
+            title={<Text fw={700} size="lg">{t('Edit {{name}}', { name: partner.name, interpolation: { escapeValue: false } })}</Text>}
             closeOnClickOutside={false}
         >
             <Stepper active={active} onStepClick={setActive} allowNextStepsSelect size="sm" mb="lg">
