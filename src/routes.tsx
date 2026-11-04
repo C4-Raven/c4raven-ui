@@ -27,7 +27,7 @@ const EUDStats = React.lazy(() => import('./pages/EUDStats.tsx').then());
 const Plugin = React.lazy(() => import('./pages/Plugin.tsx').then());
 const LinkTAKGovAccount = React.lazy(() => import('./pages/LinkTakGov.tsx').then());
 const UserProfile = React.lazy(() => import('./pages/UserProfile.tsx').then());
-const FederationHub = React.lazy(() => import('./pages/FederationHub.tsx').then());
+const FederationHub = React.lazy(() => import('./pages/FederationHub/index.tsx').then());
 const SupportingDocuments = React.lazy(() => import('./pages/SupportingDocuments.tsx').then());
 
 const routes = [

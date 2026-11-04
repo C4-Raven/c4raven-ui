@@ -19,6 +19,8 @@ export interface EUD {
     version: string;
     last_event_time: string;
     last_status: string;
+    /** Set on devices that arrived through the Federation Hub: the server they came from. */
+    federated_from?: string | null;
 }
 
 export default function EUDs() {
@@ -46,7 +48,16 @@ export default function EUDs() {
                 let rows: EUD[] = []
 
                 r.data.results.map((row:any) => {
-                    const callsign_link = <Link to={`/eud_stats?uid=${row.uid}&callsign=${row.callsign}`}>{row.callsign}</Link>
+                    const callsign_link = (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Link to={`/eud_stats?uid=${row.uid}&callsign=${row.callsign}`}>{row.callsign}</Link>
+                            {row.federated_from && (
+                                <Badge size="xs" variant="light" color="indigo" tt="none">
+                                    {t('Federated from {{server}}', { server: row.federated_from, interpolation: { escapeValue: false } })}
+                                </Badge>
+                            )}
+                        </span>
+                    )
                     let eud: EUD = {
                         callsign: callsign_link,
                         device: row.device,
@@ -57,7 +68,8 @@ export default function EUDs() {
                         uid: row.uid,
                         version: row.version,
                         last_event_time: row.last_event_time,
-                        last_status: row.last_status
+                        last_status: row.last_status,
+                        federated_from: row.federated_from ?? null,
                     }
                     rows.push(eud);
                 });

@@ -110,11 +110,17 @@ interface Props {
     views?: GraphView;
     knownGroups: string[];
     connections?: DiagramConnection[];
-    onRulesChange: (rules: DiagramRule[]) => void;
-    onViewsChange: (views: GraphView) => void;
+    onRulesChange?: (rules: DiagramRule[]) => void;
+    onViewsChange?: (views: GraphView) => void;
+    /**
+     * View-only map: nodes can still be dragged and the board zoomed for a
+     * better look, but nothing is saved and rules can't be added, edited or
+     * removed.
+     */
+    readOnly?: boolean;
 }
 
-export default function FederationPolicyDiagram({ entities, rules, views, knownGroups, connections = [], onRulesChange, onViewsChange }: Props) {
+export default function FederationPolicyDiagram({ entities, rules, views, knownGroups, connections = [], onRulesChange = () => {}, onViewsChange, readOnly = false }: Props) {
     // An entity counts as live if any current connection names it -- either
     // as the remote server itself (FederationOutgoing) or as one of the
     // group identities it authenticated with (FederationGroup/CA). This is
@@ -195,6 +201,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
     zoomRef.current = zoom;
 
     function persistViews(nextPositions: Record<string, XY>, nextZoom: number, nextPan: XY) {
+        if (readOnly || !onViewsChange) return;
         onViewsChange({
             nodes: entities.map((e) => ({ id: e.id, x: nextPositions[e.id]?.x ?? 0, y: nextPositions[e.id]?.y ?? 0 })),
             settings: { zoom: nextZoom, canvas_x: nextPan.x, canvas_y: nextPan.y },
@@ -275,6 +282,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
     }
 
     function handleNodeClick(id: string) {
+        if (readOnly) return;
         if (!selectedNode) {
             setSelectedNode(id);
             return;
@@ -302,6 +310,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
     }
 
     function openEditRule(rule: DiagramRule) {
+        if (readOnly) return;
         setRuleForm({ ...rule, filter: rule.filter || { ...EMPTY_FILTER }, bidirectional: false });
         setEditingRuleId(rule.id);
         setShowRuleModal(true);
@@ -327,6 +336,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
     }
 
     function deleteRule(id: string) {
+        if (readOnly) return;
         onRulesChange(rules.filter((r) => r.id !== id));
     }
 
@@ -337,7 +347,11 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
         <Stack gap="md">
             <Group justify="space-between" wrap="nowrap">
                 <Group gap="lg" wrap="wrap">
-                    <Text size="sm" c="dimmed">{t('Click two partners to draw a federation rule between them.')}</Text>
+                    <Text size="sm" c="dimmed">
+                        {readOnly
+                            ? t('Arrows show which way data is allowed to flow. Green means both ends are connected right now.')
+                            : t('Click two partners to draw a federation rule between them.')}
+                    </Text>
                     <Group gap="md">
                         <Group gap={6}>
                             <Box style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--mantine-color-indigo-7)' }} />
@@ -351,14 +365,14 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                 </Group>
                 <Group gap="xs">
                     <Tooltip label={t('Zoom out')}>
-                        <ActionIcon variant="light" onClick={() => zoomBy(-0.1)}><IconZoomOut size={16} /></ActionIcon>
+                        <ActionIcon variant="light" aria-label={t('Zoom out')} onClick={() => zoomBy(-0.1)}><IconZoomOut size={16} /></ActionIcon>
                     </Tooltip>
                     <Text size="xs" c="dimmed" w={40} ta="center">{Math.round(zoom * 100)}%</Text>
                     <Tooltip label={t('Zoom in')}>
-                        <ActionIcon variant="light" onClick={() => zoomBy(0.1)}><IconZoomIn size={16} /></ActionIcon>
+                        <ActionIcon variant="light" aria-label={t('Zoom in')} onClick={() => zoomBy(0.1)}><IconZoomIn size={16} /></ActionIcon>
                     </Tooltip>
                     <Tooltip label={t('Reset view')}>
-                        <ActionIcon variant="light" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); persistViews(positionsRef.current, 1, { x: 0, y: 0 }); }}>
+                        <ActionIcon variant="light" aria-label={t('Reset view')} onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); persistViews(positionsRef.current, 1, { x: 0, y: 0 }); }}>
                             <IconZoomReset size={16} />
                         </ActionIcon>
                     </Tooltip>
@@ -439,7 +453,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                         strokeLinecap="round"
                                         markerEnd={`url(#${arrowMarker})`}
                                         pointerEvents="stroke"
-                                        style={{ cursor: 'pointer' }}
+                                        style={{ cursor: readOnly ? 'default' : 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     />
                                     {(!liveKnown || bothLive) && (
@@ -462,7 +476,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                         rx={10}
                                         fill="var(--mantine-color-dark-7)"
                                         stroke="var(--mantine-color-dark-4)"
-                                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                                        style={{ pointerEvents: 'all', cursor: readOnly ? 'default' : 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     />
                                     <text
@@ -471,7 +485,7 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                         fontSize={11}
                                         fontWeight={600}
                                         fill="var(--mantine-color-gray-2)"
-                                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                                        style={{ pointerEvents: 'all', cursor: readOnly ? 'default' : 'pointer' }}
                                         onClick={() => openEditRule(rule)}
                                     >
                                         {rule.name}
@@ -563,7 +577,9 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
 
                     {entities.length === 0 && (
                         <Text pos="absolute" top="50%" left="50%" style={{ transform: 'translate(-50%, -50%)' }} c="dimmed" size="sm">
-                            {t('No federation partners yet — add a CA group or an outgoing connection to see them mapped out here.')}
+                            {readOnly
+                                ? t('The active policy is empty. Connect a server to see it here.')
+                                : t('No federation partners yet — add a CA group or an outgoing connection to see them mapped out here.')}
                         </Text>
                     )}
                 </Box>
@@ -572,7 +588,11 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
             <Stack gap={6}>
                 <Text size="sm" fw={600} c="dimmed">{t('Federation Rules')} {rules.length > 0 && `(${rules.length})`}</Text>
                 {rules.length === 0 ? (
-                    <Text size="sm" c="dimmed">{t('No rules yet — connect two partners above to allow data to flow between them.')}</Text>
+                    <Text size="sm" c="dimmed">
+                        {readOnly
+                            ? t('No rules in the active policy, so no data flows between partners.')
+                            : t('No rules yet — connect two partners above to allow data to flow between them.')}
+                    </Text>
                 ) : (
                     rules.map((rule) => (
                         <Paper key={rule.id} p="xs" radius="md" withBorder bg="dark.7">
@@ -580,17 +600,19 @@ export default function FederationPolicyDiagram({ entities, rules, views, knownG
                                 <Badge color="indigo" variant="light" style={{ flexShrink: 0 }}>
                                     {filterTypeLabel(rule.filter?.groupsFilterType || 'allGroups')}
                                 </Badge>
-                                <Group gap={6} style={{ flex: 1, cursor: 'pointer', minWidth: 0 }} onClick={() => openEditRule(rule)}>
+                                <Group gap={6} style={{ flex: 1, cursor: readOnly ? 'default' : 'pointer', minWidth: 0 }} onClick={() => openEditRule(rule)}>
                                     <Text size="sm" fw={600} truncate>{rule.name}</Text>
                                     <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
                                         {entityLabel(rule.source)} &rarr; {entityLabel(rule.destination)}
                                     </Text>
                                 </Group>
-                                <Tooltip label={t('Remove rule')}>
-                                    <ActionIcon color="red" variant="subtle" onClick={() => deleteRule(rule.id)}>
-                                        <IconTrash size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
+                                {!readOnly && (
+                                    <Tooltip label={t('Remove rule')}>
+                                        <ActionIcon color="red" variant="subtle" aria-label={t('Remove rule')} onClick={() => deleteRule(rule.id)}>
+                                            <IconTrash size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                             </Group>
                         </Paper>
                     ))
