@@ -23,7 +23,7 @@ import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconCheck, IconX, IconUser, IconLock } from '@tabler/icons-react';
 import { apiRoutes } from '../../apiRoutes';
 import axios from '../../axios_config';
-import Logo from '../../images/ots-logo.png';
+import Logo from '../../images/raven-logo.png';
 import { QRCode } from 'react-qrcode-logo';
 
 export default function Login(props: PaperProps) {

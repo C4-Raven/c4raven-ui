@@ -8,11 +8,10 @@
   <a href="https://tak.c4raven.net"><strong>tak.c4raven.net</strong></a>
 </p>
 
-C4 Raven is the web dashboard for our TAK (Team Awareness Kit) server — a
-Raven-branded, security-hardened fork of
-[the upstream project](https://github.com/brian7704/OpenTAKServer-UI). It gives
-operators a live map, device and mission management, video streaming, and
-full administrative control over the server, all from the browser.
+C4 Raven is the security-hardened web dashboard for our TAK (Team Awareness
+Kit) server. It gives operators a live map, device and mission management,
+video streaming, and full administrative control over the server, all from
+the browser.
 
 ## What's in it
 
@@ -26,8 +25,7 @@ integration.
   <img src="docs/screenshots/dashboard.png" alt="C4 Raven dashboard" width="700">
 </p>
 
-On top of the upstream feature set, this fork adds a proper account security
-flow the upstream project doesn't have out of the box. New accounts (and any
+It includes a proper account security flow. New accounts (and any
 account an admin flags) are forced through a real onboarding sequence on
 their next login: if two-factor authentication isn't configured yet, the
 login page generates a QR code and walks the user through setting it up
@@ -124,3 +122,7 @@ corepack yarn install
 corepack yarn dev      # start the dev server
 corepack yarn build    # production build to dist/
 ```
+
+## License
+
+GPL-3.0-or-later (see LICENSE). Portions © Brian (brian7704) and contributors.

@@ -40,7 +40,7 @@ import { notifications } from '@mantine/notifications';
 import { QRCode } from 'react-qrcode-logo';
 import { DateTimePicker } from '@mantine/dates';
 import { formatISO, parseISO } from 'date-fns';
-import Logo from './images/ots-logo.png';
+import Logo from './images/raven-logo.png';
 import { AppContent } from './components/AppContent';
 import axios from './axios_config';
 import { apiRoutes } from './apiRoutes';

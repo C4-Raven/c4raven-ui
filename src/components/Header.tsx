@@ -7,7 +7,7 @@ import {
 } from '@mantine/core';
 
 import { useNavigate } from 'react-router';
-import Logo from '../images/ots-logo.png';
+import Logo from '../images/raven-logo.png';
 import classes from './Header.module.css';
 import axios from '../axios_config';
 import { apiRoutes } from '../apiRoutes';

@@ -175,7 +175,7 @@ export default function Map() {
             className,
         });
 
-        // Video streams, most likely OpenTAK ICU
+        // Video streams, most likely from ICU camera apps
         if (type === 'b-m-p-s-p-loc') {
             icon = L.divIcon({
                 html: renderToString(<Video />),

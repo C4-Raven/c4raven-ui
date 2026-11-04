@@ -169,7 +169,7 @@ export default function Dashboard() {
         VERSION: '',
         VERSION_CODENAME: '',
     });
-    const [ots, setOts] = useState({
+    const [serverInfo, setServerInfo] = useState({
         version: '',
         uptime: 0,
         start_time: '',
@@ -226,10 +226,10 @@ export default function Dashboard() {
                         total: r.data.memory.total,
                         percent: r.data.memory.percent,
                     });
-                    setOts({
-                        version: r.data.ots_version,
-                        uptime: r.data.ots_uptime,
-                        start_time: parseISO(r.data.ots_start_time).toLocaleString(),
+                    setServerInfo({
+                        version: r.data.server_version,
+                        uptime: r.data.server_uptime,
+                        start_time: parseISO(r.data.server_start_time).toLocaleString(),
                         python_version: r.data.python_version,
                     });
                     setUptime({
@@ -289,7 +289,7 @@ export default function Dashboard() {
                 <div>
                     <Title order={2}>{t('Server Status')}</Title>
                     <Text size="sm" c="dimmed">
-                        {[uname.node, osRelease.PRETTY_NAME, ots.version && `C4 RAVEN ${ots.version}`].filter(Boolean).join(' · ')}
+                        {[uname.node, osRelease.PRETTY_NAME, serverInfo.version && `C4 RAVEN ${serverInfo.version}`].filter(Boolean).join(' · ')}
                     </Text>
                 </div>
                 <Group gap={6}>
@@ -319,7 +319,7 @@ export default function Dashboard() {
                     icon={<IconClock size={16} />}
                     label={t('Uptime')}
                     value={compactDuration(uptime.uptime)}
-                    detail={`${t('C4 RAVEN')} ${humanDuration(ots.uptime, ['days', 'hours', 'minutes'])}`}
+                    detail={`${t('C4 RAVEN')} ${humanDuration(serverInfo.uptime, ['days', 'hours', 'minutes'])}`}
                 />
             </SimpleGrid>
 
@@ -361,12 +361,12 @@ export default function Dashboard() {
                 <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl">
                     <div>
                         <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5} mb={4}>{t('C4 RAVEN')}</Text>
-                        <DetailRow label={t('Server version')} value={ots.version} mono />
+                        <DetailRow label={t('Server version')} value={serverInfo.version} mono />
                         <DetailRow label={t('UI version')} value={versions.gitTag} mono />
                         <DetailRow label={t('UI commit')} value={versions.gitCommitHash?.slice(0, 10)} mono />
                         <DetailRow label={t('UI built')} value={versions.versionDate && parseISO(versions.versionDate).toLocaleString()} />
-                        <DetailRow label={t('Python')} value={ots.python_version} mono />
-                        <DetailRow label={t('Running since')} value={ots.start_time} />
+                        <DetailRow label={t('Python')} value={serverInfo.python_version} mono />
+                        <DetailRow label={t('Running since')} value={serverInfo.start_time} />
                     </div>
                     <div>
                         <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts={0.5} mb={4}>{t('Operating system')}</Text>
