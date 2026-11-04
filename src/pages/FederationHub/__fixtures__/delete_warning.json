@@ -1,0 +1,6 @@
+{
+  "ca_removed": false,
+  "id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+  "success": true,
+  "warning": "The server was removed. Its CA was kept because the outgoing connection VPN Server may need it to verify the other side; remove it under Advanced > CA certificates if you're sure it doesn't"
+}

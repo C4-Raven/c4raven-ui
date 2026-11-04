@@ -1,0 +1,5 @@
+{
+  "code": "address_not_allowed",
+  "error": "Raven doesn't test loopback, link-local, multicast or unspecified addresses",
+  "success": false
+}

@@ -34,7 +34,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { extractError, formatDateTime, formatRelative } from '../ServerRequests/shared';
-import { createPartner, downloadHandoff, downloadOwnCa, inspectCa } from './api';
+import { createPartner, downloadHandoff, downloadOwnCa, getHandoff, inspectCa } from './api';
 import CheckPanel from './CheckPanel';
 import ConnectStep from './ConnectStep';
 import {
@@ -42,23 +42,28 @@ import {
     CA_MAX_BYTES,
     caWarnings,
     describeChanges,
+    explainError,
+    handoffSteps,
     kindLabel,
+    ourAddressOf,
     stepHasError,
     suggestedName,
     validateWizard,
     WIZARD_STEPS,
     wizardStepOf,
+    type PartnerErrorView,
     type WizardDraft,
     type WizardErrors,
     type WizardStep,
 } from './helpers';
-import { Fingerprint, KindIcon } from './parts';
+import { CopyAddress, Fingerprint, KindIcon, ServerErrorAlert } from './parts';
 import ShareStep from './ShareStep';
 import {
     defaultDirection,
     defaultPort,
     EVERYTHING,
     type CheckItem,
+    type Handoff,
     type Overview,
     type Partner,
     type PartnerKind,
@@ -158,9 +163,10 @@ function TypeStep({ kind, onKind, error }: { kind: PartnerKind | null; onKind: (
     );
 }
 
-function CertsStep({ draft, overview, partners, errors, inspecting, onFile, onName }: {
+function CertsStep({ draft, overview, handoff, partners, errors, inspecting, onFile, onName }: {
     draft: WizardDraft;
     overview: Overview | null;
+    handoff: Handoff | null;
     partners: Partner[];
     errors: WizardErrors;
     inspecting: boolean;
@@ -170,6 +176,8 @@ function CertsStep({ draft, overview, partners, errors, inspecting, onFile, onNa
     const { t } = useTranslation();
     const warnings = draft.ca ? caWarnings(draft.ca, partners, t) : [];
     const color = { error: 'red', warning: 'yellow', info: 'blue' } as const;
+    const steps = handoffSteps(handoff, draft.kind);
+    const address = ourAddressOf(handoff) || ourAddressOf(overview?.hub);
     return (
         <Stack gap="md">
             <Text size="sm" c="dimmed">
@@ -181,8 +189,24 @@ function CertsStep({ draft, overview, partners, errors, inspecting, onFile, onNa
                     <Text size="xs" c="dimmed">
                         {t('Send this file to the other admin with the instructions. They can compare the fingerprint with you over the phone to be sure it wasn\'t swapped on the way.')}
                     </Text>
-                    {overview?.own && <Fingerprint sha256={overview.own.sha256} label={t('Our fingerprint')} />}
+                    <Fingerprint sha256={handoff?.sha256 ?? overview?.own?.sha256} label={t('Our fingerprint')} />
+                    {address && (
+                        <Group gap={6} wrap="wrap">
+                            <Text size="xs" c="dimmed">{t('They connect to')}</Text>
+                            <CopyAddress value={address} />
+                        </Group>
+                    )}
                     <HandoffButtons size="xs" />
+                    {steps.length > 0 && (
+                        <>
+                            <Text size="xs" fw={600} mt={4}>
+                                {t('What the other admin does ({{kind}})', { kind: kindLabel(draft.kind ?? 'other', t) })}
+                            </Text>
+                            <List type="ordered" size="xs" spacing={4}>
+                                {steps.map((step) => <List.Item key={step}>{step}</List.Item>)}
+                            </List>
+                        </>
+                    )}
                 </Stack>
             </Paper>
             <Paper p="md" className="raven-surface raven-surface--tile">
@@ -268,11 +292,13 @@ function ReviewStep({ draft, overview, ourAddress }: { draft: WizardDraft; overv
     );
 }
 
-export default function ConnectWizard({ opened, onClose, overview, onCreated }: {
+export default function ConnectWizard({ opened, onClose, overview, onCreated, onOpenPartner }: {
     opened: boolean;
     onClose: () => void;
     overview: Overview | null;
     onCreated: (p: Partner) => void;
+    /** "Open existing partner" on a ca_exists / outgoing_exists answer. */
+    onOpenPartner?: (id: string) => void;
 }) {
     const { t } = useTranslation();
     const isPhone = useMediaQuery('(max-width: 48em)');
@@ -283,11 +309,12 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
     const [inspecting, setInspecting] = useState(false);
     const [portTouched, setPortTouched] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [serverError, setServerError] = useState<string>();
+    const [serverError, setServerError] = useState<PartnerErrorView>();
+    const [handoff, setHandoff] = useState<Handoff | null>(null);
     const [created, setCreated] = useState<Partner | null>(null);
     const [checkState, setCheckState] = useState<{ connected: boolean; finished: boolean }>({ connected: false, finished: false });
     const partners = useMemo(() => overview?.partners ?? [], [overview]);
-    const ourAddress = overview ? `${overview.hub.host}:${overview.hub.v2_port || 9102}` : '';
+    const ourAddress = ourAddressOf(handoff) || ourAddressOf(overview?.hub);
 
     useEffect(() => {
         if (opened) {
@@ -299,6 +326,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
             setCreated(null);
             setPortTouched(false);
             setCheckState({ connected: false, finished: false });
+            getHandoff().then(setHandoff).catch(() => setHandoff(null));
         }
     }, [opened]);
 
@@ -331,7 +359,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
             const ca = await inspectCa(file);
             setDraft((d) => (d.caFile === file ? { ...d, ca, name: d.name.trim() ? d.name : suggestedName(ca) } : d));
         } catch (err) {
-            const msg = await extractError(err) ?? t('This file could not be read as a certificate');
+            const msg = (await explainError(err, partners, t, t('This file could not be read as a certificate'))).message;
             setDraft((d) => (d.caFile === file ? { ...d, caError: msg } : d));
         } finally {
             setInspecting(false);
@@ -355,7 +383,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
             onCreated(partner);
             notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('Partner added and activated'), message: partner.name });
         } catch (err) {
-            setServerError(await extractError(err) ?? t('The hub rejected the change'));
+            setServerError(await explainError(err, partners, t, t('The hub rejected the change')));
         } finally {
             setSaving(false);
         }
@@ -444,6 +472,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
                         <CertsStep
                             draft={draft}
                             overview={overview}
+                            handoff={handoff}
                             partners={partners}
                             errors={errors}
                             inspecting={inspecting}
@@ -481,10 +510,18 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated }: 
                     {step === 'review' && <ReviewStep draft={draft} overview={overview} ourAddress={ourAddress} />}
 
                     {serverError && (
-                        <Alert mt="lg" color="red" variant="light" icon={<IconAlertCircle size={16} />} title={t('Couldn\'t connect the partner')}>
-                            {serverError}
-                            <Text size="xs" mt={4}>{t('Nothing was left half done: the hub was put back the way it was.')}</Text>
-                        </Alert>
+                        <Stack mt="lg">
+                            <ServerErrorAlert
+                                view={serverError}
+                                title={t('Couldn\'t connect the partner')}
+                                onOpenPartner={onOpenPartner}
+                                onRetry={connect}
+                            >
+                                {!serverError.halfChanged && (
+                                    <Text size="xs">{t('Nothing was left half done: the hub was put back the way it was.')}</Text>
+                                )}
+                            </ServerErrorAlert>
+                        </Stack>
                     )}
                     {attempted && wizardStepOf(errors) && (
                         <Text mt="md" size="sm" c="red">{t('Some steps need attention before you can connect. They are marked in red above.')}</Text>

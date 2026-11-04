@@ -1,0 +1,121 @@
+{
+  "bridge": {
+    "enabled": true,
+    "service_state": "active"
+  },
+  "hub": {
+    "active_policy": "Tak",
+    "broker_id": "broker-1",
+    "host": "tak.example.net",
+    "reachable": true,
+    "v2_port": 9102
+  },
+  "own": {
+    "connected": true,
+    "nickname": "Pubserver",
+    "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+    "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
+    "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8"
+  },
+  "partners": [
+    {
+      "ca": {
+        "expires": null,
+        "nickname": "Pub Server",
+        "sha256": "ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+        "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
+        "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631"
+      },
+      "connections": [
+        {
+          "connectionId": "Pub server_eb4007c1-e417-4755-8aba-b0d19021f421-c0dc4de9-622713fa-MwccocTf",
+          "federationProtocolVersion": 2,
+          "groupIdentities": [
+            "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631"
+          ],
+          "localConnectionType": "FEDERATION_HUB_SERVER",
+          "remoteAddress": "198.51.100.139:48026",
+          "remoteConnectionType": "FEDERATION_HUB_CLIENT",
+          "remoteServerId": "622713fa68fa49d8a240dc3fe9d65545-MwccocTf"
+        }
+      ],
+      "direction": "they_dial",
+      "enabled": true,
+      "id": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-ec4a6fc4f7c76fee7714ae6c969a0e373c451fc044dc4680e479df049db69631",
+      "interconnected": true,
+      "kind": "other",
+      "name": "Pub Server",
+      "outgoing": null,
+      "problems": [
+        "both_sides_dial"
+      ],
+      "receive": {
+        "allowed": [],
+        "disallowed": [],
+        "type": "allGroups"
+      },
+      "share": {
+        "allowed": [],
+        "disallowed": [],
+        "type": "allGroups"
+      },
+      "status": "connected",
+      "traffic": {
+        "bytes_in": 145315,
+        "bytes_out": 54284,
+        "msgs_in": 223,
+        "msgs_out": 101
+      }
+    },
+    {
+      "ca": null,
+      "connections": [],
+      "direction": "we_dial",
+      "enabled": true,
+      "id": "VPN Server_7399fa0c-cbaa-40b6-9c3c-3184959715e5",
+      "interconnected": false,
+      "kind": "other",
+      "name": "VPN Server",
+      "outgoing": {
+        "enabled": true,
+        "host": "192.0.2.37",
+        "name": "VPN Server_7399fa0c-cbaa-40b6-9c3c-3184959715e5",
+        "port": 9102
+      },
+      "problems": [
+        "both_sides_dial"
+      ],
+      "receive": {
+        "allowed": [],
+        "disallowed": [],
+        "type": "allGroups"
+      },
+      "share": {
+        "allowed": [],
+        "disallowed": [],
+        "type": "allGroups"
+      },
+      "status": "error",
+      "traffic": {
+        "bytes_in": 0,
+        "bytes_out": 0,
+        "msgs_in": 0,
+        "msgs_out": 0
+      }
+    }
+  ],
+  "problems": [],
+  "unattributed_connections": [
+    {
+      "connectionId": "stranger-1",
+      "federationProtocolVersion": 2,
+      "groupIdentities": [
+        "CN=Unknown-abc"
+      ],
+      "localConnectionType": "FEDERATION_HUB_SERVER",
+      "remoteAddress": "198.51.100.139:48026",
+      "remoteConnectionType": "FEDERATION_HUB_CLIENT",
+      "remoteServerId": "622713fa68fa49d8a240dc3fe9d65545-MwccocTf"
+    }
+  ]
+}

@@ -1,8 +1,11 @@
 import React from 'react';
-import { ActionIcon, Badge, Group, Menu, Paper, SimpleGrid, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Button, Group, Menu, Paper, SimpleGrid, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import {
+    IconAlertTriangle,
     IconArrowDownLeft,
     IconArrowUpRight,
+    IconInfoCircle,
+    IconPlugConnectedX,
     IconDots,
     IconPencil,
     IconRefresh,
@@ -10,11 +13,11 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { directionLabel, formatBytes, formatCount, problemText, shareSummary } from './helpers';
+import { directionLabel, formatBytes, formatCount, isUnlinkedOutgoing, problemColor, problemText, shareSummary, unlinkedOutgoingHint } from './helpers';
 import { Fingerprint, KindIcon, StatusBadge } from './parts';
 import type { Partner } from './types';
 
-export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnect, onRemove, onToggle }: {
+export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnect, onRemove, onToggle, onStopDialling }: {
     partner: Partner;
     busy?: boolean;
     onEdit: () => void;
@@ -22,11 +25,20 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
     onReconnect: () => void;
     onRemove: () => void;
     onToggle: (enabled: boolean) => void;
+    /**
+     * Both sides dial: drop OUR outgoing connection. For an outgoing-only
+     * partner that removes it (keeping any CA); for a CA partner it switches
+     * to "They connect to us".
+     */
+    onStopDialling?: () => void;
 }) {
     const { t } = useTranslation();
     const share = shareSummary(partner.share, t);
     const receive = shareSummary(partner.receive, t);
     const traffic = partner.traffic ?? { msgs_out: 0, msgs_in: 0, bytes_out: 0, bytes_in: 0 };
+    const unlinked = isUnlinkedOutgoing(partner);
+    const bothDial = partner.problems?.includes('both_sides_dial');
+    const otherProblems = (partner.problems ?? []).filter((code) => code !== 'both_sides_dial');
 
     return (
         <Paper
@@ -67,7 +79,9 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
                 </Tooltip>
             </Group>
 
-            <Fingerprint sha256={partner.ca?.sha256} label={t('Certificate')} />
+            {partner.ca
+                ? <Fingerprint sha256={partner.ca.sha256} label={t('Certificate')} />
+                : <Text size="xs" c="dimmed">{t('Not linked to a trusted certificate')}</Text>}
 
             <Stack gap={6}>
                 <Group gap={6} wrap="wrap">
@@ -106,10 +120,31 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
                 </div>
             </SimpleGrid>
 
-            {partner.problems?.length > 0 && (
+            {bothDial && (
+                <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />} py="xs">
+                    <Stack gap={6}>
+                        <Text size="xs">{problemText('both_sides_dial', t)}</Text>
+                        {partner.direction === 'we_dial' && onStopDialling && (
+                            <Group>
+                                <Button size="xs" radius="xl" color="red" variant="light" leftSection={<IconPlugConnectedX size={14} />} disabled={busy} onClick={onStopDialling}>
+                                    {unlinked ? t('Remove this outgoing connection') : t('Stop connecting to them')}
+                                </Button>
+                            </Group>
+                        )}
+                    </Stack>
+                </Alert>
+            )}
+
+            {unlinked && (
+                <Alert color="yellow" variant="light" icon={<IconInfoCircle size={16} />} py="xs">
+                    <Text size="xs">{unlinkedOutgoingHint(t)}</Text>
+                </Alert>
+            )}
+
+            {otherProblems.length > 0 && (
                 <Stack gap={4}>
-                    {partner.problems.map((code) => (
-                        <Text key={code} size="xs" c="red">{problemText(code, t)}</Text>
+                    {otherProblems.map((code) => (
+                        <Text key={code} size="xs" c={problemColor(code) === 'red' ? 'red' : 'yellow.8'}>{problemText(code, t)}</Text>
                     ))}
                 </Stack>
             )}

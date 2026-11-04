@@ -1,11 +1,92 @@
 /** Small building blocks shared by the Federation Hub page, cards and wizard. */
-import React from 'react';
-import { ActionIcon, Badge, Code, CopyButton, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { IconAffiliate, IconBuildingBroadcastTower, IconCheck, IconCopy, IconServer2 } from '@tabler/icons-react';
+import React, { useState } from 'react';
+import { ActionIcon, Alert, Anchor, Badge, Button, Code, CopyButton, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconAffiliate, IconAlertCircle, IconBuildingBroadcastTower, IconCheck, IconCopy, IconExternalLink, IconPlayerPlay, IconServer2 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { PulseDot } from '../ServerRequests/shared';
-import { formatFingerprint, kindLabel, shortFingerprint, statusView } from './helpers';
+import { extractError, PulseDot } from '../ServerRequests/shared';
+import { activateFederation } from './api';
+import { formatFingerprint, kindLabel, shortFingerprint, statusView, type PartnerErrorView } from './helpers';
 import type { PartnerKind, PartnerStatus } from './types';
+
+/** Window event the Advanced section listens for: opens it (optionally on a tab) and scrolls to it. */
+export const OPEN_ADVANCED_EVENT = 'fedhub:open-advanced';
+
+export function openAdvanced(tab?: string) {
+    window.dispatchEvent(new CustomEvent(OPEN_ADVANCED_EVENT, { detail: { tab } }));
+}
+
+/**
+ * A partner-route error, explained: "Open existing partner" for *_exists,
+ * activate-a-policy buttons for no_active_policy (then `onRetry`), and a
+ * pointer to Advanced when the hub may be left half changed.
+ */
+export function ServerErrorAlert({ view, title, onOpenPartner, onRetry, children }: {
+    view: PartnerErrorView;
+    title: string;
+    onOpenPartner?: (id: string) => void;
+    onRetry?: () => void;
+    children?: React.ReactNode;
+}) {
+    const { t } = useTranslation();
+    const [activating, setActivating] = useState<string | null>(null);
+    const [activateError, setActivateError] = useState<string>();
+
+    async function activate(name: string) {
+        setActivating(name);
+        setActivateError(undefined);
+        try {
+            await activateFederation(name);
+            onRetry?.();
+        } catch (err) {
+            setActivateError(await extractError(err) ?? t('The policy could not be activated'));
+        } finally {
+            setActivating(null);
+        }
+    }
+
+    return (
+        <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />} title={title}>
+            <Stack gap="xs">
+                <Text size="sm">{view.message}</Text>
+                {view.existingPartnerId && onOpenPartner && (
+                    <Group>
+                        <Button size="xs" radius="xl" variant="light" color="red" leftSection={<IconExternalLink size={14} />} onClick={() => onOpenPartner(view.existingPartnerId!)}>
+                            {t('Open existing partner')}
+                        </Button>
+                    </Group>
+                )}
+                {view.policies.length > 0 && (
+                    <Group gap="xs" wrap="wrap">
+                        {view.policies.map((name) => (
+                            <Button
+                                key={name}
+                                size="xs"
+                                radius="xl"
+                                variant="light"
+                                leftSection={<IconPlayerPlay size={14} />}
+                                loading={activating === name}
+                                disabled={activating !== null && activating !== name}
+                                onClick={() => activate(name)}
+                            >
+                                {onRetry ? t('Activate "{{name}}" and try again', { name }) : t('Activate "{{name}}"', { name })}
+                            </Button>
+                        ))}
+                    </Group>
+                )}
+                {activateError && <Text size="xs" c="red">{activateError}</Text>}
+                {view.halfChanged && (
+                    <Text size="xs">
+                        {t('The hub may be left half changed.')}{' '}
+                        <Anchor component="button" type="button" size="xs" onClick={() => openAdvanced('policy')}>
+                            {t('Check the policy under Advanced')}
+                        </Anchor>
+                    </Text>
+                )}
+                {children}
+            </Stack>
+        </Alert>
+    );
+}
 
 export function CopyIcon({ value, label }: { value: string; label: string }) {
     const { t } = useTranslation();

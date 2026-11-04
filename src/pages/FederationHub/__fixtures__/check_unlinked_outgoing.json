@@ -1,0 +1,82 @@
+[
+  {
+    "code": "ca_trusted",
+    "detail": "This connection isn't linked to a trusted CA, so Raven can't tell",
+    "fix": "Make sure the other server's CA is added under Advanced > CA certificates",
+    "level": "warning",
+    "ok": false,
+    "title": "Their CA certificate is trusted"
+  },
+  {
+    "code": "ca_in_policy",
+    "detail": "Not needed: we connect to them",
+    "level": "skipped",
+    "ok": true,
+    "title": "Their CA is in the active policy"
+  },
+  {
+    "code": "rules_out",
+    "detail": "A rule sends our data to them",
+    "level": "ok",
+    "ok": true,
+    "title": "We share data with them"
+  },
+  {
+    "code": "rules_in",
+    "detail": "A rule delivers their data to us",
+    "level": "ok",
+    "ok": true,
+    "title": "We receive data from them"
+  },
+  {
+    "code": "filter_compatible",
+    "detail": "Everything is shared",
+    "level": "ok",
+    "ok": true,
+    "title": "Group filters will let data through"
+  },
+  {
+    "code": "dial_direction",
+    "detail": "We connect to them",
+    "level": "ok",
+    "ok": true,
+    "title": "Only one side connects"
+  },
+  {
+    "code": "dns",
+    "detail": "192.0.2.10",
+    "level": "ok",
+    "ok": true,
+    "title": "Their address resolves"
+  },
+  {
+    "code": "tcp",
+    "detail": "192.0.2.37:9102 accepts connections",
+    "level": "ok",
+    "ok": true,
+    "title": "Their port is reachable"
+  },
+  {
+    "code": "connected",
+    "detail": "No live connection yet",
+    "fix": "Wait a few seconds; the hub retries every 5 seconds",
+    "level": "error",
+    "ok": false,
+    "title": "Connected"
+  },
+  {
+    "code": "traffic_flowing",
+    "detail": "No messages yet",
+    "fix": "Move a device on either side; TAK Servers also need Manage Groups set for the hub federate",
+    "level": "warning",
+    "ok": false,
+    "title": "Data is flowing"
+  },
+  {
+    "code": "ca_expiry",
+    "detail": "Expiry date unknown",
+    "level": "skipped",
+    "ok": true,
+    "title": "Their CA isn't about to expire"
+  }
+]

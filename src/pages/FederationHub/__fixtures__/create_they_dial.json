@@ -1,0 +1,35 @@
+{
+  "ca": {
+    "expires": "2036-11-01T08:35:18Z",
+    "nickname": "TAK X",
+    "sha256": "13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3",
+    "subject": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US",
+    "uid": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3"
+  },
+  "connections": [],
+  "direction": "they_dial",
+  "enabled": true,
+  "id": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3",
+  "interconnected": false,
+  "kind": "tak_server",
+  "name": "TAK X",
+  "outgoing": null,
+  "problems": [],
+  "receive": {
+    "allowed": [],
+    "disallowed": [],
+    "type": "allGroups"
+  },
+  "share": {
+    "allowed": [],
+    "disallowed": [],
+    "type": "allGroups"
+  },
+  "status": "waiting",
+  "traffic": {
+    "bytes_in": 0,
+    "bytes_out": 0,
+    "msgs_in": 0,
+    "msgs_out": 0
+  }
+}

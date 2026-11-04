@@ -1,0 +1,14 @@
+{
+  "already_trusted": false,
+  "days_left": 3649,
+  "existing_partner_id": null,
+  "fingerprint": "13:BE:E3:68:16:F3:05:D5:4B:23:F7:EC:51:D7:90:89:68:8C:91:A2:9E:0B:B3:F5:44:46:3E:EC:5E:20:5E:B3",
+  "is_ca": true,
+  "is_own": false,
+  "issuer": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US",
+  "nickname": null,
+  "not_after": "2036-11-01T08:35:18Z",
+  "sha256": "13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3",
+  "subject": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US",
+  "uid": "CN=TAK-ROOT-CA,OU=TAK,O=ZZ,C=US-13bee36816f305d54b23f7ec51d79089688c91a29e0bb3f544463eec5e205eb3"
+}

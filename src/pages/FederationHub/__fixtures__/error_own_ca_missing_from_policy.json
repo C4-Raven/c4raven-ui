@@ -1,0 +1,5 @@
+{
+  "code": "own_ca_missing_from_policy",
+  "error": "This policy doesn't include this hub's own CA, so Raven's own connection to the hub would be refused once it's active. Add it, or apply anyway",
+  "success": false
+}

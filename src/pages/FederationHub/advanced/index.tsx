@@ -69,7 +69,8 @@
  * host-level edit instead) and policy/core + policy/plugins partial saves
  * (Save & apply sends the whole model, which covers both).
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { OPEN_ADVANCED_EVENT } from '../parts';
 import { ActionIcon, Badge, Button, Collapse, Group, Tabs, Tooltip } from '@mantine/core';
 import {
     IconAdjustments,
@@ -112,12 +113,16 @@ function RefreshButton() {
     );
 }
 
-function AdvancedTabs() {
+function AdvancedTabs({ initialTab = 'connections' }: { initialTab?: TabValue }) {
     const { t } = useTranslation();
     const { connections } = useHubData();
-    const [tab, setTab] = useState<TabValue>('connections');
+    const [tab, setTab] = useState<TabValue>(initialTab);
     // Mount each tab the first time it's opened, then keep it (the policy draft survives tab switches).
-    const [visited, setVisited] = useState<Set<TabValue>>(() => new Set(['connections']));
+    const [visited, setVisited] = useState<Set<TabValue>>(() => new Set([initialTab]));
+    useEffect(() => {
+        setTab(initialTab);
+        setVisited((prev) => (prev.has(initialTab) ? prev : new Set(prev).add(initialTab)));
+    }, [initialTab]);
     function change(v: string | null) {
         if (!v || !(TABS as readonly string[]).includes(v)) { return; }
         const value = v as TabValue;
@@ -161,12 +166,27 @@ export function AdvancedSection(): React.JSX.Element {
     const { t } = useTranslation();
     const [opened, setOpened] = useState(false);
     const [everOpened, setEverOpened] = useState(false);
+    const [initialTab, setInitialTab] = useState<TabValue>('connections');
+    const anchor = useRef<HTMLDivElement>(null);
     function toggle() {
         setOpened((o) => !o);
         setEverOpened(true);
     }
+    // Other parts of the page link here (openAdvanced in ../parts), e.g. after a half-applied change.
+    useEffect(() => {
+        const onOpen = (e: Event) => {
+            const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab;
+            if (tab && (TABS as readonly string[]).includes(tab)) { setInitialTab(tab as TabValue); }
+            setOpened(true);
+            setEverOpened(true);
+            anchor.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        };
+        window.addEventListener(OPEN_ADVANCED_EVENT, onOpen);
+        return () => window.removeEventListener(OPEN_ADVANCED_EVENT, onOpen);
+    }, []);
     return (
         <HubDataProvider active={opened}>
+            <div ref={anchor} id="fedhub-advanced" />
             <Section
                 title={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconAdjustments size={18} />{t('Advanced')}</span>}
                 description={t('Everything the Federation Hub can do, including raw connections, metrics, trusted CAs, the full policy editor, tokens, plugins, broker settings and admin access.')}
@@ -180,7 +200,7 @@ export function AdvancedSection(): React.JSX.Element {
                 )}
             >
                 <Collapse expanded={opened}>
-                    {everOpened && <AdvancedTabs />}
+                    {everOpened && <AdvancedTabs initialTab={initialTab} />}
                 </Collapse>
             </Section>
         </HubDataProvider>

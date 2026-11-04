@@ -1,0 +1,5 @@
+{
+  "code": "own_ca",
+  "error": "That is this hub's own CA. Upload the other server's CA instead",
+  "success": false
+}

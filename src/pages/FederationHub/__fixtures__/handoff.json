@@ -1,0 +1,32 @@
+{
+  "ca_pem": "-----BEGIN CERTIFICATE-----\nMIIBsjCCAVmgAwIBAgIUSf5w2RerRgF57zrZ3sBq0bLoXRowCgYIKoZIzj0EAwIw\nTzELMAkGA1UEBhMCVVMxCzAJBgNVBAoMAlpaMRcwFQYDVQQLDA5DNFJhdmVuLUZl\nZEh1YjEaMBgGA1UEAwwRQzRSYXZlbi1GZWRIdWItQ0EwHhcNMjYxMTAzMDgzNTE4\nWhcNMzYxMTAxMDgzNTE4WjBPMQswCQYDVQQGEwJVUzELMAkGA1UECgwCWloxFzAV\nBgNVBAsMDkM0UmF2ZW4tRmVkSHViMRowGAYDVQQDDBFDNFJhdmVuLUZlZEh1Yi1D\nQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABEyYnmJX6fztWQfvTBroskFao6LN\n+NQLGbj4n9zFBFuNHeORlqfflA730gwIuzz/KbMk3VvYHKrHwAIdCpC/1NqjEzAR\nMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgRgPvv3nQNe39ifg/\ncZ3U8smKlNbeFVl591gAaA3f/I0CIDWQz5znRq4BplxfBc3/CjbTni/esklReNdn\ndBRrq+3y\n-----END CERTIFICATE-----\n",
+  "fingerprint": "88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8",
+  "host": "tak.example.net",
+  "nickname": "Pubserver",
+  "not_after": "2036-11-01T08:35:18Z",
+  "port": 9102,
+  "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+  "steps": {
+    "other": [
+      "Trust our CA (attached) in your federation trust store. Fingerprint: 88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8.",
+      "Send us the CA that issued the certificate your server presents.",
+      "Connect to tak.example.net:9102 using federation protocol v2 over mutual TLS, unless we agreed that we connect to you. Only one side may connect."
+    ],
+    "raven_hub": [
+      "Open Federation Hub in your C4 Raven and click \"Connect a server\".",
+      "Choose \"Raven with its own hub\".",
+      "Download your hub's CA and send it to us; upload our CA (attached) when asked.",
+      "Check that our CA's fingerprint is 88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8.",
+      "Under \"Who connects\", choose \"We connect to them\" and enter tak.example.net:9102, unless we agreed that we connect to you. Only one side may connect.",
+      "Leave \"What to share\" on \"Everything\" and click Connect."
+    ],
+    "tak_server": [
+      "In TAK Server go to Configuration > Manage Federates > Edit Configuration, enable federation (v2) and restart TAK Server if it asks.",
+      "Under Manage Federate Certificate Authorities, upload our CA (attached). Its fingerprint is 88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8.",
+      "Send us /opt/tak/certs/files/ca.pem: the CA that issued your server certificate.",
+      "Add an Outgoing Connection: address tak.example.net, port 9102, protocol version 2, enabled. Skip this if we agreed that we connect to you (then we dial your federation port, 9001 by default).",
+      "Under Active Connections, open Manage Groups for the Pubserver federate and choose the inbound and outbound groups (for example __ANON__ or your federation group). Nothing is shared until you do."
+    ]
+  },
+  "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US"
+}

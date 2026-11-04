@@ -136,6 +136,31 @@ export function addCaToPolicy(policy: PolicyCore, ca: CaGroup, ownCa: CaGroup | 
     return next;
 }
 
+/**
+ * Put this hub's own CA node back into a policy (after the server refused
+ * own_ca_missing_from_policy), with allGroups rules both ways to every other
+ * CA group and outgoing node that has no rule with it. Idempotent.
+ */
+export function restoreOwnNode(policy: PolicyCore, own: Pick<CaGroup, 'uid'> & Partial<CaGroup>, newId: IdFactory = randomId): PolicyCore {
+    let next: PolicyCore = { ...policy, entities: [...policy.entities], rules: [...policy.rules] };
+    let ownNode = next.entities.find((e) => e.type === 'FederationGroup' && e.name === own.uid);
+    if (!ownNode) {
+        ownNode = makeCaGroupEntity({ alias: '', nickname: '', issuer: '', subject: '', hubGroup: true, ...own }, newId);
+        next = { ...next, entities: [...next.entities, ownNode] };
+    }
+    const node = ownNode;
+    next.entities
+        .filter((e) => e.id !== node.id && (e.type === 'FederationGroup' || e.type === 'FederationOutgoing'))
+        .forEach((other) => {
+            ([[node, other], [other, node]] as const).forEach(([src, dst]) => {
+                if (!hasRule(next, src.id, dst.id)) {
+                    next = { ...next, rules: [...next.rules, makeRule(src.id, dst.id, `${entityLabel(src)} -> ${entityLabel(dst)}`, newId)] };
+                }
+            });
+        });
+    return next;
+}
+
 export function ownCaGroup(caGroups: CaGroup[]): CaGroup | null {
     return caGroups.find((c) => c.hubGroup) ?? null;
 }

@@ -1,0 +1,26 @@
+{
+  "bridge": {
+    "enabled": true,
+    "service_state": "active"
+  },
+  "error": "Federation Hub is not running",
+  "hub": {
+    "active_policy": null,
+    "broker_id": null,
+    "host": "tak.example.net",
+    "reachable": false,
+    "v2_port": 9102
+  },
+  "own": {
+    "connected": false,
+    "nickname": null,
+    "sha256": null,
+    "subject": null,
+    "uid": null
+  },
+  "partners": [],
+  "problems": [
+    "hub_unreachable"
+  ],
+  "unattributed_connections": []
+}

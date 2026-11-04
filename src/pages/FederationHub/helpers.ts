@@ -3,7 +3,20 @@
  * be unit tested. Anything user-facing goes through the `t` passed in; the
  * English text is the i18n key.
  */
-import type { CaInspect, Direction, FilterType, Partner, PartnerKind, PartnerStatus, ShareFilter } from './types';
+import type {
+    CaInspect,
+    CheckItem,
+    CheckLevel,
+    Direction,
+    Handoff,
+    Overview,
+    Partner,
+    PartnerErrorBody,
+    PartnerKind,
+    PartnerStatus,
+    ShareFilter,
+    ShareType,
+} from './types';
 
 export type T = (key: string, options?: Record<string, unknown>) => string;
 
@@ -87,12 +100,18 @@ export interface ShareSummary {
     detail: string;
 }
 
-/** "All groups" / "3 allowed" / "2 blocked" / "3 allowed, 1 blocked". */
+/** "All groups" / "3 allowed" / "2 blocked" / "3 allowed, 1 blocked" / "Nothing". */
 export function shareSummary(filter: ShareFilter | null | undefined, t: T): ShareSummary {
-    const f = filter ?? { type: 'allGroups' as FilterType, allowed: [], disallowed: [] };
+    const f = filter ?? { type: 'allGroups' as ShareType, allowed: [], disallowed: [] };
     const allowed = f.allowed?.length ?? 0;
     const blocked = f.disallowed?.length ?? 0;
     switch (f.type) {
+        case 'none':
+            return {
+                label: t('Nothing'),
+                color: 'red',
+                detail: t('There is no rule for this direction, so the hub blocks all of it. Edit the partner and choose Everything to fix it.'),
+            };
         case 'allowed':
             return {
                 label: t('{{count}} allowed', { count: allowed }),
@@ -132,6 +151,8 @@ export function shareSentence(filter: ShareFilter, t: T): string {
                 allowedGroups: filter.allowed.join(', '),
                 blockedGroups: filter.disallowed.join(', '),
             });
+        case 'none':
+            return t('nothing (no rule, so the hub blocks it)');
         default:
             return t('everything');
     }
@@ -139,6 +160,7 @@ export function shareSentence(filter: ShareFilter, t: T): string {
 
 /** A filter that names groups needs at least one group in each list it uses. */
 export function validateFilter(filter: ShareFilter, t: T): string | undefined {
+    // 'none' is only ever read from the server; an unchanged filter isn't sent back, so it isn't an error here.
     const needsAllowed = filter.type === 'allowed' || filter.type === 'allowedAndDisallowed';
     const needsBlocked = filter.type === 'disallowed' || filter.type === 'allowedAndDisallowed';
     if (needsAllowed && filter.allowed.length === 0) { return t('Add at least one allowed group, or choose Everything'); }
@@ -153,23 +175,25 @@ export function validateFilter(filter: ShareFilter, t: T): string | undefined {
  * the partner, which matters when the partner is a Raven too.
  */
 export function filterWarnings(kind: PartnerKind, share: ShareFilter, receive: ShareFilter): { share: boolean; receive: boolean } {
+    // 'none' (no rule at all) gets its own, stronger message; it isn't a group filter.
+    const grouped = (f: ShareFilter) => f.type !== 'allGroups' && f.type !== 'none';
     return {
-        share: share.type !== 'allGroups',
-        receive: kind === 'raven_hub' && receive.type !== 'allGroups',
+        share: grouped(share),
+        receive: kind === 'raven_hub' && grouped(receive),
     };
 }
 
-function hexOf(sha256: string): string {
+function hexOf(sha256: string | null | undefined): string {
     return (sha256 || '').replace(/[^0-9a-f]/gi, '').toUpperCase();
 }
 
 /** Colon hex, the way TAK Server and openssl print fingerprints. */
-export function formatFingerprint(sha256: string): string {
+export function formatFingerprint(sha256: string | null | undefined): string {
     return (hexOf(sha256).match(/.{1,2}/g) ?? []).join(':');
 }
 
 /** "FD:5C:14:9A…3E:01:7B:C2": enough to compare by eye, full value in the tooltip. */
-export function shortFingerprint(sha256: string): string {
+export function shortFingerprint(sha256: string | null | undefined): string {
     const hex = hexOf(sha256);
     if (hex.length <= 16) { return formatFingerprint(hex); }
     const pairs = (s: string) => (s.match(/.{1,2}/g) ?? []).join(':');
@@ -206,7 +230,12 @@ export interface CaWarning { level: 'error' | 'warning' | 'info'; text: string }
 /** What the wizard should say about an uploaded certificate. */
 export function caWarnings(ca: CaInspect, partners: Pick<Partner, 'id' | 'name'>[], t: T, now: Date = new Date()): CaWarning[] {
     const out: CaWarning[] = [];
-    if (ca.existing_partner_id) {
+    if (ca.is_own) {
+        out.push({
+            level: 'error',
+            text: t('This is our own certificate, the one this hub uses. Upload the other server\'s CA certificate instead.'),
+        });
+    } else if (ca.existing_partner_id) {
         const p = partners.find((x) => x.id === ca.existing_partner_id);
         out.push({
             level: 'error',
@@ -221,8 +250,8 @@ export function caWarnings(ca: CaInspect, partners: Pick<Partner, 'id' | 'name'>
             text: t('This is not a certificate authority. Ask for the CA that issued their server certificate (often ca.pem), not the server certificate itself.'),
         });
     }
-    const days = daysUntil(ca.not_after, now);
-    if (days !== null && days < 0) {
+    const days = typeof ca.days_left === 'number' ? ca.days_left : daysUntil(ca.not_after, now);
+    if (days !== null && days <= 0) {
         out.push({ level: 'error', text: t('This certificate has expired. Ask the other admin for a current one.') });
     } else if (days !== null && days <= CA_EXPIRY_WARN_DAYS) {
         out.push({ level: 'warning', text: t('This certificate expires in {{count}} days. The link stops working when it does.', { count: days }) });
@@ -254,22 +283,38 @@ export function kindLabel(kind: PartnerKind, t: T): string {
     }
 }
 
+/** Every problem code the server sends, overview-level and per partner (see types.ts). */
 const PROBLEM_TEXT: Record<string, string> = {
+    // overview
+    hub_unreachable: 'The Federation Hub is not answering. It may be stopped or still starting up, so nothing is federated right now.',
+    hub_error: 'The Federation Hub answered with an error, so this page can\'t show its state.',
+    own_ca_unknown: 'The Federation Hub doesn\'t report its own certificate. Its installation may be incomplete.',
+    no_active_policy: 'The Federation Hub has no active policy, so it doesn\'t pass anything between servers. Activate a stored policy, or press Repair to create one if there is none.',
     own_ca_missing: 'This hub\'s own certificate is missing from the active policy, so the hub refuses this Raven\'s own bridge and nothing is federated.',
+    bridge_not_connected: 'This Raven\'s own bridge is not connected to the hub, so local devices are not federated.',
+    // partner
+    ca_not_trusted: 'The hub no longer trusts this partner\'s certificate, so it refuses their connection.',
+    no_rule_out: 'Nothing is sent to this partner: the active policy has no rule for it.',
+    no_rule_in: 'Nothing is accepted from this partner: the active policy has no rule for it.',
+    filter_not_all_groups: 'A group filter is set on traffic from a Raven. Raven doesn\'t label traffic with groups, so nothing passes the filter. Share Everything instead.',
     both_sides_dial: 'Both servers are dialling each other. The hub drops the duplicate, so the link keeps dropping. Turn off the connection on one side.',
-    dial_direction: 'Both servers are dialling each other. The hub drops the duplicate, so the link keeps dropping. Turn off the connection on one side.',
-    ca_missing: 'This partner\'s certificate is no longer trusted by the hub.',
-    ca_trusted: 'This partner\'s certificate is no longer trusted by the hub.',
-    ca_in_policy: 'This partner is missing from the active policy.',
-    ca_expiring: 'This partner\'s certificate expires soon.',
-    ca_expiry: 'This partner\'s certificate expires soon.',
     ca_expired: 'This partner\'s certificate has expired.',
-    filter_compatible: 'A group filter is set on traffic from a Raven. Raven doesn\'t label traffic with groups, so nothing passes the filter. Share Everything instead.',
-    rules_out: 'Nothing is set up to be sent to this partner.',
-    rules_in: 'Nothing is set up to be accepted from this partner.',
-    hub_unreachable: 'The Federation Hub is not answering.',
-    bridge_disconnected: 'This Raven\'s own bridge is not connected to the hub, so local devices are not federated.',
+    ca_expiring: 'This partner\'s certificate expires soon.',
 };
+
+/** Problems that stop traffic (red); the rest are warnings (yellow). */
+const BLOCKING_PROBLEMS = new Set([
+    'hub_unreachable', 'hub_error', 'own_ca_unknown', 'no_active_policy', 'own_ca_missing',
+    'ca_not_trusted', 'no_rule_out', 'no_rule_in', 'both_sides_dial', 'ca_expired',
+]);
+
+export function isKnownProblem(code: string): boolean {
+    return code in PROBLEM_TEXT;
+}
+
+export function problemColor(code: string): 'red' | 'yellow' {
+    return BLOCKING_PROBLEMS.has(code) ? 'red' : 'yellow';
+}
 
 /** Plain-English text for a problem code (unknown codes are made readable). */
 export function problemText(code: string, t: T): string {
@@ -279,19 +324,244 @@ export function problemText(code: string, t: T): string {
     return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/** The overview says the hub is down (reachable false), as opposed to the request failing. */
+export function hubDown(overview: Pick<Overview, 'hub'> | null | undefined): boolean {
+    return !!overview && !overview.hub?.reachable;
+}
+
+/** An outgoing connection not linked to any trusted CA (made in the native console, G-live "VPN Server"). */
+export function isUnlinkedOutgoing(p: Pick<Partner, 'direction' | 'ca'>): boolean {
+    return p.direction === 'we_dial' && !p.ca;
+}
+
+export function unlinkedOutgoingHint(t: T): string {
+    return t('This outgoing connection isn\'t linked to a trusted certificate, so Raven can\'t tell which partner it belongs to. It was probably made in the hub\'s own console. If the other side also connects to you, remove one: only one side should connect.');
+}
+
 /** Check codes in the order the server returns them; used to show placeholders before the first result. */
 export const CHECK_ORDER = [
     'ca_trusted', 'ca_in_policy', 'rules_out', 'rules_in', 'filter_compatible', 'dial_direction',
     'dns', 'tcp', 'connected', 'traffic_flowing', 'ca_expiry',
 ] as const;
 
-export function checksSummary(checks: { code: string; ok: boolean }[]): { total: number; passed: number; failed: string[]; connected: boolean } {
+/** Level of a check; older servers sent only `ok`. */
+export function checkLevel(c: Pick<CheckItem, 'ok'> & { level?: CheckLevel | string }): CheckLevel {
+    if (c.level === 'ok' || c.level === 'warning' || c.level === 'error' || c.level === 'skipped') { return c.level; }
+    return c.ok ? 'ok' : 'error';
+}
+
+export interface CheckView {
+    level: CheckLevel;
+    color: 'green' | 'yellow' | 'red' | 'gray';
+    label: string;
+    /** Show the fix line (only for warnings and errors). */
+    showFix: boolean;
+}
+
+export function checkView(c: Pick<CheckItem, 'ok'> & { level?: CheckLevel | string }, t: T): CheckView {
+    switch (checkLevel(c)) {
+        case 'ok': return { level: 'ok', color: 'green', label: t('Passed'), showFix: false };
+        case 'warning': return { level: 'warning', color: 'yellow', label: t('Warning'), showFix: true };
+        case 'skipped': return { level: 'skipped', color: 'gray', label: t('Not applicable'), showFix: false };
+        default: return { level: 'error', color: 'red', label: t('Failed'), showFix: true };
+    }
+}
+
+/** Skipped checks don't count towards the total. */
+export function checksSummary(checks: (Pick<CheckItem, 'code' | 'ok'> & { level?: CheckLevel | string })[]): {
+    total: number; passed: number; warnings: string[]; failed: string[]; skipped: number; connected: boolean;
+} {
+    const levels = checks.map((c) => ({ code: c.code, level: checkLevel(c) }));
     return {
-        total: checks.length,
-        passed: checks.filter((c) => c.ok).length,
-        failed: checks.filter((c) => !c.ok).map((c) => c.code),
-        connected: checks.some((c) => c.code === 'connected' && c.ok),
+        total: levels.filter((c) => c.level !== 'skipped').length,
+        passed: levels.filter((c) => c.level === 'ok').length,
+        warnings: levels.filter((c) => c.level === 'warning').map((c) => c.code),
+        failed: levels.filter((c) => c.level === 'error').map((c) => c.code),
+        skipped: levels.filter((c) => c.level === 'skipped').length,
+        connected: levels.some((c) => c.code === 'connected' && c.level === 'ok'),
     };
+}
+
+/* --------------------------------------------------------- server errors */
+
+export interface PartnerErrorView {
+    code: string | null;
+    message: string;
+    /** For *_exists: the partner to open instead. */
+    existingPartnerId: string | null;
+    /** For no_active_policy: stored policies the admin can activate, then retry. */
+    policies: string[];
+    /** The hub may be left half changed: point the admin at Advanced. */
+    halfChanged: boolean;
+}
+
+const HALF_CHANGED_CODES = new Set(['rollback_failed', 'partially_applied']);
+
+/**
+ * Plain-English text for every error code the partner routes can return
+ * (the contract test checks this against the server source). For most codes
+ * the server's own message is more specific (it names the field or the
+ * hub's answer) and is shown instead; this text is the fallback.
+ */
+const ERROR_TEXT: Record<string, string> = {
+    address_not_allowed: 'Raven doesn\'t test loopback, link-local, multicast or unspecified addresses. Use the other server\'s real address.',
+    bad_certificate: 'That certificate is damaged or uses a format the hub can\'t read.',
+    busy: 'Another change to the Federation Hub is in progress. Wait a moment and try again.',
+    ca_exists: 'A partner with this certificate is already connected. Open it instead of adding it twice.',
+    ca_not_added: 'The Federation Hub didn\'t keep the certificate. Nothing was changed.',
+    ca_not_found: 'That certificate isn\'t trusted by the hub yet. Upload the file instead.',
+    hub_error: 'The Federation Hub refused the request.',
+    hub_timeout: 'The Federation Hub took too long to answer. Try again in a moment.',
+    hub_unreachable: 'The Federation Hub is not answering. It may be stopped or still starting up.',
+    invalid_ca: 'Choose the other server\'s CA certificate file.',
+    invalid_direction: 'Choose who connects: we connect to them, or they connect to us.',
+    invalid_expiration: 'The expiry must be a time in milliseconds, or -1 for never.',
+    invalid_filter: 'The sharing setting isn\'t valid. Choose Everything, or list at least one group.',
+    invalid_format: 'Choose JSON or YAML.',
+    invalid_host: 'Enter just the other server\'s name or IP address.',
+    invalid_kind: 'Choose what kind of server this is.',
+    invalid_name: 'Give the partner a name of up to 100 characters.',
+    invalid_policy: 'The policy is incomplete: it needs a name and a graph.',
+    invalid_port: 'The port must be a whole number from 1 to 65535.',
+    invalid_request: 'The request was incomplete. Reload the page and try again.',
+    invalid_value: 'One of the settings has a value the server doesn\'t accept.',
+    multiple_certs: 'The file holds more than one certificate. Upload only the CA certificate.',
+    needs_ca: 'Upload the other server\'s CA certificate first.',
+    no_active_policy: 'No federation policy is active on the hub.',
+    not_applied: 'The Federation Hub accepted the change but isn\'t enforcing it.',
+    not_dialing: 'This hub doesn\'t connect to that server, so there is nothing to change.',
+    not_found: 'That partner isn\'t in the active policy any more. Reload the page.',
+    nothing_to_change: 'Nothing was changed.',
+    outgoing_exists: 'This hub already connects to that address.',
+    own_ca: 'That is this hub\'s own certificate. Upload the other server\'s CA certificate instead.',
+    own_ca_missing_from_policy: 'This policy leaves out this server\'s own certificate, so this Raven\'s own bridge would be cut off.',
+    own_ca_unknown: 'The Federation Hub doesn\'t report its own certificate. Its installation may be incomplete.',
+    partially_applied: 'The Federation Hub may already be enforcing part of this change. The policy and certificate were left in place.',
+    rollback_failed: 'The Federation Hub may be half changed: the change failed and the previous policy couldn\'t be restored.',
+    they_already_dial: 'That server is already connected to us, so we mustn\'t connect to it as well. Choose "They connect to us".',
+};
+
+export function isKnownError(code: string): boolean {
+    return code in ERROR_TEXT;
+}
+
+/** Our own wording for an error code (unknown codes are made readable, never shown raw). */
+export function errorText(code: string, t: T): string {
+    const known = ERROR_TEXT[code];
+    if (known) { return t(known); }
+    const spaced = code.replace(/[_-]+/g, ' ').trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/** Stored policy names on a no_active_policy error (accepts the field names the server has used). */
+export function storedPolicyNames(body: Record<string, unknown> | null | undefined): string[] {
+    const raw = body?.stored_policies ?? body?.policies;
+    if (!Array.isArray(raw)) { return []; }
+    return raw
+        .map((p) => (typeof p === 'string' ? p : (p && typeof p === 'object' && typeof (p as any).name === 'string' ? (p as any).name : '')))
+        .filter(Boolean);
+}
+
+/**
+ * Friendly text for an error body from the partner routes. Known codes get
+ * our own wording (with the partner's name when we know it); anything else
+ * shows the server's message, which is already plain English.
+ */
+export function partnerErrorView(
+    body: Partial<PartnerErrorBody> | null | undefined,
+    partners: Pick<Partner, 'id' | 'name'>[],
+    t: T,
+    fallback?: string,
+): PartnerErrorView {
+    const code = typeof body?.code === 'string' ? body.code : null;
+    const existingPartnerId = body?.existing_partner_id ?? null;
+    const name = partners.find((p) => p.id === existingPartnerId)?.name;
+    const serverText = typeof body?.error === 'string' && body.error ? body.error : undefined;
+    let message: string | undefined;
+    switch (code) {
+        case 'ca_exists':
+            message = name
+                ? t('This certificate already belongs to the partner "{{name}}". Open it instead of adding it twice.', { name })
+                : t('A partner with this certificate is already connected. Open it instead of adding it twice.');
+            break;
+        case 'own_ca':
+            message = t('That is this hub\'s own certificate. Upload the other server\'s CA certificate instead.');
+            break;
+        case 'outgoing_exists':
+            message = name
+                ? t('This hub already connects to that address for the partner "{{name}}". Open it, or use a different address.', { name })
+                : t('This hub already connects to that address. Use a different address, or edit the existing connection.');
+            break;
+        case 'they_already_dial':
+            message = t('That server is already connected to us, so we mustn\'t connect to it as well. Go back to "Who connects" and choose "They connect to us".');
+            break;
+        case 'busy':
+            message = t('Another change to the Federation Hub is in progress. Wait a moment and try again.');
+            break;
+        case 'no_active_policy': {
+            const names = storedPolicyNames(body as Record<string, unknown>);
+            message = names.length
+                ? t('No federation policy is active on the hub. Activate one of: {{names}}', { names: names.join(', ') })
+                : t('No federation policy is active on the hub, and none is stored. Create one under Advanced, Policy.');
+            break;
+        }
+        case 'own_ca_missing_from_policy':
+            message = t('This policy leaves out this server\'s own certificate. Applying it would cut off this Raven\'s own bridge, so nothing from this server would be federated.');
+            break;
+        case 'partially_applied':
+        case 'rollback_failed':
+            // The server names what failed; keep it, and the alert adds the Advanced link.
+            message = serverText ?? errorText(code, t);
+            break;
+        default:
+            message = serverText ?? (code ? errorText(code, t) : undefined);
+    }
+    // rollback_failed / partially_applied (500): the server says the hub may be left half changed.
+    // A rollback_failed *flag* on another code means a CA couldn't be removed again after a failed create.
+    const halfChanged = HALF_CHANGED_CODES.has(code ?? '') || !!body?.rollback_failed;
+    if (body?.rollback_failed && !HALF_CHANGED_CODES.has(code ?? '')) {
+        message = `${message ?? fallback ?? ''} ${t('The hub couldn\'t be put back completely.')}`.trim();
+    }
+    return {
+        code,
+        message: message ?? fallback ?? t('The hub rejected the change'),
+        existingPartnerId: code === 'ca_exists' || code === 'outgoing_exists' ? existingPartnerId : null,
+        policies: code === 'no_active_policy' ? storedPolicyNames(body as Record<string, unknown>) : [],
+        halfChanged,
+    };
+}
+
+/** Pulls the JSON error body out of an axios error (it may be a Blob for downloads). */
+export async function errorBody(err: any): Promise<Partial<PartnerErrorBody> | null> {
+    const data = err?.response?.data;
+    try {
+        if (data instanceof Blob) { return JSON.parse(await data.text()); }
+        if (typeof data === 'string') { return JSON.parse(data); }
+    } catch {
+        return null;
+    }
+    return data && typeof data === 'object' ? data : null;
+}
+
+/** errorBody + partnerErrorView for an axios error. */
+export async function explainError(err: any, partners: Pick<Partner, 'id' | 'name'>[], t: T, fallback?: string): Promise<PartnerErrorView> {
+    const body = await errorBody(err);
+    const text = typeof err?.response?.data === 'string' && err.response.data.trim() ? err.response.data.trim().slice(0, 300) : err?.message;
+    return partnerErrorView(body, partners, t, body?.error ?? text ?? fallback);
+}
+
+/* --------------------------------------------------------------- handoff */
+
+/** What the other admin does for this kind of server, from GET /handoff. */
+export function handoffSteps(handoff: Pick<Handoff, 'steps'> | null | undefined, kind: PartnerKind | null): string[] {
+    if (!handoff?.steps) { return []; }
+    return handoff.steps[kind ?? 'other'] ?? handoff.steps.other ?? [];
+}
+
+/** host:port partners dial, or '' when the server can't tell. */
+export function ourAddressOf(src: { host: string | null; port?: number; v2_port?: number } | null | undefined): string {
+    if (!src?.host) { return ''; }
+    return `${src.host}:${src.port ?? src.v2_port ?? 9102}`;
 }
 
 export function formatCount(n: number | null | undefined): string {
@@ -395,7 +665,7 @@ export function buildCreateForm(draft: WizardDraft): FormData {
     form.append('name', draft.name.trim());
     form.append('kind', draft.kind ?? 'other');
     form.append('direction', draft.direction);
-    if (draft.ca?.already_trusted && !draft.ca.existing_partner_id && draft.ca.uid) {
+    if (draft.ca?.already_trusted && !draft.ca.existing_partner_id && !draft.ca.is_own && draft.ca.uid) {
         form.append('ca_uid', draft.ca.uid);
     } else if (draft.caFile) {
         form.append('ca_file', draft.caFile);

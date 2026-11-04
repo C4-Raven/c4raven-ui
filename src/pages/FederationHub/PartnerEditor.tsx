@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Group, Modal, Stack, Stepper, Text, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Stack, Stepper, Text, TextInput } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconCircleCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { extractError } from '../ServerRequests/shared';
 import { knownGroups, patchPartner } from './api';
 import ConnectStep from './ConnectStep';
-import { cleanFilter, outgoingClash, validateFilter, validateHost, validateName, validatePort } from './helpers';
+import { cleanFilter, explainError, ourAddressOf, outgoingClash, validateFilter, validateHost, validateName, validatePort, type PartnerErrorView } from './helpers';
+import { ServerErrorAlert } from './parts';
 import ShareStep from './ShareStep';
 import type { Overview, Partner, PatchPartnerInput, ShareFilter } from './types';
 
@@ -36,11 +36,12 @@ function draftOf(p: Partner): EditDraft {
 const sameFilter = (a: ShareFilter, b: ShareFilter) => JSON.stringify(cleanFilter(a)) === JSON.stringify(cleanFilter(b));
 
 /** Edits steps 3 and 4 of the wizard for an existing partner (PATCH, applied on the hub). */
-export default function PartnerEditor({ partner, overview, onClose, onSaved }: {
+export default function PartnerEditor({ partner, overview, onClose, onSaved, onOpenPartner }: {
     partner: Partner | null;
     overview: Overview | null;
     onClose: () => void;
     onSaved: (p: Partner) => void;
+    onOpenPartner?: (id: string) => void;
 }) {
     const { t } = useTranslation();
     const isPhone = useMediaQuery('(max-width: 48em)');
@@ -48,7 +49,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved }: {
     const [active, setActive] = useState(0);
     const [errors, setErrors] = useState<EditErrors>({});
     const [saving, setSaving] = useState(false);
-    const [serverError, setServerError] = useState<string>();
+    const [serverError, setServerError] = useState<PartnerErrorView>();
     const [suggestions, setSuggestions] = useState<string[]>([]);
 
     useEffect(() => {
@@ -64,7 +65,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved }: {
         return <Modal opened={false} onClose={onClose}>{null}</Modal>;
     }
     const others = (overview?.partners ?? []).filter((p) => p.id !== partner.id);
-    const ourAddress = overview ? `${overview.hub.host}:${overview.hub.v2_port || 9102}` : '';
+    const ourAddress = ourAddressOf(overview?.hub);
 
     function patch(change: Partial<EditDraft>) {
         setDraft((d) => (d ? { ...d, ...change } : d));
@@ -114,7 +115,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved }: {
             notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('Changes applied on the hub'), message: saved?.name ?? d.name });
             onSaved(saved);
         } catch (err) {
-            setServerError(await extractError(err) ?? t('The hub rejected the change'));
+            setServerError(await explainError(err, overview?.partners ?? [], t, t('The hub rejected the change')));
         } finally {
             setSaving(false);
         }
@@ -186,9 +187,14 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved }: {
             )}
 
             {serverError && (
-                <Alert mt="lg" color="red" variant="light" icon={<IconAlertCircle size={16} />} title={t('Couldn\'t save the changes')}>
-                    {serverError}
-                </Alert>
+                <Stack mt="lg">
+                    <ServerErrorAlert
+                        view={serverError}
+                        title={t('Couldn\'t save the changes')}
+                        onOpenPartner={onOpenPartner && serverError.existingPartnerId !== partner.id ? onOpenPartner : undefined}
+                        onRetry={save}
+                    />
+                </Stack>
             )}
 
             <Group justify="space-between" mt="xl" gap="sm" wrap="wrap">

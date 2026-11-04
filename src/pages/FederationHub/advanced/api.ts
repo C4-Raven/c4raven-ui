@@ -17,9 +17,24 @@ export async function errorText(err: any): Promise<string> {
     return (await extractError(err)) ?? String(err);
 }
 
-/** Save the whole policy model; `activate` makes the hub enforce it (POST /policy?activate=1). */
-export async function savePolicy(federation: Federation, policy: PolicyCore, activate: boolean): Promise<void> {
-    await axios.post(endpoints.policy, buildSaveBody(federation, policy), { params: activate ? { activate: 1 } : undefined });
+/**
+ * Save the whole policy model; `activate` makes the hub enforce it (POST /policy?activate=1).
+ * The server refuses (400 own_ca_missing_from_policy) to activate a policy without this hub's
+ * own CA node unless `forceWithoutOwnCa` (force_without_own_ca=1) is set after a typed confirm.
+ */
+export async function savePolicy(federation: Federation, policy: PolicyCore, activate: boolean, forceWithoutOwnCa = false): Promise<void> {
+    const params = activate ? { activate: 1, ...(forceWithoutOwnCa ? { force_without_own_ca: 1 } : {}) } : undefined;
+    await axios.post(endpoints.policy, buildSaveBody(federation, policy), { params });
+}
+
+/** The server's error code, if the body is one of its JSON errors. */
+export function errorCode(err: any): string | null {
+    const data = err?.response?.data;
+    if (data && typeof data === 'object' && typeof data.code === 'string') { return data.code; }
+    if (typeof data === 'string') {
+        try { const j = JSON.parse(data); return typeof j?.code === 'string' ? j.code : null; } catch { return null; }
+    }
+    return null;
 }
 
 export async function activatePolicy(name: string): Promise<void> {

@@ -1,0 +1,5 @@
+{
+  "code": "rollback_failed",
+  "error": "Federation Hub may be half-changed: the change failed (Federation Hub refused to activate the policy: boom) and the previous policy couldn't be restored. Nothing else was undone; check the hub under Advanced",
+  "success": false
+}

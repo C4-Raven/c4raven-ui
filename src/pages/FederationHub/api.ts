@@ -6,20 +6,21 @@ import type {
     ActivePolicy,
     CaInspect,
     CheckItem,
+    DeleteResult,
+    Handoff,
     Overview,
     Partner,
+    PartnerKind,
     PatchPartnerInput,
     Reachability,
+    ReconnectResult,
+    RepairResult,
 } from './types';
 
 const partnerUrl = (id: string) => `${apiRoutes.fedhubPartners}/${encodeURIComponent(id)}`;
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
 
-/** Some routes wrap the object ({partner: {...}}); accept both. */
-function unwrap<T>(data: any, key: string): T {
-    return (data && typeof data === 'object' && key in data ? data[key] : data) as T;
-}
-
+/** Always 200, even when the hub is down (then hub.reachable is false). */
 export async function getOverview(): Promise<Overview> {
     const r = await axios.get(apiRoutes.fedhubOverview);
     return r.data as Overview;
@@ -30,32 +31,48 @@ export async function getActivePolicy(): Promise<ActivePolicy | null> {
     return r.data && typeof r.data === 'object' ? (r.data as ActivePolicy) : null;
 }
 
+/** 201 with the bare Partner. */
 export async function createPartner(form: FormData): Promise<Partner> {
     const r = await axios.post(apiRoutes.fedhubPartners, form, MULTIPART);
-    return unwrap<Partner>(r.data, 'partner');
+    return r.data as Partner;
 }
 
+/** 200 with the bare Partner (its id changes when an outgoing-only partner is renamed). */
 export async function patchPartner(id: string, body: PatchPartnerInput): Promise<Partner> {
     const r = await axios.patch(partnerUrl(id), body);
-    return unwrap<Partner>(r.data, 'partner');
+    return r.data as Partner;
 }
 
-export async function deletePartner(id: string, keepCa: boolean): Promise<void> {
-    await axios.delete(partnerUrl(id), { params: keepCa ? { keep_ca: 1 } : {} });
+export async function deletePartner(id: string, keepCa: boolean): Promise<DeleteResult> {
+    const r = await axios.delete(partnerUrl(id), { params: keepCa ? { keep_ca: 1 } : {} });
+    return r.data as DeleteResult;
 }
 
+/** The route returns a bare list. */
 export async function checkPartner(id: string): Promise<CheckItem[]> {
     const r = await axios.get(`${partnerUrl(id)}/check`);
-    const data = unwrap<CheckItem[]>(r.data, 'checks');
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(r.data) ? (r.data as CheckItem[]) : [];
 }
 
-export async function reconnectPartner(id: string): Promise<void> {
-    await axios.post(`${partnerUrl(id)}/reconnect`);
+export async function reconnectPartner(id: string): Promise<ReconnectResult> {
+    const r = await axios.post(`${partnerUrl(id)}/reconnect`);
+    return r.data as ReconnectResult;
 }
 
-export async function repairHub(): Promise<void> {
-    await axios.post(apiRoutes.fedhubRepair);
+export async function repairHub(): Promise<RepairResult> {
+    const r = await axios.post(apiRoutes.fedhubRepair);
+    return r.data as RepairResult;
+}
+
+/** Makes a stored policy the active one (the hub's activateFederationPolicy). */
+export async function activateFederation(name: string): Promise<void> {
+    await axios.post(`${apiRoutes.fedhubFederations}/${encodeURIComponent(name)}/activate`);
+}
+
+/** Our CA, address and the other admin's steps; `kind` limits steps to that kind. */
+export async function getHandoff(kind?: PartnerKind): Promise<Handoff> {
+    const r = await axios.get(apiRoutes.fedhubHandoff, { params: kind ? { kind } : {} });
+    return r.data as Handoff;
 }
 
 /**
@@ -76,8 +93,7 @@ export async function testReachability(host: string, port: number): Promise<Reac
 
 export async function knownGroups(nodeId: string): Promise<string[]> {
     const r = await axios.get(`${apiRoutes.fedhubKnownGroups}/${encodeURIComponent(nodeId)}`);
-    const data = unwrap<unknown>(r.data, 'groups');
-    return Array.isArray(data) ? data.map(String) : [];
+    return Array.isArray(r.data) ? r.data.map(String) : [];
 }
 
 export function downloadOwnCa() {

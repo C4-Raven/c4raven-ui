@@ -23,6 +23,7 @@ import {
     removeEntities,
     removeEntitiesForCa,
     removeGroupSet,
+    restoreOwnNode,
     splitGroups,
     tokenFingerprint,
     validateOutgoing,
@@ -114,6 +115,29 @@ describe('node and edge removal', () => {
         const p = removeGroupSet(samplePolicy(), 'gs1');
         expect(p.groupSets).toEqual([]);
         expect(p.rules.find((r) => r.id === 'r3')?.filter.allowedGroups).toEqual(['Blue']);
+    });
+});
+
+describe('restoreOwnNode', () => {
+    it('puts the own node back with allGroups rules both ways to every group and outgoing node', () => {
+        const base = samplePolicy();
+        const without = { ...base, entities: base.entities.filter((e) => e.id !== 'own'), rules: [] };
+        const p = restoreOwnNode(without, own, ids());
+        const node = p.entities.find((e) => e.name === own.uid)!;
+        expect(node.type).toBe('FederationGroup');
+        expect(p.rules.map((r) => [r.source, r.destination])).toEqual([
+            [node.id, 'p'], ['p', node.id], [node.id, 'out'], ['out', node.id],
+        ]);
+        expect(p.rules.every((r) => r.filter.groupsFilterType === 'allGroups')).toBe(true);
+    });
+
+    it('keeps existing rules and is idempotent', () => {
+        const base = samplePolicy();
+        const once = restoreOwnNode(base, own, ids());
+        // own->p, p->own and own->out existed; only out->own is added (r3's filter is kept)
+        expect(once.rules).toHaveLength(4);
+        expect(once.rules.find((r) => r.id === 'r3')!.filter.groupsFilterType).toBe('allowed');
+        expect(restoreOwnNode(once, own, ids())).toEqual(once);
     });
 });
 

@@ -1,0 +1,14 @@
+{
+  "already_trusted": true,
+  "days_left": 3649,
+  "existing_partner_id": null,
+  "fingerprint": "88:54:2A:3C:D9:23:A7:08:B2:E1:1F:DD:1D:47:E7:A1:FF:8E:F5:7B:BA:B8:35:1A:6A:C5:49:92:F4:45:D3:F8",
+  "is_ca": true,
+  "is_own": true,
+  "issuer": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
+  "nickname": "Pubserver",
+  "not_after": "2036-11-01T08:35:18Z",
+  "sha256": "88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8",
+  "subject": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
+  "uid": "CN=C4Raven-FedHub-CA,OU=C4Raven-FedHub,O=ZZ,C=US-88542a3cd923a708b2e11fdd1d47e7a1ff8ef57bbab8351a6ac54992f445d3f8"
+}

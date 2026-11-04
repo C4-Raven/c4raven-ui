@@ -23,6 +23,7 @@ import { notifications } from '@mantine/notifications';
 import {
     IconAffiliate,
     IconAlertTriangle,
+    IconPlugConnectedX,
     IconArrowsLeftRight,
     IconCertificate,
     IconCircleCheck,
@@ -41,8 +42,8 @@ import { AdvancedSection } from './advanced';
 import { deletePartner, getActivePolicy, getOverview, patchPartner, reconnectPartner, repairHub } from './api';
 import CheckPanel from './CheckPanel';
 import ConnectWizard, { HandoffButtons, useHandoffActions } from './ConnectWizard';
-import { problemText, shortFingerprint } from './helpers';
-import { Fingerprint } from './parts';
+import { explainError, hubDown, ourAddressOf, problemColor, problemText, shortFingerprint, type PartnerErrorView } from './helpers';
+import { Fingerprint, ServerErrorAlert } from './parts';
 import PartnerCard from './PartnerCard';
 import PartnerEditor from './PartnerEditor';
 import type { ActivePolicy, Overview, Partner } from './types';
@@ -94,7 +95,13 @@ function StatusItem({ label, children }: { label: string; children: React.ReactN
     );
 }
 
-function StatusStrip({ overview, onRepair, repairing }: { overview: Overview; onRepair: () => void; repairing: boolean }) {
+function StatusStrip({ overview, onRepair, repairing, repairError, onRetryRepair }: {
+    overview: Overview;
+    onRepair: () => void;
+    repairing: boolean;
+    repairError?: PartnerErrorView;
+    onRetryRepair: () => void;
+}) {
     const { t } = useTranslation();
     const actions = useHandoffActions();
     const { hub, own, bridge } = overview;
@@ -128,7 +135,7 @@ function StatusStrip({ overview, onRepair, repairing }: { overview: Overview; on
                     <Fingerprint sha256={own.sha256} />
                 </StatusItem>
                 <StatusItem label={t('Partners connect to')}>
-                    <Code>{`${hub.host}:${hub.v2_port || 9102}`}</Code>
+                    {ourAddressOf(hub) ? <Code>{ourAddressOf(hub)}</Code> : <Text size="sm" c="dimmed">{t('Unknown: set the hub\'s address in settings')}</Text>}
                 </StatusItem>
                 <StatusItem label={t('This Raven\'s bridge')}>
                     <Group gap={6} wrap="nowrap">
@@ -140,11 +147,11 @@ function StatusStrip({ overview, onRepair, repairing }: { overview: Overview; on
             </SimpleGrid>
             {overview.problems?.length > 0 && (
                 <Stack gap="xs" mt="md">
-                    {overview.problems.map((code) => (
-                        <Alert key={code} color="red" variant="light" icon={<IconAlertTriangle size={16} />} py="xs">
+                    {overview.problems.filter((code) => code !== 'hub_unreachable' && code !== 'hub_error').map((code) => (
+                        <Alert key={code} color={problemColor(code)} variant="light" icon={<IconAlertTriangle size={16} />} py="xs">
                             <Group justify="space-between" wrap="wrap" gap="sm">
                                 <Text size="sm" style={{ flex: 1, minWidth: 200 }}>{problemText(code, t)}</Text>
-                                {code === 'own_ca_missing' && (
+                                {(code === 'own_ca_missing' || (code === 'no_active_policy' && !overview.problems.includes('own_ca_missing'))) && (
                                     <Button size="xs" color="red" radius="xl" leftSection={<IconWand size={14} />} loading={repairing} onClick={onRepair}>
                                         {t('Repair')}
                                     </Button>
@@ -152,8 +159,32 @@ function StatusStrip({ overview, onRepair, repairing }: { overview: Overview; on
                             </Group>
                         </Alert>
                     ))}
+                    {repairError && <ServerErrorAlert view={repairError} title={t('Repair failed')} onRetry={onRetryRepair} />}
                 </Stack>
             )}
+        </Paper>
+    );
+}
+
+/** The overview answered, but the hub itself is down (hub.reachable false). */
+function HubDownState({ overview, onRetry }: { overview: Overview; onRetry: () => void }) {
+    const { t } = useTranslation();
+    const code = overview.problems?.includes('hub_error') ? 'hub_error' : 'hub_unreachable';
+    return (
+        <Paper className="raven-surface" radius="lg" p="lg">
+            <EmptyState
+                icon={<IconPlugConnectedX size={26} />}
+                color="red"
+                title={code === 'hub_error' ? t('The Federation Hub answered with an error') : t('The Federation Hub is down')}
+                description={problemText(code, t)}
+                action={(
+                    <Stack align="center" gap="xs" mt="sm">
+                        {overview.error && <Code>{overview.error}</Code>}
+                        <Text size="xs" c="dimmed">{t('Partners can\'t be shown or changed until it answers. The page keeps trying every 10 seconds. If it stays down, restart the federation hub service on the server.')}</Text>
+                        <Button size="xs" variant="light" radius="xl" leftSection={<IconRefresh size={14} />} onClick={onRetry}>{t('Try again now')}</Button>
+                    </Stack>
+                )}
+            />
         </Paper>
     );
 }
@@ -173,6 +204,7 @@ export default function FederationHub() {
     const [removeBusy, setRemoveBusy] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [repairing, setRepairing] = useState(false);
+    const [repairError, setRepairError] = useState<PartnerErrorView>();
     const [showMap, setShowMap] = useState(true);
     const inFlight = useRef(false);
 
@@ -213,6 +245,18 @@ export default function FederationHub() {
         [partners, overview],
     );
 
+    const down = hubDown(overview);
+
+    function openPartner(id: string) {
+        const p = partners.find((x) => x.id === id);
+        setWizardOpen(false);
+        if (p) {
+            setEditing(p);
+        } else {
+            notifications.show({ color: 'yellow', title: t('Partner not found'), message: t('Refresh the page and look for it in the list.') });
+        }
+    }
+
     function replacePartner(id: string, p: Partner) {
         setOverview((o) => (o ? { ...o, partners: o.partners.map((x) => (x.id === id ? p : x)) } : o));
     }
@@ -235,11 +279,34 @@ export default function FederationHub() {
     async function reconnect(p: Partner) {
         setBusyId(p.id);
         try {
-            await reconnectPartner(p.id);
-            notifications.show({ color: 'green', title: t('Reconnecting'), message: t('{{name}} was disconnected and will reconnect in a few seconds.', { name: p.name }) });
+            const result = await reconnectPartner(p.id);
+            notifications.show(result?.disconnected
+                ? { color: 'green', title: t('Reconnecting'), message: t('{{name}}: {{count}} connection(s) dropped. They come back by themselves in a few seconds.', { name: p.name, count: result.disconnected }) }
+                : { color: 'blue', title: t('Nothing to reconnect'), message: t('{{name}} has no live connection right now.', { name: p.name }) });
             setTimeout(() => load(), 3000);
         } catch (err) {
             showError(t('Failed to reconnect'), err);
+        } finally {
+            setBusyId(null);
+        }
+    }
+
+    /** Both sides dial: drop our outgoing connection (outgoing-only: remove it, keeping any CA). */
+    async function stopDialling(p: Partner) {
+        setBusyId(p.id);
+        try {
+            if (p.ca) {
+                const saved = await patchPartner(p.id, { direction: 'they_dial' });
+                if (saved?.id) { replacePartner(p.id, saved); }
+                notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('No longer connecting to them'), message: t('{{name}} now connects to us; this hub stopped dialling.', { name: p.name }) });
+            } else {
+                const result = await deletePartner(p.id, true);
+                notifications.show({ color: result?.warning ? 'yellow' : 'green', icon: <IconCircleCheck size={16} />, title: t('Outgoing connection removed'), message: result?.warning ?? p.name });
+            }
+            load(true);
+        } catch (err) {
+            const v = await explainError(err, partners, t);
+            notifications.show({ color: 'red', icon: <IconX size={16} />, title: t('Failed to change the connection'), message: v.message });
         } finally {
             setBusyId(null);
         }
@@ -249,13 +316,21 @@ export default function FederationHub() {
         if (!removing) { return; }
         setRemoveBusy(true);
         try {
-            await deletePartner(removing.id, keepCa);
-            notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('Partner removed'), message: removing.name });
+            const result = await deletePartner(removing.id, keepCa);
+            notifications.show(result?.warning
+                ? { color: 'yellow', icon: <IconAlertTriangle size={16} />, title: t('Partner removed, certificate kept'), message: result.warning, autoClose: 12000 }
+                : {
+                    color: 'green',
+                    icon: <IconCircleCheck size={16} />,
+                    title: t('Partner removed'),
+                    message: result?.ca_removed ? t('{{name}} and its certificate were removed.', { name: removing.name }) : removing.name,
+                });
             setOverview((o) => (o ? { ...o, partners: o.partners.filter((x) => x.id !== removing.id) } : o));
             setRemoving(null);
             load(true);
         } catch (err) {
-            showError(t('Failed to remove partner'), err);
+            const v = await explainError(err, partners, t);
+            notifications.show({ color: 'red', icon: <IconX size={16} />, title: t('Failed to remove partner'), message: v.message });
         } finally {
             setRemoveBusy(false);
         }
@@ -263,12 +338,15 @@ export default function FederationHub() {
 
     async function repair() {
         setRepairing(true);
+        setRepairError(undefined);
         try {
-            await repairHub();
-            notifications.show({ color: 'green', icon: <IconCircleCheck size={16} />, title: t('Repaired'), message: t('This hub\'s certificate is back in the active policy.') });
+            const result = await repairHub();
+            notifications.show(result?.changed === false
+                ? { color: 'blue', title: t('Nothing to repair'), message: t('This hub\'s certificate is already in the active policy.') }
+                : { color: 'green', icon: <IconCircleCheck size={16} />, title: t('Repaired'), message: t('This hub\'s certificate is back in the active policy.') });
             load(true);
         } catch (err) {
-            showError(t('Repair failed'), err);
+            setRepairError(await explainError(err, partners, t, t('Repair failed')));
         } finally {
             setRepairing(false);
         }
@@ -290,7 +368,7 @@ export default function FederationHub() {
                             <IconRefresh size={18} />
                         </ActionIcon>
                     </Tooltip>
-                    <Button className="raven-cta" radius="xl" leftSection={<IconCirclePlus size={16} />} onClick={() => setWizardOpen(true)} disabled={!overview}>
+                    <Button className="raven-cta" radius="xl" leftSection={<IconCirclePlus size={16} />} onClick={() => setWizardOpen(true)} disabled={!overview || down}>
                         {t('Connect a server')}
                     </Button>
                 </Group>
@@ -308,7 +386,7 @@ export default function FederationHub() {
             {loading ? (
                 <Skeleton height={110} radius="lg" />
             ) : overview && (
-                <StatusStrip overview={overview} onRepair={repair} repairing={repairing} />
+                <StatusStrip overview={overview} onRepair={repair} repairing={repairing} repairError={repairError} onRetryRepair={repair} />
             )}
 
             {loading ? (
@@ -316,6 +394,8 @@ export default function FederationHub() {
                     <Skeleton height={240} radius="lg" />
                     <Skeleton height={240} radius="lg" />
                 </SimpleGrid>
+            ) : overview && down ? (
+                <HubDownState overview={overview} onRetry={() => load(true)} />
             ) : partners.length === 0 ? (
                 <Paper className="raven-surface" radius="lg" p="lg">
                     <EmptyState
@@ -345,6 +425,7 @@ export default function FederationHub() {
                             onReconnect={() => reconnect(p)}
                             onRemove={() => { setKeepCa(false); setRemoving(p); }}
                             onToggle={(enabled) => toggle(p, enabled)}
+                            onStopDialling={() => stopDialling(p)}
                         />
                     ))}
                 </SimpleGrid>
@@ -422,12 +503,14 @@ export default function FederationHub() {
                 onClose={() => { setWizardOpen(false); load(true); }}
                 overview={overview}
                 onCreated={() => load(true)}
+                onOpenPartner={openPartner}
             />
 
             <PartnerEditor
                 partner={editing}
                 overview={overview}
                 onClose={() => setEditing(null)}
+                onOpenPartner={openPartner}
                 onSaved={(p) => {
                     if (editing && p?.id) { replacePartner(editing.id, p); }
                     setEditing(null);

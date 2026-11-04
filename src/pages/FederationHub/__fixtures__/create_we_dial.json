@@ -1,0 +1,40 @@
+{
+  "ca": {
+    "expires": "2036-11-01T08:35:18Z",
+    "nickname": "Raven North",
+    "sha256": "e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03",
+    "subject": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US",
+    "uid": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03"
+  },
+  "connections": [],
+  "direction": "we_dial",
+  "enabled": true,
+  "id": "CN=Raven-North-CA,OU=C4Raven-FedHub,O=ZZ,C=US-e193b198c6cdfb37adff22605bdc7642cbc6f04a25ae64ace853b88da29f2b03",
+  "interconnected": false,
+  "kind": "raven_hub",
+  "name": "Raven North",
+  "outgoing": {
+    "enabled": true,
+    "host": "north.example.org",
+    "name": "Raven North_ae6384c0-b75f-4bcb-aef8-c08a4800c750",
+    "port": 9102
+  },
+  "problems": [],
+  "receive": {
+    "allowed": [],
+    "disallowed": [],
+    "type": "allGroups"
+  },
+  "share": {
+    "allowed": [],
+    "disallowed": [],
+    "type": "allGroups"
+  },
+  "status": "waiting",
+  "traffic": {
+    "bytes_in": 0,
+    "bytes_out": 0,
+    "msgs_in": 0,
+    "msgs_out": 0
+  }
+}

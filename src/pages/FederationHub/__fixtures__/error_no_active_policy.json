@@ -1,0 +1,8 @@
+{
+  "code": "no_active_policy",
+  "error": "Federation Hub has no active policy. Activate one of the stored policies (Tak) under Advanced first",
+  "stored_policies": [
+    "Tak"
+  ],
+  "success": false
+}

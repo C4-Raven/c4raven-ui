@@ -1,6 +1,6 @@
 import React from 'react';
-import { Alert, Paper, Select, Stack, Switch, TagsInput, Text } from '@mantine/core';
-import { IconAlertTriangle, IconArrowDownLeft, IconArrowUpRight } from '@tabler/icons-react';
+import { Alert, Button, Group, Paper, Select, Stack, Switch, TagsInput, Text } from '@mantine/core';
+import { IconAlertTriangle, IconArrowDownLeft, IconArrowUpRight, IconBan } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { filterWarnings } from './helpers';
 import { EVERYTHING, type FilterType, type PartnerKind, type ShareFilter } from './types';
@@ -16,7 +16,8 @@ function FilterEditor({ title, description, icon, value, onChange, error, sugges
     warn: boolean;
 }) {
     const { t } = useTranslation();
-    const limited = value.type !== 'allGroups';
+    const blocked = value.type === 'none';
+    const limited = value.type !== 'allGroups' && !blocked;
     const showAllowed = value.type === 'allowed' || value.type === 'allowedAndDisallowed';
     const showBlocked = value.type === 'disallowed' || value.type === 'allowedAndDisallowed';
     return (
@@ -28,7 +29,18 @@ function FilterEditor({ title, description, icon, value, onChange, error, sugges
                     </Text>
                     <Text size="xs" c="dimmed">{description}</Text>
                 </div>
-                <Switch
+                {blocked && (
+                    <Alert color="red" variant="light" icon={<IconBan size={16} />} py="xs" title={t('Nothing flows this way')}>
+                        <Stack gap="xs">
+                            <Text size="xs">{t('The active policy has no rule for this direction, so the hub blocks all of it. Choose Everything to fix it.')}</Text>
+                            <Group gap="xs">
+                                <Button size="xs" radius="xl" color="red" onClick={() => onChange({ ...EVERYTHING })}>{t('Choose Everything')}</Button>
+                                <Button size="xs" radius="xl" variant="subtle" onClick={() => onChange({ type: 'allowed', allowed: [], disallowed: [] })}>{t('Only some groups')}</Button>
+                            </Group>
+                        </Stack>
+                    </Alert>
+                )}
+                {!blocked && <Switch
                     label={limited ? t('Only some groups') : t('Everything')}
                     description={limited
                         ? t('Turn off to share every group again (recommended).')
@@ -37,7 +49,7 @@ function FilterEditor({ title, description, icon, value, onChange, error, sugges
                     onChange={(e) => onChange(e.currentTarget.checked
                         ? { type: 'allowed', allowed: value.allowed, disallowed: value.disallowed }
                         : { ...EVERYTHING })}
-                />
+                />}
                 {limited && (
                     <>
                         <Select

@@ -1,0 +1,6 @@
+{
+  "code": "outgoing_exists",
+  "error": "This hub already connects to 192.0.2.37:9102",
+  "existing_partner_id": "VPN Server_7399fa0c-cbaa-40b6-9c3c-3184959715e5",
+  "success": false
+}

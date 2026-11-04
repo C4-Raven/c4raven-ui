@@ -1,0 +1,5 @@
+{
+  "code": "they_already_dial",
+  "error": "That server is already connected to us, so we mustn't connect to it as well. Choose \"They connect to us\"",
+  "success": false
+}

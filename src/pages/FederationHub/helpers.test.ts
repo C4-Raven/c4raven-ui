@@ -35,7 +35,7 @@ function partner(over: Partial<Partner> = {}): Partner {
         name: 'Raven North',
         kind: 'raven_hub',
         direction: 'we_dial',
-        ca: { uid: 'CN=x-abc', sha256: SHA, subject: 'CN=x', nickname: 'Raven North' },
+        ca: { uid: 'CN=x-abc', sha256: SHA, subject: 'CN=x', nickname: 'Raven North', expires: null },
         outgoing: { name: 'Raven North_1', host: 'north.example.org', port: 9102, enabled: true },
         interconnected: false,
         share: { ...EVERYTHING },
@@ -248,8 +248,13 @@ describe('wizard', () => {
 describe('misc', () => {
     it('summarises checks', () => {
         expect(checksSummary([{ code: 'dns', ok: true }, { code: 'connected', ok: false }])).toEqual({
-            total: 2, passed: 1, failed: ['connected'], connected: false,
+            total: 2, passed: 1, warnings: [], failed: ['connected'], skipped: 0, connected: false,
         });
+        expect(checksSummary([
+            { code: 'dns', ok: true, level: 'skipped' },
+            { code: 'traffic_flowing', ok: false, level: 'warning' },
+            { code: 'connected', ok: true, level: 'ok' },
+        ])).toEqual({ total: 2, passed: 1, warnings: ['traffic_flowing'], failed: [], skipped: 1, connected: true });
     });
     it('explains known problems and humanises unknown ones', () => {
         expect(problemText('own_ca_missing', t)).toContain('own certificate');

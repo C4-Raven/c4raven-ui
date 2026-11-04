@@ -1,0 +1,5 @@
+{
+  "code": "invalid_ca",
+  "error": "That file isn't an X.509 certificate in PEM or DER format",
+  "success": false
+}

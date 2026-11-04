@@ -22,8 +22,8 @@ import axios from '../../../axios_config';
 import FederationPolicyDiagram, { type DiagramRule } from '../../../components/FederationPolicyDiagram';
 import { formatDateTime } from '../../ServerRequests/shared';
 import { endpoints } from './endpoints';
-import { activatePolicy, saveText, savePolicy } from './api';
-import { blankFederation, buildSaveBody, filterWarnings, isPolicyDirty, normalizePolicy, orphanRules, ownCaGroup, parsePolicyJson, policyHasCa, stableStringify } from './helpers';
+import { activatePolicy, errorCode, saveText, savePolicy } from './api';
+import { blankFederation, buildSaveBody, filterWarnings, isPolicyDirty, normalizePolicy, orphanRules, ownCaGroup, parsePolicyJson, policyHasCa, restoreOwnNode, stableStringify } from './helpers';
 import { ActiveBadge, ConfirmModal, notifyFail, notifyOk, useHubData } from './shared';
 import type { Federation, GraphView, PolicyCore } from './types';
 import NodesSection from './policy/NodesSection';
@@ -54,6 +54,9 @@ export default function PolicyTab() {
     const [confirmApply, setConfirmApply] = useState(false);
     const [confirmActivate, setConfirmActivate] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    /** The server refused to apply: own CA node missing (own_ca_missing_from_policy). */
+    const [ownRefused, setOwnRefused] = useState(false);
+    const [confirmForce, setConfirmForce] = useState(false);
 
     const dirty = !!base && (isNew || isPolicyDirty(saved, draft));
     const isActive = !!base && !isNew && base.name === activeName;
@@ -123,19 +126,27 @@ export default function PolicyTab() {
         if (parsed) { setDraftState(parsed); }
     }
 
-    async function doSave(activate: boolean) {
+    async function doSave(activate: boolean, policy: PolicyCore = draft, force = false) {
         if (!base || rawInvalid) { return; }
         setBusy(activate ? 'apply' : 'save');
         try {
-            await savePolicy(base, draft, activate);
+            await savePolicy(base, policy, activate, force);
             notifyOk(activate ? t('Policy saved and applied') : t('Policy saved'), activate ? t('The hub is now enforcing "{{name}}".', { name: base.name, interpolation: { escapeValue: false } }) : t('Saved but not applied. The hub keeps enforcing the active policy until you apply.'));
-            const nextBase = { ...base, policy: draft, views: views ? { graph: views } : base.views };
+            const nextBase = { ...base, policy, views: views ? { graph: views } : base.views };
             setBase(nextBase);
-            setSaved(draft);
+            setSaved(policy);
+            if (policy !== draft) { setDraft(policy); setDiagramKey((k) => k + 1); }
             setIsNew(false);
             setConfirmApply(false);
+            setOwnRefused(false);
+            setConfirmForce(false);
             await reload();
         } catch (err) {
+            if (activate && errorCode(err) === 'own_ca_missing_from_policy') {
+                setConfirmApply(false);
+                setOwnRefused(true);
+                return;
+            }
             notifyFail(activate ? t('Failed to save and apply the policy') : t('Failed to save policy'), err);
         } finally {
             setBusy(null);
@@ -378,6 +389,38 @@ export default function PolicyTab() {
                     <Text size="sm">{t('"{{name}}" replaces "{{active}}" as the active policy. Connections allowed only by "{{active}}" will be dropped.', { name: base.name, active: activeName, interpolation: { escapeValue: false } })}</Text>
                 )}
                 {ownMissing && <Text size="sm" c="red">{t('This hub\'s own CA isn\'t in this policy, so this Raven\'s bridge will be refused.')}</Text>}
+            </ConfirmModal>
+
+            <ConfirmModal
+                opened={ownRefused}
+                onClose={() => setOwnRefused(false)}
+                onConfirm={() => own && doSave(true, restoreOwnNode(draft, own))}
+                loading={busy === 'apply'}
+                title={t('This would cut off this Raven')}
+                confirmLabel={own ? t('Add it back and apply') : t('Close')}
+                color="blue"
+            >
+                <Text size="sm">
+                    {t('The hub refused to apply "{{name}}" because this server\'s own certificate node is missing from it. Without that node the hub refuses this Raven\'s own bridge, so nothing from this server is federated any more.', { name: base?.name ?? '', interpolation: { escapeValue: false } })}
+                </Text>
+                {own
+                    ? <Text size="sm">{t('"Add it back" puts the node "{{own}}" back with rules both ways to every other server in the policy, then applies it.', { own: own.nickname || own.uid, interpolation: { escapeValue: false } })}</Text>
+                    : <Text size="sm" c="red">{t('The hub doesn\'t report its own certificate, so it can\'t be added back from here.')}</Text>}
+                <Button variant="subtle" color="red" size="xs" radius="xl" onClick={() => { setOwnRefused(false); setConfirmForce(true); }}>
+                    {t('Apply without it anyway…')}
+                </Button>
+            </ConfirmModal>
+
+            <ConfirmModal
+                opened={confirmForce}
+                onClose={() => setConfirmForce(false)}
+                onConfirm={() => doSave(true, draft, true)}
+                loading={busy === 'apply'}
+                title={t('Cut off this Raven\'s bridge?')}
+                confirmLabel={t('Apply without our certificate')}
+                requireText="CUT OFF"
+            >
+                <Text size="sm" c="red">{t('The hub will refuse this Raven\'s own bridge as soon as this is applied. Devices on this server stop being federated until a policy with our certificate is applied again.')}</Text>
             </ConfirmModal>
 
             <ConfirmModal opened={confirmActivate} onClose={() => setConfirmActivate(false)} onConfirm={doActivate} loading={busy === 'activate'} title={t('Make this the active policy?')} confirmLabel={t('Apply')} color="blue">
