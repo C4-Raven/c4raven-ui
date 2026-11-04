@@ -7,6 +7,7 @@ import type {
     CaInspect,
     CheckItem,
     DeleteResult,
+    Direction,
     Handoff,
     Overview,
     Partner,
@@ -100,6 +101,19 @@ export function downloadOwnCa() {
     return downloadFile(apiRoutes.fedhubSelfCa, {}, 'federation-hub-ca.pem');
 }
 
-export function downloadHandoff() {
-    return downloadFile(apiRoutes.fedhubHandoff, { format: 'txt' }, 'federation-instructions.txt');
+export interface HandoffOptions {
+    kind?: PartnerKind | null;
+    /** OUR choice; the steps then tell the other admin the opposite. */
+    direction?: Direction;
+    /** An existing partner: its real kind and direction win. */
+    partnerId?: string;
+}
+
+/** The instructions file. With no options it is neutral and says the admins must agree who connects. */
+export function downloadHandoff(opts: HandoffOptions = {}) {
+    const params: Record<string, string> = { format: 'txt' };
+    if (opts.kind) { params.kind = opts.kind; }
+    if (opts.direction) { params.direction = opts.direction; }
+    if (opts.partnerId) { params.partner_id = opts.partnerId; }
+    return downloadFile(apiRoutes.fedhubHandoff, params, 'federation-instructions.txt');
 }

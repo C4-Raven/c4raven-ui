@@ -202,7 +202,7 @@ export default function PartnerEditor({ partner, overview, onClose, onSaved, onO
                 <Group gap="sm">
                     {active === 0 && <Button radius="xl" variant="light" onClick={() => setActive(1)}>{t('Next')}</Button>}
                     <Button radius="xl" className="raven-cta" leftSection={<IconDeviceFloppy size={16} />} loading={saving} onClick={save}>
-                        {t('Save and apply')}
+                        {t('Save & apply')}
                     </Button>
                 </Group>
             </Group>

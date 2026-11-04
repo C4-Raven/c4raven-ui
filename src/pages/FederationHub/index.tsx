@@ -246,6 +246,7 @@ export default function FederationHub() {
     );
 
     const down = hubDown(overview);
+    const handoffActions = useHandoffActions();
 
     function openPartner(id: string) {
         const p = partners.find((x) => x.id === id);
@@ -426,6 +427,7 @@ export default function FederationHub() {
                             onRemove={() => { setKeepCa(false); setRemoving(p); }}
                             onToggle={(enabled) => toggle(p, enabled)}
                             onStopDialling={() => stopDialling(p)}
+                            onInstructions={() => handoffActions.handoff({ partnerId: p.id, kind: p.kind })}
                         />
                     ))}
                 </SimpleGrid>

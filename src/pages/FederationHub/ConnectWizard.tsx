@@ -34,7 +34,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { extractError, formatDateTime, formatRelative } from '../ServerRequests/shared';
-import { createPartner, downloadHandoff, downloadOwnCa, getHandoff, inspectCa } from './api';
+import { createPartner, downloadHandoff, downloadOwnCa, getHandoff, inspectCa, type HandoffOptions } from './api';
 import CheckPanel from './CheckPanel';
 import ConnectStep from './ConnectStep';
 import {
@@ -91,11 +91,12 @@ export function useHandoffActions() {
     });
     return {
         ownCa: () => downloadOwnCa().catch((err) => fail(t('Failed to download our certificate'), err)),
-        handoff: () => downloadHandoff().catch((err) => fail(t('Failed to download the instructions'), err)),
+        handoff: (opts?: HandoffOptions) => downloadHandoff(opts).catch((err) => fail(t('Failed to download the instructions'), err)),
     };
 }
 
-export function HandoffButtons({ size = 'sm' }: { size?: 'xs' | 'sm' }) {
+/** `handoff` makes the instructions specific (kind, our direction or an existing partner); none = neutral. */
+export function HandoffButtons({ size = 'sm', handoff }: { size?: 'xs' | 'sm'; handoff?: HandoffOptions }) {
     const { t } = useTranslation();
     const actions = useHandoffActions();
     return (
@@ -103,7 +104,7 @@ export function HandoffButtons({ size = 'sm' }: { size?: 'xs' | 'sm' }) {
             <Button size={size} variant="light" radius="xl" leftSection={<IconCertificate size={16} />} onClick={actions.ownCa}>
                 {t('Download our CA')}
             </Button>
-            <Button size={size} variant="light" radius="xl" leftSection={<IconDownload size={16} />} onClick={actions.handoff}>
+            <Button size={size} variant="light" radius="xl" leftSection={<IconDownload size={16} />} onClick={() => actions.handoff(handoff)}>
                 {t('Download instructions for the other admin')}
             </Button>
         </Group>
@@ -197,6 +198,9 @@ function CertsStep({ draft, overview, handoff, partners, errors, inspecting, onF
                         </Group>
                     )}
                     <HandoffButtons size="xs" />
+                    <Alert variant="light" color="yellow" icon={<IconAlertTriangle size={16} />} py="xs">
+                        {t('Agree with the other admin which ONE side connects, before either of you finishes. If both connect, the hub drops one of the two connections over and over. You choose it in the next step.')}
+                    </Alert>
                     {steps.length > 0 && (
                         <>
                             <Text size="xs" fw={600} mt={4}>
@@ -286,7 +290,10 @@ function ReviewStep({ draft, overview, ourAddress }: { draft: WizardDraft; overv
                 </List>
             </Paper>
             <Alert variant="light" color="blue" icon={<IconInfoCircle size={16} />}>
-                {t('The other admin still has to do their part. You can download the instructions for them again after connecting.')}
+                <Stack gap="xs">
+                    <Text size="sm">{t('The other admin still has to do their part. These instructions match what you chose here, including who connects:')}</Text>
+                    <HandoffButtons size="xs" handoff={{ kind: draft.kind, direction: draft.direction }} />
+                </Stack>
             </Alert>
         </Stack>
     );
@@ -416,7 +423,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated, on
             {created ? (
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
-                        {t('The partner is saved and active on the hub. These checks re-run every few seconds for up to two minutes.')}
+                        {t('The partner is saved and active on the hub. These checks re-run every 3 seconds for up to two minutes; the hub itself retries every 5 seconds.')}
                     </Text>
                     <CheckPanel partnerId={created.id} poll onResult={onCheck} />
                     {checkState.connected ? (
@@ -429,7 +436,7 @@ export default function ConnectWizard({ opened, onClose, overview, onCreated, on
                                 <Text size="sm">
                                     {t('Your side is ready. If the other admin hasn\'t finished their part yet, send them the instructions. The card on the Federation Hub page turns green when they connect.')}
                                 </Text>
-                                <HandoffButtons size="xs" />
+                                <HandoffButtons size="xs" handoff={{ partnerId: created.id, kind: created.kind }} />
                             </Stack>
                         </Alert>
                     )}

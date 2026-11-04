@@ -694,7 +694,7 @@ export function describeChanges(draft: WizardDraft, ctx: { policy: string | null
     }
     lines.push(t('Add {{name}} to the active policy "{{policy}}", linked both ways to this Raven.', { name, policy: ctx.policy ?? t('(none yet)') }));
     if (draft.direction === 'we_dial') {
-        lines.push(t('This hub starts dialling {{address}} and keeps retrying every few seconds until they answer.', { address: `${draft.host.trim()}:${draft.port}` }));
+        lines.push(t('This hub starts dialling {{address}} and retries every 5 seconds until they answer.', { address: `${draft.host.trim()}:${draft.port}` }));
     } else {
         lines.push(t('Nothing is dialled from here. The hub waits for {{name}} to connect to {{address}}.', { name, address: ctx.ourAddress }));
     }

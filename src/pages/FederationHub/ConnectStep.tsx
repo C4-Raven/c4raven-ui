@@ -80,6 +80,12 @@ export default function ConnectStep({
                 </Group>
             )}
 
+            <Alert variant="light" color="yellow" icon={<IconInfoCircle size={16} />} py="xs">
+                {direction === 'we_dial'
+                    ? t('Tell {{name}}\'s admin: they must choose "They connect to us" (on a TAK Server: no outgoing connection to us).', { name })
+                    : t('Tell {{name}}\'s admin: they must choose "We connect to them" and enter {{address}}.', { name, address: ourAddress || t('our address') })}
+            </Alert>
+
             {direction === 'we_dial' ? (
                 <Paper p="md" className="raven-surface raven-surface--tile">
                     <Stack gap="sm">

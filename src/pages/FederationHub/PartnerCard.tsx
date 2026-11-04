@@ -7,6 +7,7 @@ import {
     IconInfoCircle,
     IconPlugConnectedX,
     IconDots,
+    IconDownload,
     IconPencil,
     IconRefresh,
     IconStethoscope,
@@ -17,7 +18,7 @@ import { directionLabel, formatBytes, formatCount, isUnlinkedOutgoing, problemCo
 import { Fingerprint, KindIcon, StatusBadge } from './parts';
 import type { Partner } from './types';
 
-export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnect, onRemove, onToggle, onStopDialling }: {
+export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnect, onRemove, onToggle, onStopDialling, onInstructions }: {
     partner: Partner;
     busy?: boolean;
     onEdit: () => void;
@@ -31,6 +32,8 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
      * to "They connect to us".
      */
     onStopDialling?: () => void;
+    /** Download the other admin's instructions for this partner (kind and direction as set up). */
+    onInstructions?: () => void;
 }) {
     const { t } = useTranslation();
     const share = shareSummary(partner.share, t);
@@ -176,6 +179,11 @@ export default function PartnerCard({ partner, busy, onEdit, onCheck, onReconnec
                             <Menu.Item leftSection={<IconRefresh size={14} />} onClick={onReconnect} disabled={busy}>
                                 {t('Reconnect')}
                             </Menu.Item>
+                            {onInstructions && (
+                                <Menu.Item leftSection={<IconDownload size={14} />} onClick={onInstructions}>
+                                    {t('Instructions for the other admin')}
+                                </Menu.Item>
+                            )}
                             <Menu.Divider />
                             <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={onRemove}>{t('Remove')}</Menu.Item>
                         </Menu.Dropdown>
