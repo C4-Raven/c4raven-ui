@@ -263,7 +263,7 @@ describe('display helpers', () => {
     });
 
     it('formats fingerprints and masks secrets', () => {
-        expect(formatFingerprint('fd5c14')).toBe('FD:5C:14');
+        expect(formatFingerprint('ab12cd')).toBe('AB:12:CD');
         const m = maskSecret('eyJabcdefghijkWXYZ');
         expect(m).not.toContain('eyJ');
         expect(m.endsWith('WXYZ')).toBe(true);

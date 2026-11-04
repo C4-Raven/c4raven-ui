@@ -28,7 +28,7 @@ import { EVERYTHING, defaultPort, type CaInspect, type Partner } from './types';
 const t = (key: string, opts?: Record<string, unknown>) =>
     key.replace(/\{\{(\w+)\}\}/g, (_, k) => String(opts?.[k] ?? ''));
 
-const SHA = 'fd5c149a00112233445566778899aabbccddeeff00112233445566773e017bc2';
+const SHA = 'ab12cd9a00112233445566778899aabbccddeeff00112233445566773e017bc2';
 
 function partner(over: Partial<Partner> = {}): Partner {
     return {
@@ -81,7 +81,7 @@ function draft(over: Partial<WizardDraft> = {}): WizardDraft {
 }
 
 describe('validateHost', () => {
-    it.each(['fed.example.org', 'tak', '192.168.0.37', 'fe80::1', '[2001:db8::1]', 'a-b.c-d.net', 'host.example.org.'])('accepts %s', (h) => {
+    it.each(['fed.example.org', 'tak', '192.168.10.20', 'fe80::1', '[2001:db8::1]', 'a-b.c-d.net', 'host.example.org.'])('accepts %s', (h) => {
         expect(validateHost(h, t)).toBeUndefined();
     });
     it.each([
@@ -168,8 +168,8 @@ describe('filters', () => {
 
 describe('fingerprints and names', () => {
     it('shortens sha256 to first and last 4 bytes', () => {
-        expect(shortFingerprint(SHA)).toBe('FD:5C:14:9A…3E:01:7B:C2');
-        expect(shortFingerprint(`FD:5C:${  SHA.slice(4)}`)).toBe('FD:5C:14:9A…3E:01:7B:C2');
+        expect(shortFingerprint(SHA)).toBe('AB:12:CD:9A…3E:01:7B:C2');
+        expect(shortFingerprint(`AB:12:${  SHA.slice(4)}`)).toBe('AB:12:CD:9A…3E:01:7B:C2');
     });
     it('reads the CN and ignores the shared Raven CA name (G7)', () => {
         expect(commonName('CN=County-CA,O=County')).toBe('County-CA');

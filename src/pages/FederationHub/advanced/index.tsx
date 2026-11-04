@@ -12,7 +12,7 @@
  *   [x] showError toast (only first failure, axios text)                 -> shared.tsx notifyFail / api.ts errorText (hub raw text) + HubErrorAlert (all failures)
  * 1.2 Header bar
  *   [x] Refresh                                                          -> Advanced header Refresh button
- *   [x] Open Native Admin Panel (hard-coded fed.c4raven.net)             -> Admin access tab, URL from GET /native_url
+ *   [x] Open Native Admin Panel (hard-coded host name)                 -> Admin access tab, URL from GET /native_url
  *   [x] Get Admin Certificate                                            -> Admin access tab
  *   [x] Restart Broker (confirm, fixed 3 s reload)                       -> Broker tab: confirm (G9 note) + polls /overview until reachable
  * 1.3 Status tab

@@ -509,7 +509,7 @@ export function formatCount(n: number | null | undefined, digits = 0): string | 
     return v === null ? null : v.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
-/** "fd5c14..." -> "FD:5C:14:..." */
+/** "ab12cd..." -> "AB:12:CD:..." */
 export function formatFingerprint(hex: string | null | undefined): string {
     if (!hex) { return ''; }
     const clean = hex.replace(/[^0-9a-f]/gi, '').toUpperCase();

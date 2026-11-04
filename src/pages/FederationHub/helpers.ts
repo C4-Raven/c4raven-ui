@@ -190,7 +190,7 @@ export function formatFingerprint(sha256: string | null | undefined): string {
     return (hexOf(sha256).match(/.{1,2}/g) ?? []).join(':');
 }
 
-/** "FD:5C:14:9A…3E:01:7B:C2": enough to compare by eye, full value in the tooltip. */
+/** "AB:12:CD:9A…3E:01:7B:C2": enough to compare by eye, full value in the tooltip. */
 export function shortFingerprint(sha256: string | null | undefined): string {
     const hex = hexOf(sha256);
     if (hex.length <= 16) { return formatFingerprint(hex); }
